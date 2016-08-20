@@ -1,0 +1,60 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{6B1428E4-1D0B-4AB5-A163-E5D8E597D442}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="JDLibComponents.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="DclJDLibComponents.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Test\JDCompsTest.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="JDLibComponents">
+        <MSBuild Projects="JDLibComponents.dproj"/>
+    </Target>
+    <Target Name="JDLibComponents:Clean">
+        <MSBuild Projects="JDLibComponents.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="JDLibComponents:Make">
+        <MSBuild Projects="JDLibComponents.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="DclJDLibComponents">
+        <MSBuild Projects="DclJDLibComponents.dproj"/>
+    </Target>
+    <Target Name="DclJDLibComponents:Clean">
+        <MSBuild Projects="DclJDLibComponents.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DclJDLibComponents:Make">
+        <MSBuild Projects="DclJDLibComponents.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="JDCompsTest">
+        <MSBuild Projects="Test\JDCompsTest.dproj"/>
+    </Target>
+    <Target Name="JDCompsTest:Clean">
+        <MSBuild Projects="Test\JDCompsTest.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="JDCompsTest:Make">
+        <MSBuild Projects="Test\JDCompsTest.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="JDLibComponents;DclJDLibComponents;JDCompsTest"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="JDLibComponents:Clean;DclJDLibComponents:Clean;JDCompsTest:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="JDLibComponents:Make;DclJDLibComponents:Make;JDCompsTest:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
