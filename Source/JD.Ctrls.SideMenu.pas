@@ -1,8 +1,8 @@
-unit JD.Ctrls.LeftToolbar;
+unit JD.Ctrls.SideMenu;
 
 (*
-  JD Left Menu (to change name from "Toolbar" to "Menu")
-  Designed to display a dynamically drawn menu along left with many customizable options
+  JD Side Menu
+  Designed to display a dynamically drawn menu along side with many customizable options
 
   NOTE: Extremely raw code, in beginning stages - Can compile, but in fresh development so not actually working yet.
 
@@ -16,45 +16,45 @@ uses
   Vcl.Controls, Vcl.Graphics;
 
 type
-  TLeftButtonStateProps = class;
-  TLeftToolbar = class;
-  TLeftToolbarItem = class;
-  TLeftToolbarItems = class;
+  TSideButtonStateProps = class;
+  TSideMenu = class;
+  TSideMenuItem = class;
+  TSideMenuItems = class;
 
-  TLeftToolbarBorder = (lbNone, lbRect, lbElipse, lbRoundRect,
+  TSideMenuBorder = (lbNone, lbRect, lbElipse, lbRoundRect,
     lbBtnDown, lbBtnUp, lbBtnHover); //NOTE: "Btn" refers to Windows/VCL styled drawing
 
-  TLeftToolbarState = (lsNormal, lsHover, lsDown, lsClick);
+  TSideMenuState = (lsNormal, lsHover, lsDown, lsClick);
 
-  TLeftToolbarItemEvent = procedure(Sender: TObject; const Item: Integer) of object;
+  TSideMenuItemEvent = procedure(Sender: TObject; const Item: Integer) of object;
 
-  TLeftButtonStateProps = class(TPersistent)
+  TSideButtonStateProps = class(TPersistent)
   private
     FBackColor: TColor;
     FForeColor: TColor;
     FBorderColor: TColor;
-    FBorder: TLeftToolbarBorder;
+    FBorder: TSideMenuBorder;
     FOverlay: TPicture;
     procedure SetBackColor(const Value: TColor);
     procedure SetBorderColor(const Value: TColor);
     procedure SetForeColor(const Value: TColor);
     procedure SetOverlay(const Value: TPicture);
-    procedure SetBorder(const Value: TLeftToolbarBorder);
+    procedure SetBorder(const Value: TSideMenuBorder);
   public
     constructor Create;
     destructor Destroy; override;
     procedure Invalidate;
   published
-    property Border: TLeftToolbarBorder read FBorder write SetBorder;
+    property Border: TSideMenuBorder read FBorder write SetBorder;
     property BackColor: TColor read FBackColor write SetBackColor;
     property ForeColor: TColor read FForeColor write SetForeColor;
     property BorderColor: TColor read FBorderColor write SetBorderColor;
     property Overlay: TPicture read FOverlay write SetOverlay;
   end;
 
-  TLeftToolbarItem = class(TCollectionItem)
+  TSideMenuItem = class(TCollectionItem)
   private
-    FToolbar: TLeftToolbar;
+    FToolbar: TSideMenu;
     FPicture: TPicture;
     FCaption: TCaption;
     FGroupIndex: Integer;
@@ -67,26 +67,26 @@ type
     constructor Create(Collection: TCollection); override;
     destructor Destroy; override;
     function BoundsRect: TRect;
-    function State: TLeftToolbarState;
+    function State: TSideMenuState;
   published
     property Caption: TCaption read FCaption write SetCaption;
     property GroupIndex: Integer read FGroupIndex write SetGroupIndex;
     property Picture: TPicture read FPicture write SetPicture;
   end;
 
-  TLeftToolbarItems = class(TOwnedCollection)
+  TSideMenuItems = class(TOwnedCollection)
   private
-    FToolbar: TLeftToolbar;
-    function GetItem(Index: Integer): TLeftToolbarItem;
-    procedure SetItem(Index: Integer; const Value: TLeftToolbarItem);
+    FToolbar: TSideMenu;
+    function GetItem(Index: Integer): TSideMenuItem;
+    procedure SetItem(Index: Integer; const Value: TSideMenuItem);
   public
-    constructor Create(AOwner: TPersistent; AToolbar: TLeftToolbar); reintroduce;
-    property Items[Index: Integer]: TLeftToolbarItem read GetItem write SetItem; default;
+    constructor Create(AOwner: TPersistent; AToolbar: TSideMenu); reintroduce;
+    property Items[Index: Integer]: TSideMenuItem read GetItem write SetItem; default;
   end;
 
-  TLeftToolbarGroup = class(TCollectionItem)
+  TSideMenuGroup = class(TCollectionItem)
   private
-    FToolbar: TLeftToolbar;
+    FToolbar: TSideMenu;
     FCaption: TCaption;
     procedure SetCaption(const Value: TCaption);
   protected
@@ -100,124 +100,127 @@ type
 
   end;
 
-  TLeftToolbarGroups = class(TOwnedCollection)
+  TSideMenuGroups = class(TOwnedCollection)
   private
-    FToolbar: TLeftToolbar;
-    function GetItem(Index: Integer): TLeftToolbarGroup;
-    procedure SetItem(Index: Integer; const Value: TLeftToolbarGroup);
+    FToolbar: TSideMenu;
+    function GetItem(Index: Integer): TSideMenuGroup;
+    procedure SetItem(Index: Integer; const Value: TSideMenuGroup);
   public
-    constructor Create(AOwner: TPersistent; AToolbar: TLeftToolbar); reintroduce;
-    property Items[Index: Integer]: TLeftToolbarGroup read GetItem write SetItem; default;
+    constructor Create(AOwner: TPersistent; AToolbar: TSideMenu); reintroduce;
+    property Items[Index: Integer]: TSideMenuGroup read GetItem write SetItem; default;
   end;
 
-  TLeftToolbar = class(TCustomControl)
+  TSideMenu = class(TCustomControl)
   private
-    FItems: TLeftToolbarItems;
-    FGroups: TLeftToolbarGroups;
+    FItems: TSideMenuItems;
+    FGroups: TSideMenuGroups;
     FItemIndex: Integer;
     FItemHeight: Integer;
     FHover: Boolean;
-    FStyleDown: TLeftButtonStateProps;
-    FStyleNormal: TLeftButtonStateProps;
-    FStyleClick: TLeftButtonStateProps;
-    FStyleHover: TLeftButtonStateProps;
-    procedure SetItems(const Value: TLeftToolbarItems);
+    FStyleDown: TSideButtonStateProps;
+    FStyleNormal: TSideButtonStateProps;
+    FStyleClick: TSideButtonStateProps;
+    FStyleHover: TSideButtonStateProps;
+    procedure SetItems(const Value: TSideMenuItems);
     procedure SetItemIndex(const Value: Integer);
     procedure SetItemHeight(const Value: Integer);
-    procedure SetStyleClick(const Value: TLeftButtonStateProps);
-    procedure SetStyleDown(const Value: TLeftButtonStateProps);
-    procedure SetStyleHover(const Value: TLeftButtonStateProps);
-    procedure SetStyleNormal(const Value: TLeftButtonStateProps);
-    procedure SetGroups(const Value: TLeftToolbarGroups);
+    procedure SetStyleClick(const Value: TSideButtonStateProps);
+    procedure SetStyleDown(const Value: TSideButtonStateProps);
+    procedure SetStyleHover(const Value: TSideButtonStateProps);
+    procedure SetStyleNormal(const Value: TSideButtonStateProps);
+    procedure SetGroups(const Value: TSideMenuGroups);
   protected
-    procedure WMPaint(var Msg: TMessage); message WM_PAINT;
+    procedure Paint; override;
     procedure CMHitTest(var Msg: TWMNCHitTest); message WM_NCHITTEST;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
   published
+    property Align;
     property Color;
     property Font;
-    property Groups: TLeftToolbarGroups read FGroups write SetGroups;
-    property Items: TLeftToolbarItems read FItems write SetItems;
+    property Groups: TSideMenuGroups read FGroups write SetGroups;
+    property Height;
+    property Items: TSideMenuItems read FItems write SetItems;
     property ItemIndex: Integer read FItemIndex write SetItemIndex;
     property ItemHeight: Integer read FItemHeight write SetItemHeight;
     property ParentColor;
     property ParentFont;
-    property StyleNormal: TLeftButtonStateProps read FStyleNormal write SetStyleNormal;
-    property StyleHover: TLeftButtonStateProps read FStyleHover write SetStyleHover;
-    property StyleClick: TLeftButtonStateProps read FStyleClick write SetStyleClick;
-    property StyleDown: TLeftButtonStateProps read FStyleDown write SetStyleDown;
+    property StyleNormal: TSideButtonStateProps read FStyleNormal write SetStyleNormal;
+    property StyleHover: TSideButtonStateProps read FStyleHover write SetStyleHover;
+    property StyleClick: TSideButtonStateProps read FStyleClick write SetStyleClick;
+    property StyleDown: TSideButtonStateProps read FStyleDown write SetStyleDown;
+    property Visible;
     property Width;
   end;
 
 implementation
 
-{ TLeftButtonStateProps }
+{ TSideButtonStateProps }
 
-constructor TLeftButtonStateProps.Create;
+constructor TSideButtonStateProps.Create;
 begin
   FOverlay:= TPicture.Create;
 end;
 
-destructor TLeftButtonStateProps.Destroy;
+destructor TSideButtonStateProps.Destroy;
 begin
   FOverlay.Free;
   inherited;
 end;
 
-procedure TLeftButtonStateProps.Invalidate;
+procedure TSideButtonStateProps.Invalidate;
 begin
   //TODO
 end;
 
-procedure TLeftButtonStateProps.SetBackColor(const Value: TColor);
+procedure TSideButtonStateProps.SetBackColor(const Value: TColor);
 begin
   FBackColor := Value;
   Invalidate;
 end;
 
-procedure TLeftButtonStateProps.SetBorder(const Value: TLeftToolbarBorder);
+procedure TSideButtonStateProps.SetBorder(const Value: TSideMenuBorder);
 begin
   FBorder := Value;
   Invalidate;
 end;
 
-procedure TLeftButtonStateProps.SetBorderColor(const Value: TColor);
+procedure TSideButtonStateProps.SetBorderColor(const Value: TColor);
 begin
   FBorderColor := Value;
   Invalidate;
 end;
 
-procedure TLeftButtonStateProps.SetForeColor(const Value: TColor);
+procedure TSideButtonStateProps.SetForeColor(const Value: TColor);
 begin
   FForeColor := Value;
   Invalidate;
 end;
 
-procedure TLeftButtonStateProps.SetOverlay(const Value: TPicture);
+procedure TSideButtonStateProps.SetOverlay(const Value: TPicture);
 begin
   FOverlay := Value;
   Invalidate;
 end;
 
-{ TLeftToolbarItem }
+{ TSideMenuItem }
 
-constructor TLeftToolbarItem.Create(Collection: TCollection);
+constructor TSideMenuItem.Create(Collection: TCollection);
 begin
   inherited;
   FPicture:= TPicture.Create;
-  FToolbar:= TLeftToolbarItems(Collection).FToolbar;
+  FToolbar:= TSideMenuItems(Collection).FToolbar;
 end;
 
-destructor TLeftToolbarItem.Destroy;
+destructor TSideMenuItem.Destroy;
 begin
 
   FPicture.Free;
   inherited;
 end;
 
-function TLeftToolbarItem.GetDisplayName: String;
+function TSideMenuItem.GetDisplayName: String;
 begin
   if Trim(FCaption) <> '' then
     Result:= FCaption
@@ -225,34 +228,34 @@ begin
     inherited;
 end;
 
-procedure TLeftToolbarItem.SetCaption(const Value: TCaption);
+procedure TSideMenuItem.SetCaption(const Value: TCaption);
 begin
   FCaption := Value;
   FToolbar.Invalidate;
 end;
 
-procedure TLeftToolbarItem.SetGroupIndex(const Value: Integer);
+procedure TSideMenuItem.SetGroupIndex(const Value: Integer);
 begin
   FGroupIndex := Value;
   FToolbar.Invalidate;
 end;
 
-procedure TLeftToolbarItem.SetPicture(const Value: TPicture);
+procedure TSideMenuItem.SetPicture(const Value: TPicture);
 begin
   FPicture.Assign(Value);
   FToolbar.Invalidate;
 end;
 
-function TLeftToolbarItem.State: TLeftToolbarState;
+function TSideMenuItem.State: TSideMenuState;
 begin
-  Result:= TLeftToolbarState.lsNormal;
+  Result:= TSideMenuState.lsNormal;
   if FToolbar.FItemIndex = Self.Index then
-    Result:= TLeftToolbarState.lsDown;
+    Result:= TSideMenuState.lsDown;
   //TODO: Detect if mouse is currently over or clicked on
 
 end;
 
-function TLeftToolbarItem.BoundsRect: TRect;
+function TSideMenuItem.BoundsRect: TRect;
 var
   T: Integer;
 begin
@@ -261,40 +264,40 @@ begin
   Result:= Rect(0, T, FToolbar.ClientWidth, T + FToolbar.ItemHeight);
 end;
 
-{ TLeftToolbarItems }
+{ TSideMenuItems }
 
-constructor TLeftToolbarItems.Create(AOwner: TPersistent; AToolbar: TLeftToolbar);
+constructor TSideMenuItems.Create(AOwner: TPersistent; AToolbar: TSideMenu);
 begin
-  inherited Create(AOwner, TLeftToolbarItem);
+  inherited Create(AOwner, TSideMenuItem);
   FToolbar:= AToolbar;
 end;
 
-function TLeftToolbarItems.GetItem(Index: Integer): TLeftToolbarItem;
+function TSideMenuItems.GetItem(Index: Integer): TSideMenuItem;
 begin
-  Result:= TLeftToolbarItem(inherited Items[Index]);
+  Result:= TSideMenuItem(inherited Items[Index]);
 end;
 
-procedure TLeftToolbarItems.SetItem(Index: Integer;
-  const Value: TLeftToolbarItem);
+procedure TSideMenuItems.SetItem(Index: Integer;
+  const Value: TSideMenuItem);
 begin
   inherited Items[Index]:= Value;
 end;
 
-{ TLeftToolbarGroup }
+{ TSideMenuGroup }
 
-constructor TLeftToolbarGroup.Create(Collection: TCollection);
+constructor TSideMenuGroup.Create(Collection: TCollection);
 begin
   inherited;
-  FToolbar:= TLeftToolbarGroups(Collection).FToolbar;
+  FToolbar:= TSideMenuGroups(Collection).FToolbar;
 end;
 
-destructor TLeftToolbarGroup.Destroy;
+destructor TSideMenuGroup.Destroy;
 begin
 
   inherited;
 end;
 
-function TLeftToolbarGroup.GetDisplayName: String;
+function TSideMenuGroup.GetDisplayName: String;
 begin
   if Trim(FCaption) <> '' then
     Result:= FCaption
@@ -302,70 +305,70 @@ begin
     inherited;
 end;
 
-procedure TLeftToolbarGroup.SetCaption(const Value: TCaption);
+procedure TSideMenuGroup.SetCaption(const Value: TCaption);
 begin
   FCaption := Value;
   FToolbar.Invalidate;
 end;
 
-function TLeftToolbarGroup.BoundsRect: TRect;
+function TSideMenuGroup.BoundsRect: TRect;
 begin
   //TODO: Return rect representing group header display
 
 end;
 
-{ TLeftToolbarGroups }
+{ TSideMenuGroups }
 
-constructor TLeftToolbarGroups.Create(AOwner: TPersistent;
-  AToolbar: TLeftToolbar);
+constructor TSideMenuGroups.Create(AOwner: TPersistent;
+  AToolbar: TSideMenu);
 begin
-  inherited Create(AOwner, TLeftToolbarGroup);
+  inherited Create(AOwner, TSideMenuGroup);
   FToolbar:= AToolbar;
 end;
 
-function TLeftToolbarGroups.GetItem(Index: Integer): TLeftToolbarGroup;
+function TSideMenuGroups.GetItem(Index: Integer): TSideMenuGroup;
 begin
-  Result:= TLeftToolbarGroup(inherited Items[Index]);
+  Result:= TSideMenuGroup(inherited Items[Index]);
 end;
 
-procedure TLeftToolbarGroups.SetItem(Index: Integer;
-  const Value: TLeftToolbarGroup);
+procedure TSideMenuGroups.SetItem(Index: Integer;
+  const Value: TSideMenuGroup);
 begin
   inherited Items[Index]:= Value;
 end;
 
-{ TLeftToolbar }
+{ TSideMenu }
 
-constructor TLeftToolbar.Create(AOwner: TComponent);
+constructor TSideMenu.Create(AOwner: TComponent);
 begin
   inherited;
-  FItems:= TLeftToolbarItems.Create(Self, Self);
-  FGroups:= TLeftToolbarGroups.Create(Self, Self);
+  FItems:= TSideMenuItems.Create(Self, Self);
+  FGroups:= TSideMenuGroups.Create(Self, Self);
 
   ParentColor:= False;
   Color:= clBtnFace;
 
   FHover:= False;
 
-  FStyleDown:= TLeftButtonStateProps.Create;
+  FStyleDown:= TSideButtonStateProps.Create;
   FStyleDown.FBackColor:= Color;
   FStyleDown.FForeColor:= Color;
   FStyleDown.FBorderColor:= clRed;
   FStyleDown.Border:= lbRect;
 
-  FStyleNormal:= TLeftButtonStateProps.Create;
+  FStyleNormal:= TSideButtonStateProps.Create;
   FStyleNormal.FBackColor:= Color;
   FStyleNormal.FForeColor:= Color;
   FStyleNormal.FBorderColor:= Color;
   FStyleNormal.Border:= lbNone;
 
-  FStyleClick:= TLeftButtonStateProps.Create;
+  FStyleClick:= TSideButtonStateProps.Create;
   FStyleClick.FBackColor:= Color;
   FStyleClick.FForeColor:= Color;
   FStyleClick.FBorderColor:= clBlue;
   FStyleClick.Border:= lbRect;
 
-  FStyleHover:= TLeftButtonStateProps.Create;
+  FStyleHover:= TSideButtonStateProps.Create;
   FStyleHover.FBackColor:= Color;
   FStyleHover.FForeColor:= Color;
   FStyleHover.FBorderColor:= clSkyBlue;
@@ -378,7 +381,7 @@ begin
 
 end;
 
-destructor TLeftToolbar.Destroy;
+destructor TSideMenu.Destroy;
 begin
 
   FGroups.Free;
@@ -386,60 +389,60 @@ begin
   inherited;
 end;
 
-procedure TLeftToolbar.SetGroups(const Value: TLeftToolbarGroups);
+procedure TSideMenu.SetGroups(const Value: TSideMenuGroups);
 begin
   FGroups := Value;
   Invalidate;
 end;
 
-procedure TLeftToolbar.SetItemHeight(const Value: Integer);
+procedure TSideMenu.SetItemHeight(const Value: Integer);
 begin
   FItemHeight := Value;
   Invalidate;
 end;
 
-procedure TLeftToolbar.SetItemIndex(const Value: Integer);
+procedure TSideMenu.SetItemIndex(const Value: Integer);
 begin
   FItemIndex := Value;
   Invalidate;
 end;
 
-procedure TLeftToolbar.SetItems(const Value: TLeftToolbarItems);
+procedure TSideMenu.SetItems(const Value: TSideMenuItems);
 begin
   FItems.Assign(Value);
   Invalidate;
 end;
 
-procedure TLeftToolbar.SetStyleClick(const Value: TLeftButtonStateProps);
+procedure TSideMenu.SetStyleClick(const Value: TSideButtonStateProps);
 begin
   FStyleClick.Assign(Value);
   Invalidate;
 end;
 
-procedure TLeftToolbar.SetStyleDown(const Value: TLeftButtonStateProps);
+procedure TSideMenu.SetStyleDown(const Value: TSideButtonStateProps);
 begin
   FStyleDown.Assign(Value);
   Invalidate;
 end;
 
-procedure TLeftToolbar.SetStyleHover(const Value: TLeftButtonStateProps);
+procedure TSideMenu.SetStyleHover(const Value: TSideButtonStateProps);
 begin
   FStyleHover.Assign(Value);
   Invalidate;
 end;
 
-procedure TLeftToolbar.SetStyleNormal(const Value: TLeftButtonStateProps);
+procedure TSideMenu.SetStyleNormal(const Value: TSideButtonStateProps);
 begin
   FStyleNormal.Assign(Value);
   Invalidate;
 end;
 
-procedure TLeftToolbar.CMHitTest(var Msg: TWMNCHitTest);
+procedure TSideMenu.CMHitTest(var Msg: TWMNCHitTest);
 var
   X: Integer;
   P: TPoint;
-  I: TLeftToolbarItem;
-  G: TLeftToolbarGroup;
+  I: TSideMenuItem;
+  G: TSideMenuGroup;
   H: Boolean;
 begin
   //TODO: Detect if point is within a certain item
@@ -477,12 +480,12 @@ begin
 
 end;
 
-procedure TLeftToolbar.WMPaint(var Msg: TMessage);
+procedure TSideMenu.Paint;
 var
   C: TCanvas;
   B: TBrush;
   P: TPen;
-  I: TLeftToolbarItem;
+  I: TSideMenuItem;
   X: Integer;
   R, IR, CR: TRect; //TODO: Move IR and CR to item class
 

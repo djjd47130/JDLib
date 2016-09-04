@@ -451,6 +451,7 @@ object frmSearchView: TfrmSearchView
         Top = 0
         Width = 56
         Height = 41
+        Cursor = crHandPoint
         Align = alRight
         DrawStyle = fdHybrid
         Font.Charset = DEFAULT_CHARSET
@@ -481,6 +482,7 @@ object frmSearchView: TfrmSearchView
         Top = 0
         Width = 56
         Height = 41
+        Cursor = crHandPoint
         Align = alRight
         DrawStyle = fdHybrid
         Font.Charset = DEFAULT_CHARSET
@@ -505,6 +507,37 @@ object frmSearchView: TfrmSearchView
         TabStop = False
         Text = 'Previous'
         OnClick = btnPrevClick
+      end
+      object btnFilter: TFontButton
+        Left = 466
+        Top = 0
+        Width = 56
+        Height = 41
+        Cursor = crHandPoint
+        Align = alRight
+        DrawStyle = fdHybrid
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWhite
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        Image.AutoSize = False
+        Image.Text = #61616
+        Image.Font.Charset = ANSI_CHARSET
+        Image.Font.Color = clLime
+        Image.Font.Height = -21
+        Image.Font.Name = 'FontAwesome'
+        Image.Font.Style = []
+        Image.Font.Quality = fqAntialiased
+        Image.UseStandardColor = False
+        ImagePosition = fpImgOnly
+        Margin = 8
+        Spacing = 8
+        StyleColors = [scBack, scFrame]
+        TabOrder = 2
+        TabStop = False
+        Text = 'Previous'
+        ExplicitLeft = 522
       end
     end
     object Results: TImageGrid

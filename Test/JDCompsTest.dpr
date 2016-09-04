@@ -9,7 +9,10 @@ uses
   uSettings in 'uSettings.pas' {frmSettings},
   uInventoryList in 'uInventoryList.pas' {frmInventoryList},
   uCustomerList in 'uCustomerList.pas' {frmCustomerList},
-  uContentForm in 'uContentForm.pas' {frmContent};
+  uContentForm in 'uContentForm.pas' {frmContent},
+  RMP.BusinessObjects in 'RMP.BusinessObjects.pas',
+  Vcl.Styles.Utils.Graphics in '..\..\..\vcl-styles-utils-master\Common\Vcl.Styles.Utils.Graphics.pas',
+  RMP.FormHistory in 'RMP.FormHistory.pas';
 
 {$R *.res}
 

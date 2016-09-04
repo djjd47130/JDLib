@@ -5,7 +5,7 @@
         <FrameworkType>VCL</FrameworkType>
         <MainSource>JDCompsTest.dpr</MainSource>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Debug</Config>
+        <Config Condition="'$(Config)'==''">Release</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
         <TargetedPlatforms>1</TargetedPlatforms>
         <AppType>Application</AppType>
@@ -124,6 +124,9 @@
             <Form>frmContent</Form>
             <FormType>dfm</FormType>
         </DCCReference>
+        <DCCReference Include="RMP.BusinessObjects.pas"/>
+        <DCCReference Include="..\..\..\vcl-styles-utils-master\Common\Vcl.Styles.Utils.Graphics.pas"/>
+        <DCCReference Include="RMP.FormHistory.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -152,6 +155,12 @@
             </Delphi.Personality>
             <Deployment Version="2">
                 <DeployFile LocalName="Win32\Debug\JDCompsTest.exe" Configuration="Debug" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>JDCompsTest.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Win32\Release\JDCompsTest.exe" Configuration="Release" Class="ProjectOutput">
                     <Platform Name="Win32">
                         <RemoteName>JDCompsTest.exe</RemoteName>
                         <Overwrite>true</Overwrite>

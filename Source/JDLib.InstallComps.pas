@@ -5,7 +5,7 @@ interface
 uses
   System.Classes,
   JD.Ctrls.FontButton,
-  JD.Ctrls.LeftToolbar,
+  JD.Ctrls.SideMenu,
   JD.SmoothMove,
   JD.PageMenu,
   JD.ImageGrid;
@@ -17,7 +17,7 @@ implementation
 procedure Register;
 begin
   RegisterComponents('JD Components',
-    [TFontButton, TSmoothMove, TPageMenu, TImageGrid, TLeftToolbar]);
+    [TFontButton, TSmoothMove, TPageMenu, TImageGrid, TSideMenu]);
 end;
 
 end.

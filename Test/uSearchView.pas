@@ -52,6 +52,7 @@ type
     Results: TImageGrid;
     imgDefault: TImage;
     lblPage: TLabel;
+    btnFilter: TFontButton;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure ResultsDrawCell(Sender: TCustomImageGrid; Index, ACol,
@@ -339,39 +340,28 @@ const
 var
   C: TCanvas;
   Res: TSearchResult;
-
   FCap: UINT;
   FDet: UINT;
   FImg: UINT;
-
   DispRect, CR, IR, DR: TRect;
-
   function CaptionRect: TRect;
   begin
     Result:= Rect(DispRect.Left, DispRect.Top, DispRect.Right, DispRect.Top + 20);
   end;
-
   function ImageRect: TRect;
   begin
     Result:= Rect(DispRect.Left, CaptionRect.Bottom, DispRect.Right, DispRect.Bottom - 60);
   end;
-
   function DetailRect: TRect;
   begin
     Result:= Rect(DispRect.Left, ImageRect.Bottom, DispRect.Right, DispRect.Bottom);
   end;
-
 begin
   C:= Results.Canvas;
   Res:= TSearchResult(Results.Items.Objects[Index]);
-
   DispRect:= R;
   InflateRect(DispRect, -SPACING, -SPACING);
-
-  //InflateRect(R, -1, -1);
-
   C.Font.Assign(Font);
-
   C.Brush.Style:= bsSolid;
   C.Brush.Color:= clBlack;
   C.Pen.Style:= psSolid;
@@ -382,26 +372,19 @@ begin
     C.Pen.Color:= clBlack;
   end;
   C.Rectangle(R);
-
   C.Brush.Style:= bsClear;
   C.Pen.Style:= psClear;
-
   CR:= CaptionRect;
   InflateRect(CR, -2, -2);
-
   IR:=ImageRect;
   InflateRect(IR, -2, -2);
-
   DR:= DetailRect;
   InflateRect(DR, -2, -2);
-
   FCap:= DT_CENTER or DT_VCENTER;
   FDet:= DT_CENTER or DT_VCENTER or DT_WORDBREAK;
   FImg:= DT_CENTER or DT_VCENTER or DT_WORDBREAK;
-
   C.Font.Assign(Results.CaptionFont);
   DrawText(C.Handle, PChar(Res.FCaption), Length(Res.FCaption), CR, FCap);
-
   if Res.FBitmap.Width > 0 then begin
     C.StretchDraw(IR, Res.FBitmap);
   end else begin
@@ -409,11 +392,8 @@ begin
     C.Font.Size:= 16;
     DrawText(C.Handle, PChar('No Image'), Length('No Image'), IR, FImg);
   end;
-
   C.Font.Assign(Results.DetailFont);
   DrawText(C.Handle, PChar(Res.FDetail), Length(Res.FDetail), DR, FDet);
-
-
 end;
 
 procedure TfrmSearchView.ResultsMouseUp(Sender: TObject; Button: TMouseButton;

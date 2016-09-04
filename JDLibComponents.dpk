@@ -38,6 +38,7 @@ contains
   JD.SmoothMove in 'Source\JD.SmoothMove.pas',
   JD.PageMenu in 'Source\JD.PageMenu.pas',
   JD.ImageGrid in 'Source\JD.ImageGrid.pas',
-  JD.Ctrls.LeftToolbar in 'Source\JD.Ctrls.LeftToolbar.pas';
+  JD.Ctrls.SideMenu in 'Source\JD.Ctrls.SideMenu.pas',
+  JD.Sockets in 'Source\JD.Sockets.pas';
 
 end.
