@@ -5,12 +5,15 @@ interface
 uses
   Winapi.Windows, Winapi.Messages,
   System.SysUtils, System.Variants, System.Classes,
+  System.UITypes,
   JD.SmoothMove, JD.PageMenu, JD.Ctrls.FontButton, JD.Ctrls.SideMenu,
   uContentForm,
+  RMP.Globals,
   uSettings,
   uInventoryList,
   uCustomerList,
   RMP.BusinessObjects,
+  JD.FormHistory,
   Vcl.Themes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls,
   Vcl.StdCtrls, Vcl.WinXCtrls, Vcl.AppEvnts, Vcl.ComCtrls,
@@ -34,6 +37,9 @@ const
 
   BOTTOM_MIN_POS = 40;
   BOTTOM_MAX_POS = 60;
+
+  POPUP_MIN_POS = 0;
+  POPUP_MAX_POS = 150;
 
 type
   TfrmTestMain = class(TForm)
@@ -109,7 +115,7 @@ type
     smPopup: TSmoothMove;
     TabSheet8: TTabSheet;
     pPopup: TPanel;
-    Panel1: TPanel;
+    pNewInvoice: TPanel;
     FontButton31: TFontButton;
     FontButton32: TFontButton;
     FontButton33: TFontButton;
@@ -126,7 +132,6 @@ type
     procedure btnBottomMenuClick(Sender: TObject);
     procedure smSubMenuValue(Sender: TObject; const Position: Double);
     procedure btnSettingsClick(Sender: TObject);
-    procedure btnCollapseSubMenuClick(Sender: TObject);
     procedure btnCurrentLocationClick(Sender: TObject);
     procedure pLeftResize(Sender: TObject);
     procedure FormResize(Sender: TObject);
@@ -144,25 +149,21 @@ type
     procedure btnPOSClick(Sender: TObject);
     procedure tmrPopupTimer(Sender: TObject);
     procedure smPopupValue(Sender: TObject; const Position: Double);
-    procedure btnCustomerListMouseEnter(Sender: TObject);
-    procedure pPopupMouseEnter(Sender: TObject);
-    procedure pPopupMouseLeave(Sender: TObject);
-    procedure FontButton30MouseLeave(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure FontButton26MouseEnter(Sender: TObject);
+    procedure FontButton26MouseLeave(Sender: TObject);
   private
+    FHist: TFormHistory;
     FShowMainMenu: Boolean;
     FShowSubMenu: Boolean;
     FShowBottomMenu: Boolean;
+    FShowPopup: Boolean;
     FSettings: TfrmSettings;
     FInventoryList: TfrmInventoryList;
     FCustomerList: TfrmCustomerList;
     FLocations: TLocations;
     FNCControls: TNCControls;
     FPopupControl: TControl;
-    FMouseInPopup: Boolean;
-    FCloseButton: TNCButton;
-    FMaxButton: TNCButton;
-    FMinButton: TNCButton;
     FBackButton: TNCButton;
     procedure HideSubMenuPanels;
     procedure PositionSubMenu;
@@ -170,12 +171,13 @@ type
     procedure LoadReg;
     procedure LoadLocations;
     procedure SetupTitleBar;
-    procedure HidePopup;
     procedure btnCloseClick(Sender: TObject);
     procedure PositionSystemButtons;
     procedure btnBackClick(Sender: TObject);
     procedure btnMaxClick(Sender: TObject);
     procedure btnMinClick(Sender: TObject);
+    procedure HistShowForm(Sender: TFormHistory; Item: TFormHistoryItem);
+    procedure HideMenus;
   public
     procedure ShowMainMenu(const Force: Boolean = False);
     procedure HideMainMenu(const Force: Boolean = False);
@@ -183,6 +185,8 @@ type
     procedure HideSubMenu(const Force: Boolean = False);
     procedure ShowBottomMenu(const Force: Boolean = False);
     procedure HideBottomMenu(const Force: Boolean = False);
+    procedure ShowPopup(const Force: Boolean = False);
+    procedure HidePopup;
     function ShowContent(AForm: TfrmContent; const AClass: TfrmContentClass): TfrmContent;
   end;
 
@@ -220,7 +224,10 @@ procedure TfrmTestMain.FormCreate(Sender: TObject);
 begin
   FNCControls:= TNCControls.Create(Self);
   FNCControls.ShowCaption:= False;
-  //FNCControls.ShowSystemMenu:= True;
+  FNCControls.ShowSystemMenu:= False;
+
+  FHist:= TFormHistory.Create(nil);
+  FHist.OnShowForm:= HistShowForm;
 
   smLeftMenu.Value:= LEFT_MIN_POS;
   smLeftMenu.Reset;
@@ -258,7 +265,31 @@ begin
   FInventoryList.Free;
   FCustomerList.Free;
 
+  FHist.Free;
+
   FSettings.Free;
+end;
+
+procedure TfrmTestMain.HistShowForm(Sender: TFormHistory; Item: TFormHistoryItem);
+begin
+  //TODO: Show relevant form
+  //Self.ShowContent()
+  if Assigned(Item) then begin
+    if Assigned(Item.Form) then begin
+      //Show form in content box
+      Item.Form.Parent:= pContent;
+      Item.Form.BorderStyle:= bsNone;
+      Item.Form.Align:= alClient;
+      Item.Form.Show;
+      Item.Form.BringToFront;
+    end else begin
+      //No form assigned
+
+    end;
+  end else begin
+    //No item assigned
+
+  end;
 end;
 
 procedure TfrmTestMain.SetupTitleBar;
@@ -273,40 +304,19 @@ var
     ABtn.FontColor:= clWhite;
     ABtn.HotFontColor:= clWhite;
     ABtn.AlphaValue:= 255;
-    ABtn.AlphaColor:= $00151515; // Clr; // FNCControls.StyleServices.GetStyleColor(TStyleColor.scWindow);
+    ABtn.AlphaColor:= $00151515;
     ABtn.AlphaHotColor:= $003C3C3C;
   end;
 begin
   FNCControls.ButtonsList.Clear;
+  FNCControls.ShowCaption:= True;
 
   Clr:= FNCControls.StyleServices.GetStyleColor(TStyleColor.scButtonHot);
-
-  //FNCControls.StyleServices.GetElementColor(
-    //FNCControls.StyleServices.GetElementDetails(twCaptionActive), ecFillColor, Clr);
 
   FBackButton:= FNCControls.ButtonsList.Add;
   PrepButton(FBackButton);
   FBackButton.ImageIndex:= fa_chevron_left;
   FBackButton.OnClick:= btnBackClick;
-
-  FCloseButton:= FNCControls.ButtonsList.Add;
-  PrepButton(FCloseButton);
-  FCloseButton.AlphaHotColor:= clRed;
-  FCloseButton.ImageIndex:= fa_remove;
-  FCloseButton.OnClick:= btnCloseClick;
-
-  FMaxButton:= FNCControls.ButtonsList.Add;
-  PrepButton(FMaxButton);
-  if Self.WindowState = TWindowState.wsMaximized then
-    FMaxButton.ImageIndex:= fa_compress
-  else
-    FMaxButton.ImageIndex:= fa_expand;
-  FMaxButton.OnClick:= btnMaxClick;
-
-  FMinButton:= FNCControls.ButtonsList.Add;
-  PrepButton(FMinButton);
-  FMinButton.ImageIndex:= fa_minus;
-  FMinButton.OnClick:= btnMinClick;
 
   PositionSystemButtons;
 end;
@@ -326,7 +336,7 @@ end;
 
 procedure TfrmTestMain.btnBackClick(Sender: TObject);
 begin
-
+  FHist.GoBack;
 end;
 
 procedure TfrmTestMain.btnCloseClick(Sender: TObject);
@@ -353,9 +363,6 @@ begin
   if Assigned(FNCControls) then begin
     if FNCControls.ButtonsCount > 0 then begin
       FBackButton.BoundsRect := Rect(0, 0, 45, 32);
-      FCloseButton.BoundsRect := Rect(Width - 40, 0, Width, 32);
-      FMaxButton.BoundsRect := Rect(Width - 80, 0, Width-40, 32);
-      FMinButton.BoundsRect := Rect(Width - 120, 0, Width-80, 32);
     end;
   end;
 end;
@@ -383,7 +390,7 @@ begin
       MessageDlg('You are already in location "'+C+'".', mtInformation,
         [mbOK], 0);
     end else begin
-      smSubMenu.Value:= SUB_MIN_POS;
+      HideMenus;
       case MessageDlg('Change location from "'+C+'" to "'+N+'"?',
         mtConfirmation, [mbYes,mbNo], 0)
       of
@@ -399,49 +406,63 @@ begin
   end;
 end;
 
+procedure TfrmTestMain.HideMenus;
+begin
+  HideMainMenu;
+  HideSubMenu;
+  HideBottomMenu;
+  HidePopup;
+end;
+
 procedure TfrmTestMain.btnInventoryListClick(Sender: TObject);
 begin
-  HideSubMenu;
-
+  HideMenus;
   FInventoryList:= TfrmInventoryList(ShowContent(FInventoryList, TfrmInventoryList));
   FInventoryList.Qry.Connection:= DB;
-
-  {
-  if FInventoryList = nil then begin
-    FInventoryList:= TfrmInventoryList.Create(nil);
-    FInventoryList.Parent:= pContent;
-    FInventoryList.Align:= alClient;
-    FInventoryList.Qry.Connection:= DB;
-  end;
-  FInventoryList.Show;
-  FInventoryList.BringToFront;
-  }
 end;
 
 procedure TfrmTestMain.btnCustomerListClick(Sender: TObject);
 begin
-  HideSubMenu;
-
+  HideMenus;
   FCustomerList:= TfrmCustomerList(ShowContent(FCustomerList, TfrmCustomerList));
   FCustomerList.Qry.Connection:= DB;
-
-  {
-  if FCustomerList = nil then begin
-    FCustomerList:= TfrmCustomerList.Create(nil);
-    FCustomerList.Parent:= pContent;
-    FCustomerList.Align:= alClient;
-    FCustomerList.Qry.Connection:= DB;
-  end;
-  FCustomerList.Show;
-  FCustomerList.BringToFront;
-  }
 end;
 
-procedure TfrmTestMain.btnCustomerListMouseEnter(Sender: TObject);
+procedure TfrmTestMain.FontButton26MouseEnter(Sender: TObject);
+var
+  X, H: Integer;
 begin
+  tmrPopup.Enabled:= False;
   FPopupControl:= TControl(Sender);
-  Self.tmrPopup.Enabled:= False;
-  Self.tmrPopup.Enabled:= True;
+  pNewInvoice.Parent:= pPopup;
+  pNewInvoice.Align:= alClient;
+  H:= 0;
+  for X := 0 to pNewInvoice.ControlCount-1 do begin
+    H:= H + pNewInvoice.Controls[X].Height;
+  end;
+  if H > 0 then
+    pPopup.Height:= H
+  else
+    pPopup.Height:= 200;
+  pNewInvoice.Show;
+  pNewInvoice.BringToFront;
+  tmrPopup.Enabled:= True;
+end;
+
+procedure TfrmTestMain.FontButton26MouseLeave(Sender: TObject);
+var
+  C: TControl;
+  R: TRect;
+  P: TPoint;
+begin
+  C:= TControl(Sender);
+  P:= Mouse.CursorPos;
+  R.TopLeft:= C.ClientToScreen(Point(0, 0));
+  R.Width:= C.Width;
+  R.Height:= C.Height;
+  if not PtInRect(R, P) then begin
+    HidePopup;
+  end;
 end;
 
 procedure TfrmTestMain.FontButton2Click(Sender: TObject);
@@ -458,14 +479,6 @@ begin
   pPopup.Visible:= False;
   pPopup.Width:= 0;
   smPopup.Value:= 0;
-end;
-
-procedure TfrmTestMain.FontButton30MouseLeave(Sender: TObject);
-begin
-  if not FMouseInPopup then begin
-    HidePopup;
-
-  end;
 end;
 
 procedure TfrmTestMain.FontButton4Click(Sender: TObject);
@@ -515,14 +528,8 @@ end;
 
 procedure TfrmTestMain.btnSettingsClick(Sender: TObject);
 begin
-  HideSubMenu(True);
+  HideMenus;
   //Load Settings
-  {
-  pSettings.Parent:= pSubMenu;
-  pSettings.Align:= alClient;
-  pSettings.Visible:= True;
-  ShowSubMenu(False, 350);
-  }
   FSettings.Show;
   FSettings.BringToFront;
 end;
@@ -627,16 +634,6 @@ begin
   pSubMenu.Left:= pLeft.Width;
 end;
 
-procedure TfrmTestMain.pPopupMouseEnter(Sender: TObject);
-begin
-  FMouseInPopup:= True;
-end;
-
-procedure TfrmTestMain.pPopupMouseLeave(Sender: TObject);
-begin
-  FMouseInPopup:= False;
-end;
-
 procedure TfrmTestMain.HideBottomMenu(const Force: Boolean = False);
 begin
   FShowBottomMenu:= False;
@@ -678,6 +675,12 @@ begin
   smLeftMenu.Value:= LEFT_MAX_POS;
   if Force then
     smLeftMenu.Reset;
+end;
+
+procedure TfrmTestMain.ShowPopup(const Force: Boolean);
+begin
+  FShowPopup:= True;
+  smPopup.Value:= POPUP_MAX_POS;
 end;
 
 procedure TfrmTestMain.ShowSubMenu(const Force: Boolean = False; const Width: Integer = SUB_MAX_POS);
@@ -731,11 +734,6 @@ begin
   end;
 end;
 
-procedure TfrmTestMain.btnCollapseSubMenuClick(Sender: TObject);
-begin
-  HideSubMenu;
-end;
-
 procedure TfrmTestMain.pLeftResize(Sender: TObject);
 begin
   PositionSubMenu;
@@ -760,12 +758,20 @@ end;
 procedure TfrmTestMain.ApplicationEvents1Message(var Msg: tagMSG;
   var Handled: Boolean);
 begin
+
+  if FShowMainMenu and
+    (Msg.message >= WM_LBUTTONDOWN) and (Msg.message <= WM_MBUTTONDBLCLK) and
+    //not PtInRect(pLeft.ClientRect, pLeft.ScreenToClient(Msg.pt)) and
+    not PtInRect(pLeft.ClientRect, pLeft.ScreenToClient(Msg.pt)) then
+  begin
+    HideMainMenu;
+  end;
+
   if FShowSubMenu and
     (Msg.message >= WM_LBUTTONDOWN) and (Msg.message <= WM_MBUTTONDBLCLK) and
     not PtInRect(pLeft.ClientRect, pLeft.ScreenToClient(Msg.pt)) and
     not PtInRect(pSubMenu.ClientRect, pSubMenu.ScreenToClient(Msg.pt)) then
   begin
-    //HideMainMenu; //???
     HideSubMenu;
   end;
 
@@ -774,6 +780,22 @@ begin
     not PtInRect(pBottom.ClientRect, pBottom.ScreenToClient(Msg.pt)) then
   begin
     HideBottomMenu;
+  end;
+
+  if (Msg.message >= WM_LBUTTONDOWN) and (Msg.message <= WM_MBUTTONDBLCLK) and
+    not PtInRect(pPopup.ClientRect, pPopup.ScreenToClient(Msg.pt)) then
+  begin
+    HidePopup;
+  end;
+
+  if Assigned(FPopupControl) then begin
+    if (Msg.message = WM_MOUSEMOVE) and
+      not PtInRect(FPopupControl.ClientRect, FPopupControl.ScreenToClient(Msg.pt)) and
+      //not PtInRect(pSubMenu.ClientRect, pSubMenu.ScreenToClient(Msg.pt)) and
+      not PtInRect(pPopup.ClientRect, pPopup.ScreenToClient(Msg.pt)) then
+    begin
+      HidePopup;
+    end;
   end;
 
 end;
@@ -800,22 +822,26 @@ procedure TfrmTestMain.smBottomMenuValue(Sender: TObject;
   const Position: Double);
 begin
   pBottom.Height:= Trunc(Position);
+  Application.ProcessMessages;
 end;
 
 procedure TfrmTestMain.smLeftMenuValue(Sender: TObject;
   const Position: Double);
 begin
   pLeft.Width:= Trunc(Position);
+  Application.ProcessMessages;
 end;
 
 procedure TfrmTestMain.smPopupValue(Sender: TObject; const Position: Double);
 begin
   pPopup.Width:= Trunc(Position);
+  Application.ProcessMessages;
 end;
 
 procedure TfrmTestMain.smSubMenuValue(Sender: TObject; const Position: Double);
 begin
   pSubMenu.Width:= Trunc(Position);
+  Application.ProcessMessages;
 end;
 
 procedure TfrmTestMain.tmrPopupTimer(Sender: TObject);
@@ -827,14 +853,13 @@ begin
     HidePopup;
     P:= Point(FPopupControl.Width, 0);
     P:= FPopupControl.ClientToParent(P);
-    pPopup.Left:= P.X;
+    pPopup.Left:= P.X + pLeft.Width - 5;
     pPopup.Top:= P.Y;
     pPopup.Width:= 0;
     //pPopup.Height:= FPopupControl.Height;
     pPopup.Visible:= True;
     pPopup.BringToFront;
-    smPopup.Value:= 200;
-    Application.ProcessMessages;
+    smPopup.Value:= POPUP_MAX_POS;
   end;
 end;
 

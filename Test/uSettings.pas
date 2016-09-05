@@ -115,8 +115,8 @@ begin
     1: frmTestMain.smLeftMenu.Delay:= 25;
     2: frmTestMain.smLeftMenu.Delay:= 20;
     3: frmTestMain.smLeftMenu.Delay:= 15;
-    4: frmTestMain.smLeftMenu.Delay:= 12;
-    5: frmTestMain.smLeftMenu.Delay:= 10;
+    4: frmTestMain.smLeftMenu.Delay:= 11;
+    5: frmTestMain.smLeftMenu.Delay:= 7;
   end;
 end;
 
@@ -126,8 +126,8 @@ begin
     1: frmTestMain.smSubMenu.Delay:= 25;
     2: frmTestMain.smSubMenu.Delay:= 20;
     3: frmTestMain.smSubMenu.Delay:= 15;
-    4: frmTestMain.smSubMenu.Delay:= 12;
-    5: frmTestMain.smSubMenu.Delay:= 10;
+    4: frmTestMain.smSubMenu.Delay:= 11;
+    5: frmTestMain.smSubMenu.Delay:= 7;
   end;
 end;
 

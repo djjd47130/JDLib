@@ -1,7 +1,6 @@
 object frmTestMain: TfrmTestMain
   Left = 0
   Top = 0
-  BorderIcons = [biMinimize, biMaximize]
   Caption = 'JD Components Test Application'
   ClientHeight = 542
   ClientWidth = 943
@@ -467,11 +466,11 @@ object frmTestMain: TfrmTestMain
     StyleElements = [seFont, seBorder]
   end
   object PageControl1: TPageControl
-    Left = 416
+    Left = 400
     Top = 0
-    Width = 527
+    Width = 543
     Height = 502
-    ActivePage = TabSheet8
+    ActivePage = TabSheet7
     Align = alRight
     Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 4
@@ -479,7 +478,8 @@ object frmTestMain: TfrmTestMain
     object TabSheet8: TTabSheet
       Caption = 'Popup Menu'
       ImageIndex = 7
-      object Panel1: TPanel
+      ExplicitWidth = 519
+      object pNewInvoice: TPanel
         Left = 0
         Top = 0
         Width = 211
@@ -718,6 +718,7 @@ object frmTestMain: TfrmTestMain
     end
     object TabSheet1: TTabSheet
       Caption = 'Change Location'
+      ExplicitWidth = 519
       object pLocation: TPanel
         Left = 0
         Top = 0
@@ -752,6 +753,7 @@ object frmTestMain: TfrmTestMain
     object TabSheet2: TTabSheet
       Caption = 'Customers'
       ImageIndex = 1
+      ExplicitWidth = 519
       object pCustomers: TPanel
         Left = 0
         Top = 0
@@ -809,8 +811,7 @@ object frmTestMain: TfrmTestMain
           TabStop = False
           Text = 'Customer List'
           OnClick = btnCustomerListClick
-          OnMouseEnter = btnCustomerListMouseEnter
-          OnMouseLeave = FontButton30MouseLeave
+          ExplicitTop = 27
         end
         object FontButton6: TFontButton
           Left = 0
@@ -839,8 +840,6 @@ object frmTestMain: TfrmTestMain
           TabOrder = 2
           TabStop = False
           Text = 'New Customer'
-          OnMouseEnter = btnCustomerListMouseEnter
-          OnMouseLeave = FontButton30MouseLeave
         end
         object FontButton30: TFontButton
           Left = 0
@@ -870,14 +869,13 @@ object frmTestMain: TfrmTestMain
           TabStop = False
           Text = 'Customer Invoices'
           OnClick = btnCustomerListClick
-          OnMouseEnter = btnCustomerListMouseEnter
-          OnMouseLeave = FontButton30MouseLeave
         end
       end
     end
     object TabSheet3: TTabSheet
       Caption = 'Inventory'
       ImageIndex = 2
+      ExplicitWidth = 519
       object pInventory: TPanel
         Left = 0
         Top = 0
@@ -1028,6 +1026,7 @@ object frmTestMain: TfrmTestMain
     object TabSheet4: TTabSheet
       Caption = 'Purchase Orders'
       ImageIndex = 3
+      ExplicitWidth = 519
       object pPurchaseOrders: TPanel
         Left = 0
         Top = 0
@@ -1174,6 +1173,7 @@ object frmTestMain: TfrmTestMain
     object TabSheet5: TTabSheet
       Caption = 'Vendors'
       ImageIndex = 4
+      ExplicitWidth = 519
       object pVendors: TPanel
         Left = 0
         Top = 0
@@ -1320,6 +1320,7 @@ object frmTestMain: TfrmTestMain
     object TabSheet6: TTabSheet
       Caption = 'Users'
       ImageIndex = 5
+      ExplicitWidth = 519
       object pUsers: TPanel
         Left = 0
         Top = 0
@@ -1494,6 +1495,7 @@ object frmTestMain: TfrmTestMain
     object TabSheet7: TTabSheet
       Caption = 'POS'
       ImageIndex = 6
+      ExplicitWidth = 519
       object pPOS: TPanel
         Left = 0
         Top = 0
@@ -1550,6 +1552,8 @@ object frmTestMain: TfrmTestMain
           TabOrder = 1
           TabStop = False
           Text = 'New Invoice'
+          OnMouseEnter = FontButton26MouseEnter
+          OnMouseLeave = FontButton26MouseLeave
         end
         object FontButton27: TFontButton
           Left = 0
@@ -1639,32 +1643,28 @@ object frmTestMain: TfrmTestMain
     end
   end
   object pPopup: TPanel
-    Left = 296
-    Top = 85
-    Width = 82
-    Height = 127
+    Left = 328
+    Top = 8
+    Width = 57
+    Height = 71
     BevelOuter = bvNone
     Color = 4227200
     ParentBackground = False
     TabOrder = 5
     Visible = False
     StyleElements = [seFont, seBorder]
-    OnMouseEnter = pPopupMouseEnter
-    OnMouseLeave = pPopupMouseLeave
   end
   object Panel2: TPanel
-    Left = 312
-    Top = 197
-    Width = 82
-    Height = 127
+    Left = 303
+    Top = 113
+    Width = 58
+    Height = 55
     BevelOuter = bvNone
     Color = 3947580
     ParentBackground = False
     TabOrder = 6
     Visible = False
     StyleElements = [seFont, seBorder]
-    OnMouseEnter = pPopupMouseEnter
-    OnMouseLeave = pPopupMouseLeave
   end
   object ApplicationEvents1: TApplicationEvents
     OnMessage = ApplicationEvents1Message
@@ -1685,7 +1685,7 @@ object frmTestMain: TfrmTestMain
   object smLeftMenu: TSmoothMove
     Delay = 13
     Effect = seSmooth
-    Step = 18.000000000000000000
+    Step = 20.000000000000000000
     Value = 100.000000000000000000
     OnValue = smLeftMenuValue
     Left = 232
@@ -1694,7 +1694,7 @@ object frmTestMain: TfrmTestMain
   object smSubMenu: TSmoothMove
     Delay = 13
     Effect = seSmooth
-    Step = 18.000000000000000000
+    Step = 20.000000000000000000
     Value = 100.000000000000000000
     OnValue = smSubMenuValue
     Left = 232
@@ -1703,7 +1703,7 @@ object frmTestMain: TfrmTestMain
   object smBottomMenu: TSmoothMove
     Delay = 13
     Effect = seSmooth
-    Step = 18.000000000000000000
+    Step = 20.000000000000000000
     Value = 100.000000000000000000
     OnValue = smBottomMenuValue
     Left = 232
@@ -1716,12 +1716,11 @@ object frmTestMain: TfrmTestMain
     Top = 408
   end
   object smPopup: TSmoothMove
-    Delay = 13
+    Delay = 5
     Effect = seSmooth
-    Step = 18.000000000000000000
-    Value = 100.000000000000000000
+    Step = 20.000000000000000000
     OnValue = smPopupValue
-    Left = 320
-    Top = 400
+    Left = 288
+    Top = 408
   end
 end

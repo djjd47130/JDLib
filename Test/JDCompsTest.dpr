@@ -12,7 +12,8 @@ uses
   uContentForm in 'uContentForm.pas' {frmContent},
   RMP.BusinessObjects in 'RMP.BusinessObjects.pas',
   Vcl.Styles.Utils.Graphics in '..\..\..\vcl-styles-utils-master\Common\Vcl.Styles.Utils.Graphics.pas',
-  RMP.FormHistory in 'RMP.FormHistory.pas';
+  JD.FormHistory in 'JD.FormHistory.pas',
+  RMP.Globals in 'RMP.Globals.pas';
 
 {$R *.res}
 

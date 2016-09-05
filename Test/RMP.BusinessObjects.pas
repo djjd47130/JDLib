@@ -3,13 +3,72 @@ unit RMP.BusinessObjects;
 interface
 
 uses
-  System.Classes, System.SysUtils, System.Generics.Collections;
+  System.Classes, System.SysUtils, System.Generics.Collections,
+  Vcl.Graphics, Vcl.Controls,
+  Winapi.Windows;
 
 type
+  TLogin = class;
+  TLogins = class;
   TLocation = class;
   TLocations = class;
+  TLookupItem = class;
+  TLookupItems = class;
 
-  TLocationType = (ltMain, ltStore, ltVirtual, ltEComm, ltTransit);
+  TLookupType = (loEntityType = 1, loLoginStat = 2, loLocationType = 3,
+    loInvoiceType = 4, loInvoiceStat = 5, loInventType = 6, loInventStat = 7);
+
+  TEntityType = (etGuru = 0, etEmployee = 1, etCustomer = 2, etVendor = 3,
+    etDesigner = 4, etThirdParty = 5, etGuest = 6, etContact = 7,
+    etSalesperson = 8, etLocation = 9);
+
+  TLoginStat = (lsNew = 50, lsActive = 51, lsLocked = 52, lsRecovery = 53,
+    lsDisabled = 54, lsTerminated = 55);
+
+  TLocationType = (ltMain = 100, ltStore = 101, ltVirtual = 102,
+    ltEComm = 103, ltTransit = 104);
+
+  TInvoiceType = (itSale = 150, itApproval = 151, itConsign = 152, itBO = 153,
+    itService = 154, itSaleOutState = 155, itCustomOrder = 156);
+
+  TInvoiceStat = (isPending = 200, isOutstanding = 201, isComplete = 202);
+
+  TInventType = (ntOneOfAKind = 250, ntProgram = 251, ntInternal = 152,
+    ntCustomer = 253, ntSample = 254);
+
+  TInventStat = (nsPending = 300, nsOrdered = 301, nsInStock = 302,
+    nsSold = 303, nsOnApproval = 304, nsConsigned = 305, nsHold = 306,
+    nsInTransit = 307, nsReturned = 308);
+
+
+
+
+  TItemDrawStyle = (dsTile, dsList, dsSmallList, dsGrid, dsDetail, dsPreview);
+
+  TRMPItem = class(TObject)
+  private
+    FID: Integer;
+    FCaption: TCaption;
+    FDetail: TCaption;
+  protected
+    procedure DrawItem(ACanvas: TCanvas; ARect: TRect; AStyle: TItemDrawStyle); virtual;
+  public
+
+  published
+
+  end;
+
+  TRMPItems = class(TObject)
+
+  end;
+
+  TLogin = class(TObject)
+
+  end;
+
+  TLogins = class(TObject)
+
+  end;
 
   TLocation = class(TObject)
   private
@@ -44,6 +103,11 @@ type
   end;
 
   TLookupItem = class(TObject)
+  private
+    FOwner: TLookupItems;
+    FID: Integer;
+    FLookupType: TLookupType;
+    FCaption: String;
 
   end;
 
@@ -51,7 +115,52 @@ type
 
   end;
 
+  TCustomer = class(TObject)
+
+  end;
+
+  TCustomers = class(TObject)
+
+  end;
+
+  TInvoice = class(TObject)
+
+  end;
+
 implementation
+
+{ TRMPItem }
+
+procedure TRMPItem.DrawItem(ACanvas: TCanvas; ARect: TRect;
+  AStyle: TItemDrawStyle);
+begin
+  case AStyle of
+    dsTile: begin
+      //Typically for use in the Image Grid showing search results
+
+    end;
+    dsList: begin
+      //Used for simple glyph/caption buttons
+
+    end;
+    dsSmallList: begin
+      //Same as dsList, but for smaller buttons
+
+    end;
+    dsGrid: begin
+      //Used for detailed attributes in a grid view
+
+    end;
+    dsDetail: begin
+      //Used to provide complete details in a larger view
+
+    end;
+    dsPreview: begin
+      //Used for popups to preview the item
+
+    end;
+  end;
+end;
 
 { TLocation }
 
