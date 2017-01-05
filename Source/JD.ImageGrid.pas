@@ -17,6 +17,7 @@ const
   DefRowHeight = DefCellHeight + DefCellSpacing;
   MinThumbSize = 4;
   MinCellSize = 8;
+  MaxListSize = MaxInt div 16;
 
 type
   PImageGridItem = ^TImageGridItem;
@@ -1840,7 +1841,7 @@ var
   ThumbHeight: Integer;
 begin
   DrawParentBackGround := ParentBackground and (Parent <> nil) and
-    ThemeServices.ThemesEnabled;
+    StyleServices.Enabled;
   Canvas.Brush.Color := Color;
   Canvas.Brush.Style := bsSolid;
   if FMarkerStyle = psClear then
@@ -1897,7 +1898,7 @@ begin
           ExcludeClipRect(Canvas.Handle, R.Left + Offset.X, R.Top + Offset.Y,
             R.Left + Offset.X + ThumbWidth, R.Top + Offset.Y + ThumbHeight);
           if DrawParentBackGround then
-            ThemeServices.DrawParentBackground(Handle, Canvas.Handle, nil,
+            StyleServices.DrawParentBackground(Handle, Canvas.Handle, nil,
               False, @R)
           else
             Canvas.FillRect(R);
@@ -1917,7 +1918,7 @@ begin
   if DrawParentBackground then
   begin
     R := Canvas.ClipRect;
-    ThemeServices.DrawParentBackground(Handle, Canvas.Handle, nil, False, @R);
+    StyleServices.DrawParentBackground(Handle, Canvas.Handle, nil, False, @R);
   end
   else
     Canvas.FillRect(Canvas.ClipRect);
@@ -2238,7 +2239,7 @@ begin
       TerminateThumbsGenerator;
     FThumbsGenerator := TThumbsGenerator.Create(Self, True);
     FThumbsGenerator.OnTerminate := ThumbsUpdated;
-    FThumbsGenerator.Resume;
+    FThumbsGenerator.Start;
   end;
 end;
 

@@ -231,14 +231,10 @@ type
     procedure SetFont(const Value: TFont);
     procedure SetKind(const Value: TFontButtonKind);
     function ActiveCanvas: TCanvas;
-    procedure SetSubText(const Value: TCaption);
-    procedure SetSubTextStyle(const Value: TFontButtonSubTextStyle);
-    procedure SetSubTextFont(const Value: TFont);
     procedure SubTextFontChanged(Sender: TObject);
     function SubCaptionRect: TRect;
-    function SubCaptionFlags: Cardinal;
     procedure SetParentColorOverride(const Value: Boolean);
-    function ParentIsDark: Boolean;
+
   protected
     procedure Paint; override;
     function GetEnabled: Boolean; reintroduce;
@@ -274,6 +270,11 @@ type
     procedure Click; override;
     function BackColor: TColor;
     procedure AfterConstruction; override;
+    function ParentIsDark: Boolean;
+    function SubCaptionFlags: Cardinal;
+    procedure SetSubTextFont(const Value: TFont);
+    procedure SetSubTextStyle(const Value: TFontButtonSubTextStyle);
+    procedure SetSubText(const Value: TCaption);
   published
     property Align;
     property Anchors;
@@ -970,6 +971,7 @@ end;
 
 function TFontButton.ParentIsDark: Boolean;
 begin
+  Result:= False;
   //TODO: Detect parent control's background color,
   //  return whether it's a light or dark color
 
@@ -977,6 +979,7 @@ end;
 
 function TFontButton.CaptionColor: TColor;
 begin
+  Result:= TStyleManager.ActiveStyle.GetStyleFontColor(sfButtonTextNormal);
   if scCaption in StyleColors then begin
     case State of
       fsHot: begin
@@ -1013,6 +1016,7 @@ end;
 
 function TFontButton.ImageColor: TColor;
 begin
+  Result:= TStyleManager.ActiveStyle.GetStyleFontColor(sfButtonTextNormal);
   if scImage in StyleColors then begin
     case State of
       fsHot: begin

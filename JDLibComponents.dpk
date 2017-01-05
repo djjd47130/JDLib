@@ -9,28 +9,31 @@ package JDLibComponents;
 {$EXTENDEDSYNTAX ON}
 {$IMPORTEDDATA ON}
 {$IOCHECKS ON}
-{$LOCALSYMBOLS ON}
+{$LOCALSYMBOLS OFF}
 {$LONGSTRINGS ON}
 {$OPENSTRINGS ON}
-{$OPTIMIZATION OFF}
+{$OPTIMIZATION ON}
 {$OVERFLOWCHECKS OFF}
 {$RANGECHECKS OFF}
-{$REFERENCEINFO ON}
+{$REFERENCEINFO OFF}
 {$SAFEDIVIDE OFF}
-{$STACKFRAMES ON}
+{$STACKFRAMES OFF}
 {$TYPEDADDRESS OFF}
 {$VARSTRINGCHECKS ON}
 {$WRITEABLECONST OFF}
 {$MINENUMSIZE 1}
 {$IMAGEBASE $400000}
-{$DEFINE DEBUG}
+{$DEFINE RELEASE}
 {$ENDIF IMPLICITBUILDING}
 {$IMPLICITBUILD ON}
 
 requires
   rtl,
   DesignIDE,
-  VclSmp;
+  VclSmp,
+  IndyCore,
+  IndySystem,
+  IndyProtocols;
 
 contains
   JD.Ctrls.FontButton in 'Source\JD.Ctrls.FontButton.pas',
@@ -39,6 +42,14 @@ contains
   JD.PageMenu in 'Source\JD.PageMenu.pas',
   JD.ImageGrid in 'Source\JD.ImageGrid.pas',
   JD.Ctrls.SideMenu in 'Source\JD.Ctrls.SideMenu.pas',
-  JD.Sockets in 'Source\JD.Sockets.pas';
+  JD.Sockets in 'Source\JD.Sockets.pas',
+  JD.Weather in 'Source\JD.Weather.pas',
+  superobject in 'Source\superobject.pas',
+  JD.Weather.OpenWeatherMaps in 'Source\JD.Weather.OpenWeatherMaps.pas',
+  JD.Weather.WUnderground in 'Source\JD.Weather.WUnderground.pas',
+  JD.Weather.AccuWeather in 'Source\JD.Weather.AccuWeather.pas',
+  JD.Weather.Foreca in 'Source\JD.Weather.Foreca.pas',
+  JD.Weather.NOAA in 'Source\JD.Weather.NOAA.pas',
+  JD.Weather.NWS in 'Source\JD.Weather.NWS.pas';
 
 end.

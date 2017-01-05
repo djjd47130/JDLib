@@ -307,11 +307,11 @@ object frmSettings: TfrmSettings
       item
         Caption = 'Yet Another'
       end>
-    Spacing = 25
+    Spacing = 35
     OnChange = pmSettingsChange
     Align = alTop
     Font.Charset = DEFAULT_CHARSET
-    Font.Color = clSilver
+    Font.Color = clGray
     Font.Height = -24
     Font.Name = 'Tahoma'
     Font.Style = []
@@ -320,5 +320,6 @@ object frmSettings: TfrmSettings
     SelectedFont.Height = -24
     SelectedFont.Name = 'Tahoma'
     SelectedFont.Style = [fsBold]
+    ExplicitTop = -6
   end
 end

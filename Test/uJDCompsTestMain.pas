@@ -47,7 +47,7 @@ type
     pBottom: TPanel;
     pSubMenu: TPanel;
     pContent: TPanel;
-    ApplicationEvents1: TApplicationEvents;
+    Events: TApplicationEvents;
     DB: TFDConnection;
     smLeftMenu: TSmoothMove;
     smSubMenu: TSmoothMove;
@@ -115,6 +115,11 @@ type
     smPopup: TSmoothMove;
     TabSheet8: TTabSheet;
     pPopup: TPanel;
+    Panel2: TPanel;
+    PageControl2: TPageControl;
+    TabSheet9: TTabSheet;
+    TabSheet10: TTabSheet;
+    TabSheet11: TTabSheet;
     pNewInvoice: TPanel;
     FontButton31: TFontButton;
     FontButton32: TFontButton;
@@ -124,7 +129,8 @@ type
     FontButton36: TFontButton;
     FontButton37: TFontButton;
     FontButton38: TFontButton;
-    Panel2: TPanel;
+    TabSheet12: TTabSheet;
+    TabSheet13: TTabSheet;
     procedure smLeftMenuValue(Sender: TObject; const Position: Double);
     procedure btnLeftMenuClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -138,7 +144,7 @@ type
     procedure btnLocationClick(Sender: TObject);
     procedure btnInventoryClick(Sender: TObject);
     procedure btnCustomersClick(Sender: TObject);
-    procedure ApplicationEvents1Message(var Msg: tagMSG; var Handled: Boolean);
+    procedure EventsMessage(var Msg: tagMSG; var Handled: Boolean);
     procedure pmSettingsChange(Sender: TObject; const AItem: TPageMenuItem);
     procedure FormDestroy(Sender: TObject);
     procedure btnInventoryListClick(Sender: TObject);
@@ -755,7 +761,7 @@ begin
   end;
 end;
 
-procedure TfrmTestMain.ApplicationEvents1Message(var Msg: tagMSG;
+procedure TfrmTestMain.EventsMessage(var Msg: tagMSG;
   var Handled: Boolean);
 begin
 

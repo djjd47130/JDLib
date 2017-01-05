@@ -194,7 +194,7 @@ type
     procedure Assign(Source: TPersistent); override;
     procedure BeginUpdate;
     procedure EndUpdate;
-    function Updating: Boolean;
+    function Updating: Boolean; reintroduce;
   published
     property ImageLists: TImageListRefs read FImageLists write SetImageLists;
     property Glyphs: TRMProFontGlyphList read FGlyphs write SetGlyphs;
@@ -214,8 +214,8 @@ uses
   Vcl.Forms,
   Math;
 
-var
-  FOldWndProc: TFarProc;
+//var
+  //FOldWndProc: TFarProc;
 
 function GetFontGlyphs(dc: HDC; const PrivateOnly: Boolean = True): TCharArray;
 var

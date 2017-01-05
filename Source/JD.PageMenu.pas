@@ -71,7 +71,6 @@ type
       Shift: TShiftState; X, Y: Integer);
     procedure SetSelectedFont(const Value: TFont);
     procedure SelectedFontChanged(Sender: TObject);
-    procedure ItemsChanged(Sender: TObject);
   protected
     procedure Paint; override;
     procedure WMMouseMove(var Msg: TMessage); message WM_MOUSEMOVE;
@@ -84,6 +83,7 @@ type
     destructor Destroy; override;
     function TextAreaRect: TRect;
     procedure RecalcItemRects;
+    procedure ItemsChanged(Sender: TObject);
   published
     property ButtonWidth: Integer read FButtonWidth write SetButtonWidth;
     property ItemIndex: Integer read FItemIndex write SetItemIndex;
@@ -200,8 +200,8 @@ begin
   inherited;
   FItems:= TPageMenuItems.Create(Self);
 
-  FLeftButton:= TBitBtn.Create(nil);
-  FRightButton:= TBitBtn.Create(nil);
+  FLeftButton:= TBitBtn.Create(Self);
+  FRightButton:= TBitBtn.Create(Self);
   FNavTimer:= TTimer.Create(nil);
   FNavTimer.Interval:= 2000;
   FNavTimer.OnTimer:= NavTimerExec;

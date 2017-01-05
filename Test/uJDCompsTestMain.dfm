@@ -2,7 +2,7 @@ object frmTestMain: TfrmTestMain
   Left = 0
   Top = 0
   Caption = 'JD Components Test Application'
-  ClientHeight = 542
+  ClientHeight = 511
   ClientWidth = 943
   Color = clBlack
   Constraints.MinHeight = 400
@@ -22,10 +22,10 @@ object frmTestMain: TfrmTestMain
   PixelsPerInch = 96
   TextHeight = 13
   object pContent: TPanel
-    Left = 264
+    Left = 250
     Top = 8
-    Width = 49
-    Height = 71
+    Width = 50
+    Height = 30
     BevelOuter = bvNone
     TabOrder = 3
   end
@@ -33,7 +33,7 @@ object frmTestMain: TfrmTestMain
     Left = 0
     Top = 0
     Width = 185
-    Height = 502
+    Height = 471
     Align = alLeft
     BevelOuter = bvNone
     Color = 789516
@@ -104,7 +104,7 @@ object frmTestMain: TfrmTestMain
     end
     object btnCurrentLocation: TFontButton
       Left = 0
-      Top = 442
+      Top = 411
       Width = 185
       Height = 30
       Cursor = crHandPoint
@@ -135,7 +135,7 @@ object frmTestMain: TfrmTestMain
     end
     object FontButton3: TFontButton
       Left = 0
-      Top = 472
+      Top = 441
       Width = 185
       Height = 30
       Cursor = crHandPoint
@@ -353,7 +353,7 @@ object frmTestMain: TfrmTestMain
   end
   object pBottom: TPanel
     Left = 0
-    Top = 502
+    Top = 471
     Width = 943
     Height = 40
     Align = alBottom
@@ -457,8 +457,8 @@ object frmTestMain: TfrmTestMain
   object pSubMenu: TPanel
     Left = 194
     Top = 8
-    Width = 55
-    Height = 71
+    Width = 50
+    Height = 30
     BevelOuter = bvNone
     Color = 2302755
     ParentBackground = False
@@ -466,264 +466,291 @@ object frmTestMain: TfrmTestMain
     StyleElements = [seFont, seBorder]
   end
   object PageControl1: TPageControl
-    Left = 400
+    Left = 336
     Top = 0
-    Width = 543
-    Height = 502
-    ActivePage = TabSheet7
+    Width = 607
+    Height = 471
+    ActivePage = TabSheet2
     Align = alRight
     Anchors = [akLeft, akTop, akRight, akBottom]
+    MultiLine = True
     TabOrder = 4
     Visible = False
     object TabSheet8: TTabSheet
       Caption = 'Popup Menu'
       ImageIndex = 7
-      ExplicitWidth = 519
-      object pNewInvoice: TPanel
+      object PageControl2: TPageControl
         Left = 0
         Top = 0
-        Width = 211
-        Height = 474
-        Align = alLeft
-        BevelOuter = bvNone
-        ParentColor = True
+        Width = 599
+        Height = 265
+        ActivePage = TabSheet9
+        Align = alTop
         TabOrder = 0
-        Visible = False
-        StyleElements = [seFont, seBorder]
-        object FontButton31: TFontButton
-          Left = 0
-          Top = 0
-          Width = 211
-          Height = 24
-          Align = alTop
-          DrawStyle = fdHybrid
-          Font.Charset = DEFAULT_CHARSET
-          Font.Color = 16119285
-          Font.Height = -13
-          Font.Name = 'Tahoma'
-          Font.Style = []
-          Image.AutoSize = False
-          Image.Text = #61868
-          Image.Font.Charset = ANSI_CHARSET
-          Image.Font.Color = clWhite
-          Image.Font.Height = -16
-          Image.Font.Name = 'FontAwesome'
-          Image.Font.Style = []
-          Image.Font.Quality = fqAntialiased
-          Image.UseStandardColor = False
-          Margin = 10
-          Spacing = 10
-          StyleColors = [scBack, scFrame]
-          TabOrder = 0
-          TabStop = False
-          Text = 'Sale'
+        object TabSheet9: TTabSheet
+          Caption = 'New Invoice'
+          object pNewInvoice: TPanel
+            Left = 0
+            Top = 0
+            Width = 211
+            Height = 237
+            Align = alLeft
+            BevelOuter = bvNone
+            ParentColor = True
+            TabOrder = 0
+            Visible = False
+            StyleElements = [seFont, seBorder]
+            object FontButton31: TFontButton
+              Left = 0
+              Top = 0
+              Width = 211
+              Height = 24
+              Align = alTop
+              DrawStyle = fdHybrid
+              Font.Charset = DEFAULT_CHARSET
+              Font.Color = 16119285
+              Font.Height = -13
+              Font.Name = 'Tahoma'
+              Font.Style = []
+              Image.AutoSize = False
+              Image.Text = #61868
+              Image.Font.Charset = ANSI_CHARSET
+              Image.Font.Color = clWhite
+              Image.Font.Height = -16
+              Image.Font.Name = 'FontAwesome'
+              Image.Font.Style = []
+              Image.Font.Quality = fqAntialiased
+              Image.UseStandardColor = False
+              Margin = 10
+              Spacing = 10
+              StyleColors = [scBack, scFrame]
+              TabOrder = 0
+              TabStop = False
+              Text = 'Sale'
+            end
+            object FontButton32: TFontButton
+              Left = 0
+              Top = 24
+              Width = 211
+              Height = 24
+              Align = alTop
+              DrawStyle = fdHybrid
+              Font.Charset = DEFAULT_CHARSET
+              Font.Color = 16119285
+              Font.Height = -13
+              Font.Name = 'Tahoma'
+              Font.Style = []
+              Image.AutoSize = False
+              Image.Text = #61868
+              Image.Font.Charset = ANSI_CHARSET
+              Image.Font.Color = clWhite
+              Image.Font.Height = -16
+              Image.Font.Name = 'FontAwesome'
+              Image.Font.Style = []
+              Image.Font.Quality = fqAntialiased
+              Image.UseStandardColor = False
+              Margin = 10
+              Spacing = 10
+              StyleColors = [scBack, scFrame]
+              TabOrder = 1
+              TabStop = False
+              Text = 'On Approval'
+            end
+            object FontButton33: TFontButton
+              Left = 0
+              Top = 48
+              Width = 211
+              Height = 24
+              Align = alTop
+              DrawStyle = fdHybrid
+              Font.Charset = DEFAULT_CHARSET
+              Font.Color = 16119285
+              Font.Height = -13
+              Font.Name = 'Tahoma'
+              Font.Style = []
+              Image.AutoSize = False
+              Image.Text = #61868
+              Image.Font.Charset = ANSI_CHARSET
+              Image.Font.Color = clWhite
+              Image.Font.Height = -16
+              Image.Font.Name = 'FontAwesome'
+              Image.Font.Style = []
+              Image.Font.Quality = fqAntialiased
+              Image.UseStandardColor = False
+              Margin = 10
+              Spacing = 10
+              StyleColors = [scBack, scFrame]
+              TabOrder = 2
+              TabStop = False
+              Text = 'Back Order'
+            end
+            object FontButton34: TFontButton
+              Left = 0
+              Top = 72
+              Width = 211
+              Height = 24
+              Align = alTop
+              DrawStyle = fdHybrid
+              Font.Charset = DEFAULT_CHARSET
+              Font.Color = 16119285
+              Font.Height = -13
+              Font.Name = 'Tahoma'
+              Font.Style = []
+              Image.AutoSize = False
+              Image.Text = #61868
+              Image.Font.Charset = ANSI_CHARSET
+              Image.Font.Color = clWhite
+              Image.Font.Height = -16
+              Image.Font.Name = 'FontAwesome'
+              Image.Font.Style = []
+              Image.Font.Quality = fqAntialiased
+              Image.UseStandardColor = False
+              Margin = 10
+              Spacing = 10
+              StyleColors = [scBack, scFrame]
+              TabOrder = 3
+              TabStop = False
+              Text = 'Consignment'
+            end
+            object FontButton35: TFontButton
+              Left = 0
+              Top = 96
+              Width = 211
+              Height = 24
+              Align = alTop
+              DrawStyle = fdHybrid
+              Font.Charset = DEFAULT_CHARSET
+              Font.Color = 16119285
+              Font.Height = -13
+              Font.Name = 'Tahoma'
+              Font.Style = []
+              Image.AutoSize = False
+              Image.Text = #61868
+              Image.Font.Charset = ANSI_CHARSET
+              Image.Font.Color = clWhite
+              Image.Font.Height = -16
+              Image.Font.Name = 'FontAwesome'
+              Image.Font.Style = []
+              Image.Font.Quality = fqAntialiased
+              Image.UseStandardColor = False
+              Margin = 10
+              Spacing = 10
+              StyleColors = [scBack, scFrame]
+              TabOrder = 4
+              TabStop = False
+              Text = 'Sale Out of State'
+            end
+            object FontButton36: TFontButton
+              Left = 0
+              Top = 120
+              Width = 211
+              Height = 24
+              Align = alTop
+              DrawStyle = fdHybrid
+              Font.Charset = DEFAULT_CHARSET
+              Font.Color = 16119285
+              Font.Height = -13
+              Font.Name = 'Tahoma'
+              Font.Style = []
+              Image.AutoSize = False
+              Image.Text = #61868
+              Image.Font.Charset = ANSI_CHARSET
+              Image.Font.Color = clWhite
+              Image.Font.Height = -16
+              Image.Font.Name = 'FontAwesome'
+              Image.Font.Style = []
+              Image.Font.Quality = fqAntialiased
+              Image.UseStandardColor = False
+              Margin = 10
+              Spacing = 10
+              StyleColors = [scBack, scFrame]
+              TabOrder = 5
+              TabStop = False
+              Text = 'Service'
+            end
+            object FontButton37: TFontButton
+              Left = 0
+              Top = 144
+              Width = 211
+              Height = 24
+              Align = alTop
+              DrawStyle = fdHybrid
+              Font.Charset = DEFAULT_CHARSET
+              Font.Color = 16119285
+              Font.Height = -13
+              Font.Name = 'Tahoma'
+              Font.Style = []
+              Image.AutoSize = False
+              Image.Text = #61868
+              Image.Font.Charset = ANSI_CHARSET
+              Image.Font.Color = clWhite
+              Image.Font.Height = -16
+              Image.Font.Name = 'FontAwesome'
+              Image.Font.Style = []
+              Image.Font.Quality = fqAntialiased
+              Image.UseStandardColor = False
+              Margin = 10
+              Spacing = 10
+              StyleColors = [scBack, scFrame]
+              TabOrder = 6
+              TabStop = False
+              Text = 'Custom Order'
+            end
+            object FontButton38: TFontButton
+              Left = 0
+              Top = 168
+              Width = 211
+              Height = 24
+              Align = alTop
+              DrawStyle = fdHybrid
+              Font.Charset = DEFAULT_CHARSET
+              Font.Color = 16119285
+              Font.Height = -13
+              Font.Name = 'Tahoma'
+              Font.Style = []
+              Image.AutoSize = False
+              Image.Text = #61868
+              Image.Font.Charset = ANSI_CHARSET
+              Image.Font.Color = clWhite
+              Image.Font.Height = -16
+              Image.Font.Name = 'FontAwesome'
+              Image.Font.Style = []
+              Image.Font.Quality = fqAntialiased
+              Image.UseStandardColor = False
+              Margin = 10
+              Spacing = 10
+              StyleColors = [scBack, scFrame]
+              TabOrder = 7
+              TabStop = False
+              Text = 'Quotation'
+            end
+          end
         end
-        object FontButton32: TFontButton
-          Left = 0
-          Top = 24
-          Width = 211
-          Height = 24
-          Align = alTop
-          DrawStyle = fdHybrid
-          Font.Charset = DEFAULT_CHARSET
-          Font.Color = 16119285
-          Font.Height = -13
-          Font.Name = 'Tahoma'
-          Font.Style = []
-          Image.AutoSize = False
-          Image.Text = #61868
-          Image.Font.Charset = ANSI_CHARSET
-          Image.Font.Color = clWhite
-          Image.Font.Height = -16
-          Image.Font.Name = 'FontAwesome'
-          Image.Font.Style = []
-          Image.Font.Quality = fqAntialiased
-          Image.UseStandardColor = False
-          Margin = 10
-          Spacing = 10
-          StyleColors = [scBack, scFrame]
-          TabOrder = 1
-          TabStop = False
-          Text = 'On Approval'
+        object TabSheet10: TTabSheet
+          Caption = 'TabSheet10'
+          ImageIndex = 1
         end
-        object FontButton33: TFontButton
-          Left = 0
-          Top = 48
-          Width = 211
-          Height = 24
-          Align = alTop
-          DrawStyle = fdHybrid
-          Font.Charset = DEFAULT_CHARSET
-          Font.Color = 16119285
-          Font.Height = -13
-          Font.Name = 'Tahoma'
-          Font.Style = []
-          Image.AutoSize = False
-          Image.Text = #61868
-          Image.Font.Charset = ANSI_CHARSET
-          Image.Font.Color = clWhite
-          Image.Font.Height = -16
-          Image.Font.Name = 'FontAwesome'
-          Image.Font.Style = []
-          Image.Font.Quality = fqAntialiased
-          Image.UseStandardColor = False
-          Margin = 10
-          Spacing = 10
-          StyleColors = [scBack, scFrame]
-          TabOrder = 2
-          TabStop = False
-          Text = 'Back Order'
+        object TabSheet11: TTabSheet
+          Caption = 'TabSheet11'
+          ImageIndex = 2
         end
-        object FontButton34: TFontButton
-          Left = 0
-          Top = 72
-          Width = 211
-          Height = 24
-          Align = alTop
-          DrawStyle = fdHybrid
-          Font.Charset = DEFAULT_CHARSET
-          Font.Color = 16119285
-          Font.Height = -13
-          Font.Name = 'Tahoma'
-          Font.Style = []
-          Image.AutoSize = False
-          Image.Text = #61868
-          Image.Font.Charset = ANSI_CHARSET
-          Image.Font.Color = clWhite
-          Image.Font.Height = -16
-          Image.Font.Name = 'FontAwesome'
-          Image.Font.Style = []
-          Image.Font.Quality = fqAntialiased
-          Image.UseStandardColor = False
-          Margin = 10
-          Spacing = 10
-          StyleColors = [scBack, scFrame]
-          TabOrder = 3
-          TabStop = False
-          Text = 'Consignment'
+        object TabSheet12: TTabSheet
+          Caption = 'TabSheet12'
+          ImageIndex = 3
         end
-        object FontButton35: TFontButton
-          Left = 0
-          Top = 96
-          Width = 211
-          Height = 24
-          Align = alTop
-          DrawStyle = fdHybrid
-          Font.Charset = DEFAULT_CHARSET
-          Font.Color = 16119285
-          Font.Height = -13
-          Font.Name = 'Tahoma'
-          Font.Style = []
-          Image.AutoSize = False
-          Image.Text = #61868
-          Image.Font.Charset = ANSI_CHARSET
-          Image.Font.Color = clWhite
-          Image.Font.Height = -16
-          Image.Font.Name = 'FontAwesome'
-          Image.Font.Style = []
-          Image.Font.Quality = fqAntialiased
-          Image.UseStandardColor = False
-          Margin = 10
-          Spacing = 10
-          StyleColors = [scBack, scFrame]
-          TabOrder = 4
-          TabStop = False
-          Text = 'Sale Out of State'
-        end
-        object FontButton36: TFontButton
-          Left = 0
-          Top = 120
-          Width = 211
-          Height = 24
-          Align = alTop
-          DrawStyle = fdHybrid
-          Font.Charset = DEFAULT_CHARSET
-          Font.Color = 16119285
-          Font.Height = -13
-          Font.Name = 'Tahoma'
-          Font.Style = []
-          Image.AutoSize = False
-          Image.Text = #61868
-          Image.Font.Charset = ANSI_CHARSET
-          Image.Font.Color = clWhite
-          Image.Font.Height = -16
-          Image.Font.Name = 'FontAwesome'
-          Image.Font.Style = []
-          Image.Font.Quality = fqAntialiased
-          Image.UseStandardColor = False
-          Margin = 10
-          Spacing = 10
-          StyleColors = [scBack, scFrame]
-          TabOrder = 5
-          TabStop = False
-          Text = 'Service'
-        end
-        object FontButton37: TFontButton
-          Left = 0
-          Top = 144
-          Width = 211
-          Height = 24
-          Align = alTop
-          DrawStyle = fdHybrid
-          Font.Charset = DEFAULT_CHARSET
-          Font.Color = 16119285
-          Font.Height = -13
-          Font.Name = 'Tahoma'
-          Font.Style = []
-          Image.AutoSize = False
-          Image.Text = #61868
-          Image.Font.Charset = ANSI_CHARSET
-          Image.Font.Color = clWhite
-          Image.Font.Height = -16
-          Image.Font.Name = 'FontAwesome'
-          Image.Font.Style = []
-          Image.Font.Quality = fqAntialiased
-          Image.UseStandardColor = False
-          Margin = 10
-          Spacing = 10
-          StyleColors = [scBack, scFrame]
-          TabOrder = 6
-          TabStop = False
-          Text = 'Custom Order'
-        end
-        object FontButton38: TFontButton
-          Left = 0
-          Top = 168
-          Width = 211
-          Height = 24
-          Align = alTop
-          DrawStyle = fdHybrid
-          Font.Charset = DEFAULT_CHARSET
-          Font.Color = 16119285
-          Font.Height = -13
-          Font.Name = 'Tahoma'
-          Font.Style = []
-          Image.AutoSize = False
-          Image.Text = #61868
-          Image.Font.Charset = ANSI_CHARSET
-          Image.Font.Color = clWhite
-          Image.Font.Height = -16
-          Image.Font.Name = 'FontAwesome'
-          Image.Font.Style = []
-          Image.Font.Quality = fqAntialiased
-          Image.UseStandardColor = False
-          Margin = 10
-          Spacing = 10
-          StyleColors = [scBack, scFrame]
-          TabOrder = 7
-          TabStop = False
-          Text = 'Quotation'
+        object TabSheet13: TTabSheet
+          Caption = 'TabSheet13'
+          ImageIndex = 4
         end
       end
     end
     object TabSheet1: TTabSheet
       Caption = 'Change Location'
-      ExplicitWidth = 519
       object pLocation: TPanel
         Left = 0
         Top = 0
         Width = 211
-        Height = 474
+        Height = 443
         Align = alLeft
         BevelOuter = bvNone
         ParentColor = True
@@ -753,12 +780,11 @@ object frmTestMain: TfrmTestMain
     object TabSheet2: TTabSheet
       Caption = 'Customers'
       ImageIndex = 1
-      ExplicitWidth = 519
       object pCustomers: TPanel
         Left = 0
         Top = 0
         Width = 211
-        Height = 474
+        Height = 443
         Align = alLeft
         BevelOuter = bvNone
         ParentColor = True
@@ -811,7 +837,6 @@ object frmTestMain: TfrmTestMain
           TabStop = False
           Text = 'Customer List'
           OnClick = btnCustomerListClick
-          ExplicitTop = 27
         end
         object FontButton6: TFontButton
           Left = 0
@@ -875,12 +900,11 @@ object frmTestMain: TfrmTestMain
     object TabSheet3: TTabSheet
       Caption = 'Inventory'
       ImageIndex = 2
-      ExplicitWidth = 519
       object pInventory: TPanel
         Left = 0
         Top = 0
         Width = 211
-        Height = 474
+        Height = 443
         Align = alLeft
         BevelOuter = bvNone
         ParentColor = True
@@ -1026,12 +1050,11 @@ object frmTestMain: TfrmTestMain
     object TabSheet4: TTabSheet
       Caption = 'Purchase Orders'
       ImageIndex = 3
-      ExplicitWidth = 519
       object pPurchaseOrders: TPanel
         Left = 0
         Top = 0
         Width = 211
-        Height = 474
+        Height = 443
         Align = alLeft
         BevelOuter = bvNone
         ParentColor = True
@@ -1173,12 +1196,11 @@ object frmTestMain: TfrmTestMain
     object TabSheet5: TTabSheet
       Caption = 'Vendors'
       ImageIndex = 4
-      ExplicitWidth = 519
       object pVendors: TPanel
         Left = 0
         Top = 0
         Width = 211
-        Height = 474
+        Height = 443
         Align = alLeft
         BevelOuter = bvNone
         ParentColor = True
@@ -1320,12 +1342,11 @@ object frmTestMain: TfrmTestMain
     object TabSheet6: TTabSheet
       Caption = 'Users'
       ImageIndex = 5
-      ExplicitWidth = 519
       object pUsers: TPanel
         Left = 0
         Top = 0
         Width = 211
-        Height = 474
+        Height = 443
         Align = alLeft
         BevelOuter = bvNone
         ParentColor = True
@@ -1495,12 +1516,11 @@ object frmTestMain: TfrmTestMain
     object TabSheet7: TTabSheet
       Caption = 'POS'
       ImageIndex = 6
-      ExplicitWidth = 519
       object pPOS: TPanel
         Left = 0
         Top = 0
         Width = 211
-        Height = 474
+        Height = 443
         Align = alLeft
         BevelOuter = bvNone
         ParentColor = True
@@ -1643,33 +1663,33 @@ object frmTestMain: TfrmTestMain
     end
   end
   object pPopup: TPanel
-    Left = 328
-    Top = 8
-    Width = 57
-    Height = 71
+    Left = 250
+    Top = 44
+    Width = 50
+    Height = 30
     BevelOuter = bvNone
-    Color = 4227200
+    Color = 2697513
     ParentBackground = False
     TabOrder = 5
     Visible = False
     StyleElements = [seFont, seBorder]
   end
   object Panel2: TPanel
-    Left = 303
-    Top = 113
-    Width = 58
-    Height = 55
+    Left = 194
+    Top = 44
+    Width = 50
+    Height = 30
     BevelOuter = bvNone
-    Color = 3947580
+    Color = 2565927
     ParentBackground = False
     TabOrder = 6
     Visible = False
     StyleElements = [seFont, seBorder]
   end
-  object ApplicationEvents1: TApplicationEvents
-    OnMessage = ApplicationEvents1Message
-    Left = 232
-    Top = 288
+  object Events: TApplicationEvents
+    OnMessage = EventsMessage
+    Left = 224
+    Top = 312
   end
   object DB: TFDConnection
     Params.Strings = (
@@ -1679,8 +1699,8 @@ object frmTestMain: TfrmTestMain
       'Database=RugTest'
       'User_Name=sa')
     LoginPrompt = False
-    Left = 232
-    Top = 96
+    Left = 280
+    Top = 312
   end
   object smLeftMenu: TSmoothMove
     Delay = 13
@@ -1688,8 +1708,8 @@ object frmTestMain: TfrmTestMain
     Step = 20.000000000000000000
     Value = 100.000000000000000000
     OnValue = smLeftMenuValue
-    Left = 232
-    Top = 144
+    Left = 224
+    Top = 168
   end
   object smSubMenu: TSmoothMove
     Delay = 13
@@ -1697,8 +1717,8 @@ object frmTestMain: TfrmTestMain
     Step = 20.000000000000000000
     Value = 100.000000000000000000
     OnValue = smSubMenuValue
-    Left = 232
-    Top = 192
+    Left = 224
+    Top = 216
   end
   object smBottomMenu: TSmoothMove
     Delay = 13
@@ -1706,21 +1726,22 @@ object frmTestMain: TfrmTestMain
     Step = 20.000000000000000000
     Value = 100.000000000000000000
     OnValue = smBottomMenuValue
-    Left = 232
-    Top = 240
+    Left = 224
+    Top = 264
   end
   object tmrPopup: TTimer
     Interval = 100
     OnTimer = tmrPopupTimer
-    Left = 232
-    Top = 408
+    Left = 224
+    Top = 368
   end
   object smPopup: TSmoothMove
     Delay = 5
     Effect = seSmooth
     Step = 20.000000000000000000
+    Value = 100.000000000000000000
     OnValue = smPopupValue
-    Left = 288
-    Top = 408
+    Left = 280
+    Top = 368
   end
 end

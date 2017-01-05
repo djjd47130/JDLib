@@ -13,7 +13,8 @@ uses
   RMP.BusinessObjects in 'RMP.BusinessObjects.pas',
   Vcl.Styles.Utils.Graphics in '..\..\..\vcl-styles-utils-master\Common\Vcl.Styles.Utils.Graphics.pas',
   JD.FormHistory in 'JD.FormHistory.pas',
-  RMP.Globals in 'RMP.Globals.pas';
+  RMP.Globals in 'RMP.Globals.pas',
+  uDashboard in 'uDashboard.pas' {frmDashboard};
 
 {$R *.res}
 
@@ -22,7 +23,5 @@ begin
   Application.MainFormOnTaskbar := True;
   TStyleManager.TrySetStyle('Windows10 Dark');
   Application.CreateForm(TfrmTestMain, frmTestMain);
-  Application.CreateForm(TfrmCustomerList, frmCustomerList);
-  Application.CreateForm(TfrmContent, frmContent);
   Application.Run;
 end.
