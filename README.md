@@ -14,6 +14,6 @@ JDLib is optimized for Delphi 10 Seattle. It consists of the following component
   1. Similar to, but far different from, a THeaderControl.
 4. **TImageGrid** Control - A custom control to display a list of custom-drawn images.
 5. **TSideMenu** Control - A custom control to display a main menu on the left side.
-6. **TJDWeather** - A component to retrieve weather information from various different weather services.
+6. **[TJDWeather](TJDWeather.md)** - A component to retrieve weather information from various different weather services.
   1. Standardizes multiple services into a single common structure
   
