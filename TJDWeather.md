@@ -16,7 +16,7 @@
   4. Auto-detect by IP Address
 
 ### Related Units
-1. **JD.Weather.pas** - Contains the main TJDWeather component and all necessary common code.
+1. **[JD.Weather.pas](Source\JD.Weather.pas)** - Contains the main TJDWeather component and all necessary common code.
 2. **JD.Weather.WUnderground.pas** - Contains implementation specific to Weather Underground API.
 3. **JD.Weather.AccuWeather.pas** - Contains implementation specific to the AccuWeather API.
 4. **JD.Weather.OpenWeatherMaps.pas** - Contains implementation specific to the Open Weather Maps API.
