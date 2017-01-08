@@ -8,8 +8,7 @@ uses
   JD.Ctrls.SideMenu,
   JD.SmoothMove,
   JD.PageMenu,
-  JD.ImageGrid,
-  JD.Weather;
+  JD.ImageGrid;
 
 procedure Register;
 
@@ -18,7 +17,7 @@ implementation
 procedure Register;
 begin
   RegisterComponents('JD Components',
-    [TFontButton, TSmoothMove, TPageMenu, TImageGrid, TSideMenu, TJDWeather]);
+    [TFontButton, TSmoothMove, TPageMenu, TImageGrid, TSideMenu]);
 end;
 
 end.

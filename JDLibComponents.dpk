@@ -43,13 +43,6 @@ contains
   JD.ImageGrid in 'Source\JD.ImageGrid.pas',
   JD.Ctrls.SideMenu in 'Source\JD.Ctrls.SideMenu.pas',
   JD.Sockets in 'Source\JD.Sockets.pas',
-  JD.Weather in 'Source\JD.Weather.pas',
-  superobject in 'Source\superobject.pas',
-  JD.Weather.OpenWeatherMaps in 'Source\JD.Weather.OpenWeatherMaps.pas',
-  JD.Weather.WUnderground in 'Source\JD.Weather.WUnderground.pas',
-  JD.Weather.AccuWeather in 'Source\JD.Weather.AccuWeather.pas',
-  JD.Weather.Foreca in 'Source\JD.Weather.Foreca.pas',
-  JD.Weather.NOAA in 'Source\JD.Weather.NOAA.pas',
-  JD.Weather.NWS in 'Source\JD.Weather.NWS.pas';
+  superobject in 'Source\superobject.pas';
 
 end.
