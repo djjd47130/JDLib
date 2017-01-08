@@ -27,7 +27,6 @@ type
   private
     function StrToAlertType(const S: String): TWeatherAlertType;
   public
-    function Support: TWeatherThreadFunctions; override;
     function GetUrl: String; override;
     function DoAll(Conditions: TWeatherConditions; Forecast: TWeatherForecast;
       ForecastDaily: TWeatherForecast; ForecastHourly: TWeatherForecast;
@@ -47,14 +46,6 @@ uses
   DateUtils, StrUtils, Math;
 
 { TWUWeatherThread }
-
-function TWUWeatherThread.Support: TWeatherThreadFunctions;
-begin
-  Result:= [tfConditionByZip, tfConditionByCoords, tfConditionByCity,
-    tfConditionByIP, tafForecastByZip, tfForecastByCoords, tfForecastByCity, tfForecastByIP,
-    tfAlertsByZip, tfAlertsByCoords, tfAlertsByCity, tfAlertsByIP,
-    tfMapsByZip, tfMapsByCoords, tfMapsByCity, tfMapsByIP];
-end;
 
 function TWUWeatherThread.GetUrl: String;
 begin
@@ -107,10 +98,14 @@ begin
   try
     U:= GetEndpointUrl(TWUEndpoint.weAll);
     case Owner.LocationType of
-      wlZip:        U:= U + Owner.LocationDetail1+'.json';
-      wlCityState:  U:= U + Owner.LocationDetail2+'/'+Owner.LocationDetail1+'.json';
-      wlCoords:     U:= U + Owner.LocationDetail1+','+Owner.LocationDetail2+'.json';
-      wlAutoIP:     U:= U + 'autoip.json';
+      wlZip:          U:= U + Owner.LocationDetail1+'.json';
+      wlCityState:    U:= U + Owner.LocationDetail2+'/'+Owner.LocationDetail1+'.json';
+      wlCoords:       U:= U + Owner.LocationDetail1+','+Owner.LocationDetail2+'.json';
+      wlAutoIP:       U:= U + 'autoip.json';
+      wlCityCode:     ;
+      wlCountryCity:  ;
+      wlAirportCode:  ;
+      wlPWS:          ;
     end;
     S:= Web.Get(U);
     O:= SO(S);
@@ -309,7 +304,11 @@ var
     I.LoadFromStream(S);
     S.Clear;
     S.Position:= 0;
+    {$IFDEF USE_VCL}
     Maps.Maps[MT].Assign(I);
+    {$ELSE}
+
+    {$ENDIF}
   end;
 begin
   Result:= False;
@@ -394,7 +393,9 @@ begin
   Conditions.FWindSpeed:= OB.D['wind_mph'];
   Conditions.FWindDir:= OB.D['wind_degrees'];
 
+  {$IFDEF USE_VCL}
   LoadPicture(OB.S['icon_url'], Conditions.FPicture);
+  {$ENDIF}
 
 end;
 
@@ -451,7 +452,9 @@ begin
       I.FDescription:= OB.S['condition'];
       I.FWindDir:= StrToFloatDef(OB.O['wdir'].S['degrees'], 0);
       I.FVisibility:= 0;
+      {$IFDEF USE_VCL}
       LoadPicture(OB.S['icon_url'], I.FPicture);
+      {$ENDIF}
     finally
       Forecast.FItems.Add(I);
     end;
@@ -483,7 +486,7 @@ begin
     Exit;
   end;
 
-  A:= O.A['forecastday'];
+  A:= OB.A['forecastday'];
   if not Assigned(A) then begin
     Exit;
   end;
@@ -521,7 +524,9 @@ begin
       I.FDescription:= OB.S['conditions'];
       I.FWindDir:= StrToFloatDef(OB.O['avewind'].S['degrees'], 0);
       I.FVisibility:= 0; //Not Supported
+      {$IFDEF USE_VCL}
       LoadPicture(OB.S['icon_url'], I.FPicture);
+      {$ENDIF}
     finally
       Forecast.FItems.Add(I);
     end;
@@ -582,7 +587,9 @@ begin
       I.FDescription:= OB.S['condition'];
       I.FWindDir:= StrToFloatDef(OB.O['wdir'].S['degrees'], 0);
       I.FVisibility:= 0;
+      {$IFDEF USE_VCL}
       LoadPicture(OB.S['icon_url'], I.FPicture);
+      {$ENDIF}
     finally
       Forecast.FItems.Add(I);
     end;
@@ -640,7 +647,7 @@ begin
 
   for X := 0 to A.Length-1 do begin
     Obj:= A.O[X];
-    I:= TWeatherAlert.Create(Self);
+    I:= TWeatherAlert.Create;
     try
       I.FAlertType:= StrToAlertType(Obj.S['type']);
       I.FDescription:= Obj.S['description'];

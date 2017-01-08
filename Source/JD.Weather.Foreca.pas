@@ -10,7 +10,6 @@ uses
 type
   TForecaWeatherThread = class(TJDWeatherThread)
   public
-    function Support: TWeatherThreadFunctions; override;
     function GetUrl: String; override;
     function DoAll(Conditions: TWeatherConditions; Forecast: TWeatherForecast;
       ForecastDaily: TWeatherForecast; ForecastHourly: TWeatherForecast;
@@ -29,11 +28,6 @@ uses
   DateUtils, StrUtils, Math;
 
 { TForecaWeatherThread }
-
-function TForecaWeatherThread.Support: TWeatherThreadFunctions;
-begin
-  Result:= [];
-end;
 
 function TForecaWeatherThread.GetUrl: String;
 begin

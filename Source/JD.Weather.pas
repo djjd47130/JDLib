@@ -115,29 +115,40 @@
 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
 
   TODO:
-  - Implement "Supported..." functions to reflect what each service supports
   - Implement caching of weather data as to not fetch too often
-  - Implement weather maps
-    - Radar
-    - Satellite
-    - Radar AND Satellite Combined
-  - Standardize the forecast formats
-    - Hourly - X number of hours
-    - Daily - X number of days
-    - Summary - Half day, plain text
   - Detect coordinates based on IP
     - Supposedly location services does this, but doesn't work in some cases...
   - Finish implementing all services
+  - Remove dependency of VCL
+    - Requires changing images to be raw streams, or perhaps files
+    - Condition icons can be re-produced and cached locally,
+      so that they don't even need to be downloaded from chosen service.
+    - Created new interface "IWeatherGraphic" which carries image data as stream
+      - UNTESTED!!!!!
+  - Remove hard-coding of available services
+    - Remove dependency of service-specific units from main unit
+    - Requires complete re-structure of how threads are spawned
+    - Requires each service unit to register itself into the main one
+      - Implemented in the `initialization` and `finalization` of each unit
+  - Wrap inside a DLL
+    - Create DLL for each possible service
+    - Remove main DLL dependency on service DLLs
+    - Add more services in future without recompiling anything
+    - Created new DLL structures, need to finish above tasks first
 
 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
 *)
+
+{ $DEFINE USE_VCL}
 
 interface
 
 uses
   System.Classes, System.SysUtils, System.Generics.Collections,
   Winapi.Windows,
+  {$IFDEF USE_VCL}
   Vcl.Graphics, Vcl.Imaging.Jpeg, Vcl.Imaging.PngImage, Vcl.Imaging.GifImg,
+  {$ENDIF}
   SuperObject,
   IdHTTP;
 
@@ -148,6 +159,46 @@ const
   clLightRed = $00B0B0FF;
 
 type
+  IWeatherConditions = interface;
+  IWeatherForecast = interface;
+  IWeatherAlerts = interface;
+  IWeatherMaps = interface;
+  TWeatherGraphic = class;
+
+  TWeatherInfoType = (wiConditions, wiAlerts, wiForecastSummary,
+    wiForecastHourly, wiForecastDaily, wiMaps, wiAlmanac, wiAstronomy,
+    wiHurricane, wiHistory, wiPlanner, wiStation);
+  TWeatherInfoTypes = set of TWeatherInfoType;
+
+  TTemperature = record
+    Value: Double;
+    function GetAsFarenheit: Double;
+    function GetAsCelsius: Double;
+    function GetAsStr: String;
+    function GetAsFarenheitStr: String;
+    function GetAsCelsiusStr: String;
+    procedure SetAsFarenheit(const Value: Double);
+    procedure SetAsCelsius(const Value: Double);
+    property AsFarenheit: Double read GetAsFarenheit write SetAsFarenheit;
+    property AsCelsius: Double read GetAsCelsius write SetAsCelsius;
+    class operator Implicit(const Value: TTemperature): Double;
+    class operator Implicit(const Value: Double): TTemperature;
+  end;
+
+  TWeatherMapFormat = (wfJpg, wfPng, wfGif, wfTiff, wfBmp, wfFlash, wfHtml);
+  TWeatherMapFormats = set of TWeatherMapFormat;
+
+  TJDWeatherLocationType = (wlZip, wlCityState, wlCoords, wlAutoIP, wlCityCode,
+    wlCountryCity, wlAirportCode, wlPWS);
+  TJDWeatherLocationTypes = set of TJDWeatherLocationType;
+
+  TWeatherConditionsEvent = procedure(Sender: TObject; const Conditions: IWeatherConditions) of object;
+
+  TWeatherForecastEvent = procedure(Sender: TObject; const Forecast: IWeatherForecast) of object;
+
+  TWeatherAlertEvent = procedure(Sender: TObject; const Alert: IWeatherAlerts) of object;
+
+  TWeatherMapEvent = procedure(Sender: TObject; const Image: IWeatherMaps) of object;
 
   ///<summary>
   ///  Specifies a particular weather info service provider.
@@ -159,6 +210,24 @@ type
   ///  Specifies different types of measurement units.
   ///</summary>
   TWeatherUnits = (wuKelvin, wuImperial, wuMetric);
+  TWeatherUnitsSet = set of TWeatherUnits;
+
+  TWeatherConditionsProp = (cpPressureMB, cpPressureIn, cpWindDir, cpWindSpeed,
+    cpHumidity, cpVisibility, cpDewPoint, cpHeatIndex, cpWindGust, cpWindChill,
+    cpFeelsLike, cpSolarRad, cpUV, cpTemp, cpTempMin, cpTempMax, cpPrecip,
+    cpIcon, cpCaption, cpDescription, cpStation, cpClouds,
+    cpRain, cpSnow, cpSunrise, cpSunset);
+  TWeatherConditionsProps = set of TWeatherConditionsProp;
+
+  TWeatherForecastType = (ftSummary, ftHourly, ftDaily);
+  TWeatherForecastTypes = set of TWeatherForecastType;
+
+  TWeatherForecastProp = (fpPressureMB, fpPressureIn, fpWindDir, fpWindSpeed,
+    fpHumidity, fpVisibility, fpDewPoint, fpHeatIndex, fpWindGust, fpWindChill,
+    fpFeelsLike, fpSolarRad, fpUV, fpTemp, fpTempMin, fpTempMax, fpCaption,
+    fpDescription, fpIcon, fpGroundPressure, fpSeaPressure, fpPrecip, fpURL,
+    fpDaylight, fpSnow, fpSleet, fpPrecipChance, fpClouds, fpRain);
+  TWeatherForecastProps = set of TWeatherForecastProp;
 
   ///<summary>
   ///  Specifies different types of weather alerts.
@@ -167,11 +236,28 @@ type
     waSevThundWatch, waWinterAdv, waFloodWarn, waFloodWatch, waHighWind, waSevStat,
     waHeatAdv, waFogAdv, waSpecialStat, waFireAdv, waVolcanicStat, waHurricaneWarn,
     waRecordSet, waPublicRec, waPublicStat);
+  TWeatherAlertTypes = set of TWeatherAlertType;
+
+  TWeatherAlertProp = (apZones, apVerticies, apStorm, apType, apDescription,
+    apExpires, apMessage, apPhenomena, apSignificance);
+  TWeatherAlertProps = set of TWeatherAlertProp;
 
   ///<summary>
   ///  Specifies different types of weather phenomena.
   ///</summary>
   TWeatherAlertPhenomena = (wpWind, wpHeat, wpSmallCraft);
+
+  TWeatherMapType = (mpSatellite, mpRadar, mpSatelliteRadar, mpRadarClouds,
+    mpClouds, mpTemp, mpTempChange, mpSnowCover, mpPrecip, mpAlerts, mpHeatIndex,
+    mpDewPoint, mpWindChill, mpPressureSea, mpWind,
+    mpAniSatellite, mpAniRadar, mpAniSatelliteRadar);
+  TWeatherMapTypes = set of TWeatherMapType;
+
+  {$IFDEF USE_VCL}
+  TMapArray = array[TWeatherMapType] of TPicture;
+  {$ELSE}
+  TMapArray = array[TWeatherMapType] of TWeatherGraphic;
+  {$ENDIF}
 
   ///<summary>
   ///  Specifies whether it's day or night.
@@ -217,6 +303,15 @@ type
 
 {$REGION "Interface Definitions"}
 
+  IWeatherGraphic = interface
+    function GetExt: WideString;
+    function GetBase64: WideString;
+    procedure SetBase64(const Value: WideString);
+
+    property Ext: WideString read GetExt;
+    property Base64: WideString read GetBase64 write SetBase64;
+  end;
+
   IWeatherLocation = interface
     function GetDisplayName: WideString;
     function GetCity: WideString;
@@ -240,15 +335,12 @@ type
     property ZipCode: WideString read GetZipCode;
   end;
 
-  TWeatherConditionsProp = (cpPressureMB, cpPressureIn, cpWindDir, cpWindSpeed,
-    cpHumidity, cpVisibility, cpDewPoint, cpHeatIndex, cpWindGust, cpWindChill,
-    cpFeelsLike, cpSolarRad, cpUV, cpTemp, cpTempMin, cpTempMax, cpPrecip,
-    cpIcon, cpCaption, cpDescription, cpStation, cpClouds,
-    cpRain, cpSnow, cpSunrise, cpSunset);
-  TWeatherConditionsProps = set of TWeatherConditionsProp;
-
   IWeatherConditions = interface
+    {$IFDEF USE_VCL}
     function GetPicture: TPicture;
+    {$ELSE}
+    function GetPicture: IWeatherGraphic;
+    {$ENDIF}
     function GetLocation: IWeatherLocation;
     function GetDateTime: TDateTime;
     function GetTemp: Single;
@@ -260,8 +352,12 @@ type
     function GetWindSpeed: Single;
     function GetVisibility: Single;
     function GetDewPoint: Single;
-    function SupportedProps: TWeatherConditionsProps;
+    //function SupportedProps: TWeatherConditionsProps;
+    {$IFDEF USE_VCL}
     property Picture: TPicture read GetPicture;
+    {$ELSE}
+    property Picture: IWeatherGraphic read GetPicture;
+    {$ENDIF}
     property Location: IWeatherLocation read GetLocation;
     property DateTime: TDateTime read GetDateTime;
     property Temp: Single read GetTemp;
@@ -275,14 +371,10 @@ type
     property DewPoint: Single read GetDewPoint;
   end;
 
-  TWeatherForecastProp = (fpPressureMB, fpPressureIn, fpWindDir, fpWindSpeed,
-    fpHumidity, fpVisibility, fpDewPoint, fpHeatIndex, fpWindGust, fpWindChill,
-    fpFeelsLike, fpSolarRad, fpUV, fpTemp, fpTempMin, fpTempMax, fpCaption,
-    fpDescription, fpIcon, fpGroundPressure, fpSeaPressure, fpPrecip, fpURL, fpDaylight);
-  TWeatherForecastProps = set of TWeatherForecastProp;
-
   IWeatherForecastItem = interface
+    {$IFDEF USE_VCL}
     function GetPicture: TPicture;
+    {$ENDIF}
     function GetDateTime: TDateTime;
     function GetTemp: Single;
     function GetTempMax: Single;
@@ -295,8 +387,9 @@ type
     function GetWindSpeed: Single;
     function GetVisibility: Single;
     function GetDewPoint: Single;
-    function SupportedProps: TWeatherForecastProps;
+    {$IFDEF USE_VCL}
     property Picture: TPicture read GetPicture;
+    {$ENDIF}
     property DateTime: TDateTime read GetDateTime;
     property Temp: Single read GetTemp;
     property TempMin: Single read GetTempMin;
@@ -362,10 +455,6 @@ type
     property Verticies: IWeatherStormVerticies read GetVerticies;
   end;
 
-  TWeatherAlertProp = (apZones, apVerticies, apStorm, apType, apDescription,
-    apExpires, apMessage, apPhenomena, apSignificance);
-  TWeatherAlertProps = set of TWeatherAlertProp;
-
   IWeatherAlert = interface
     function GetAlertType: TWeatherAlertType;
     function GetDescription: WideString;
@@ -376,7 +465,6 @@ type
     function GetSignificance: WideString;
     function GetZones: IWeatherAlertZones;
     function GetStorm: IWeatherAlertStorm;
-    function SupportedFunctions: TWeatherAlertProps;
     property AlertType: TWeatherAlertType read GetAlertType;
     property Description: WideString read GetDescription;
     property DateTime: TDateTime read GetDateTime;
@@ -394,16 +482,18 @@ type
     property Items[const Index: Integer]: IWeatherAlert read GetItem; default;
   end;
 
-  TWeatherMapType = (mpSatellite, mpRadar, mpSatelliteRadar, mpRadarClouds,
-    mpClouds, mpTemp, mpTempChange, mpSnowCover, mpPrecip, mpAlerts, mpHeatIndex,
-    mpDewPoint, mpWindChill, mpPressureSea, mpWind,
-    mpAniSatellite, mpAniRadar, mpAniSatelliteRadar);
-  TWeatherMapTypes = set of TWeatherMapType;
-
   IWeatherMaps = interface
+    {$IFDEF USE_VCL}
     function GetMap(const MapType: TWeatherMapType): TPicture;
-    function SupportedFunctions: TWeatherMapTypes;
+    {$ELSE}
+    function GetMap(const MapType: TWeatherMapType): IWeatherGraphic;
+    {$ENDIF}
+
+    {$IFDEF USE_VCL}
     property Maps[const MapType: TWeatherMapType]: TPicture read GetMap;
+    {$ELSE}
+    property Maps[const MapType: TWeatherMapType]: IWeatherGraphic read GetMap;
+    {$ENDIF}
   end;
 
 {$ENDREGION}
@@ -421,6 +511,24 @@ type
   { Interface Implementation Objects }
 
   TJDWeatherThread = class;
+
+  TWeatherGraphic = class(TInterfacedObject, IWeatherGraphic)
+  private
+    FStream: TStringStream;
+    FExt: WideString;
+  public
+    constructor Create; overload;
+    constructor Create(AStream: TStream); overload;
+    constructor Create(AFilename: WideString); overload;
+    destructor Destroy; override;
+  public
+    function GetExt: WideString;
+    function GetBase64: WideString;
+    procedure SetBase64(const Value: WideString);
+
+    property Ext: WideString read GetExt;
+    property Base64: WideString read GetBase64 write SetBase64;
+  end;
 
   TWeatherLocation = class(TInterfacedObject, IWeatherLocation)
   public
@@ -462,8 +570,12 @@ type
 
   TWeatherConditions = class(TInterfacedObject, IWeatherConditions)
   public
+    {$IFDEF USE_VCL}
     FPicture: TPicture;
-    FOwner: TJDWeatherThread;
+    {$ELSE}
+    FPicture: TWeatherGraphic;
+    {$ENDIF}
+    //FOwner: TJDWeatherThread;
     FLocation: TWeatherLocation;
     FDateTime: TDateTime;
     FTemp: Single;
@@ -476,10 +588,14 @@ type
     FVisibility: Single;
     FDewPoint: Single;
   public
-    constructor Create(AOwner: TJDWeatherThread);
+    constructor Create;
     destructor Destroy; override;
   public
+    {$IFDEF USE_VCL}
     function GetPicture: TPicture;
+    {$ELSE}
+    function GetPicture: IWeatherGraphic;
+    {$ENDIF}
     function GetLocation: IWeatherLocation;
     function GetDateTime: TDateTime;
     function GetTemp: Single;
@@ -491,8 +607,11 @@ type
     function GetWindSpeed: Single;
     function GetVisibility: Single;
     function GetDewPoint: Single;
-    function SupportedProps: TWeatherConditionsProps;
+    {$IFDEF USE_VCL}
     property Picture: TPicture read GetPicture;
+    {$ELSE}
+    property Picture: IWeatherGraphic read GetPicture;
+    {$ENDIF}
     property Location: IWeatherLocation read GetLocation;
     property DateTime: TDateTime read GetDateTime;
     property Temp: Single read GetTemp;
@@ -511,7 +630,11 @@ type
   TWeatherForecastItem = class(TInterfacedObject, IWeatherForecastItem)
   public
     FOwner: TWeatherForecast;
+    {$IFDEF USE_VCL}
     FPicture: TPicture;
+    {$ELSE}
+    FPicture: TWeatherGraphic;
+    {$ENDIF}
     FDateTime: TDateTime;
     FTemp: Single;
     FTempMin: Single;
@@ -528,7 +651,11 @@ type
     constructor Create(AOwner: TWeatherForecast);
     destructor Destroy; override;
   public
+    {$IFDEF USE_VCL}
     function GetPicture: TPicture;
+    {$ELSE}
+    function GetPicture: IWeatherGraphic;
+    {$ENDIF}
     function GetDateTime: TDateTime;
     function GetTemp: Single;
     function GetTempMax: Single;
@@ -541,8 +668,11 @@ type
     function GetWindSpeed: Single;
     function GetVisibility: Single;
     function GetDewPoint: Single;
-    function SupportedProps: TWeatherForecastProps;
+    {$IFDEF USE_VCL}
     property Picture: TPicture read GetPicture;
+    {$ELSE}
+    property Picture: IWeatherGraphic read GetPicture;
+    {$ENDIF}
     property DateTime: TDateTime read GetDateTime;
     property Temp: Single read GetTemp;
     property TempMin: Single read GetTempMin;
@@ -559,12 +689,11 @@ type
 
   TWeatherForecast = class(TInterfacedObject, IWeatherForecast)
   public
-    FOwner: TJDWeatherThread;
     FItems: TList<IWeatherForecastItem>;
     FLocation: TWeatherLocation;
     procedure Clear;
   public
-    constructor Create(AOwner: TJDWeatherThread);
+    constructor Create;
     destructor Destroy; override;
   public
     function GetLocation: IWeatherLocation;
@@ -652,7 +781,6 @@ type
 
   TWeatherAlert = class(TInterfacedObject, IWeatherAlert)
   public
-    FOwner: TJDWeatherThread;
     FAlertType: TWeatherAlertType;
     FDescription: WideString;
     FDateTime: TDateTime;
@@ -663,7 +791,7 @@ type
     FZones: TWeatherAlertZones;
     FStorm: TWeatherAlertStorm;
   public
-    constructor Create(AOwner: TJDWeatherThread);
+    constructor Create;
     destructor Destroy; override;
   public
     function GetAlertType: TWeatherAlertType;
@@ -675,7 +803,6 @@ type
     function GetSignificance: WideString;
     function GetZones: IWeatherAlertZones;
     function GetStorm: IWeatherAlertStorm;
-    function SupportedFunctions: TWeatherAlertProps;
     property AlertType: TWeatherAlertType read GetAlertType;
     property Description: WideString read GetDescription;
     property DateTime: TDateTime read GetDateTime;
@@ -700,19 +827,24 @@ type
     property Items[const Index: Integer]: IWeatherAlert read GetItem; default;
   end;
 
-  TMapArray = array[TWeatherMapType] of TPicture;
-
   TWeatherMaps = class(TInterfacedObject, IWeatherMaps)
   public
-    FOwner: TJDWeatherThread;
     FMaps: TMapArray;
   public
-    constructor Create(AOwner: TJDWeatherThread);
+    constructor Create;
     destructor Destroy; override;
   public
+    {$IFDEF USE_VCL}
     function GetMap(const MapType: TWeatherMapType): TPicture;
-    function SupportedFunctions: TWeatherMapTypes;
+    {$ELSE}
+    function GetMap(const MapType: TWeatherMapType): IWeatherGraphic;
+    {$ENDIF}
+
+    {$IFDEF USE_VCL}
     property Maps[const MapType: TWeatherMapType]: TPicture read GetMap;
+    {$ELSE}
+    property Maps[const MapType: TWeatherMapType]: IWeatherGraphic read GetMap;
+    {$ENDIF}
   end;
 
 {$ENDREGION}
@@ -729,23 +861,7 @@ type
 
 {$REGION "Weather Thread Base"}
 
-  TJDWeatherLocationType = (wlZip, wlCityState, wlCoords, wlAutoIP);
-
-  TWeatherConditionsEvent = procedure(Sender: TObject; const Conditions: IWeatherConditions) of object;
-
-  TWeatherForecastEvent = procedure(Sender: TObject; const Forecast: IWeatherForecast) of object;
-
-  TWeatherAlertEvent = procedure(Sender: TObject; const Alert: IWeatherAlerts) of object;
-
-  TWeatherMapEvent = procedure(Sender: TObject; const Image: IWeatherMaps) of object;
-
   TJDWeather = class;
-
-  TWeatherThreadFunction = (tfConditionByZip, tfConditionByCoords, tfConditionByCity,
-    tfConditionByIP, tafForecastByZip, tfForecastByCoords, tfForecastByCity, tfForecastByIP,
-    tfAlertsByZip, tfAlertsByCoords, tfAlertsByCity, tfAlertsByIP, tfMapsByZip,
-    tfMapsByCoords, tfMapsByCity, tfMapsByIP);
-  TWeatherThreadFunctions = set of TWeatherThreadFunction;
 
   TJDWeatherThread = class(TThread)
   private
@@ -791,7 +907,11 @@ type
     destructor Destroy; override;
     function Owner: TJDWeather;
     function Web: TIdHTTP;
+    {$IFDEF USE_VCL}
     function LoadPicture(const U: String; const P: TPicture): Boolean;
+    {$ELSE}
+    function LoadPicture(const U: String; const P: IWeatherGraphic): Boolean;
+    {$ENDIF}
   public
     property OnConditions: TWeatherConditionsEvent read FOnConditions write FOnConditions;
     property OnForecast: TWeatherForecastEvent read FOnForecast write FOnForecast;
@@ -800,7 +920,6 @@ type
     property OnAlerts: TWeatherAlertEvent read FOnAlerts write FOnAlerts;
     property OnMaps: TWeatherMapEvent read FOnMaps write FOnMaps;
   public
-    function Support: TWeatherThreadFunctions; virtual; abstract;
     function GetUrl: String; virtual; abstract;
     function DoAll(Conditions: TWeatherConditions; Forecast: TWeatherForecast;
       ForecastDaily: TWeatherForecast; ForecastHourly: TWeatherForecast;
@@ -970,6 +1089,9 @@ type
     ///</summary>
     property Units: TWeatherUnits read FUnits write SetUnits;
 
+    ///<summary>
+    ///  Specifies the types of maps to be fetched.
+    ///</summary>
     property WantedMaps: TWeatherMapTypes read FWantedMaps write SetWantedMaps;
 
 
@@ -1009,7 +1131,9 @@ type
 
 {$ENDREGION}
 
+{$IFDEF USE_VCL}
 function TempColor(const Temp: Single): TColor;
+{$ENDIF}
 
 ///<summary>
 ///  Converts a degree angle to a cardinal direction string
@@ -1039,20 +1163,25 @@ uses
   JD.Weather.NWS,
   JD.Weather.NOAA;
 
+{$IFDEF USE_VCL}
 function TempColor(const Temp: Single): TColor;
+const
+  MAX_TEMP = 99999;
+  MIN_TEMP = -MIN_TEMP;
 var
   T: Integer;
 begin
   T:= Trunc(Temp);
   case T of
-    -99999..32: Result:= clIceBlue;
-    33..55:     Result:= clSkyBlue;
-    56..73:     Result:= clMoneyGreen;
-    74..90:     Result:= clLightRed;
-    91..99999:  Result:= clLightOrange;
-    else        Result:= clWhite;
+    -MIN_TEMP..32:  Result:= clIceBlue;
+    33..55:         Result:= clSkyBlue;
+    56..73:         Result:= clMoneyGreen;
+    74..90:         Result:= clLightRed;
+    91..MAX_TEMP:   Result:= clLightOrange;
+    else            Result:= clWhite;
   end;
 end;
+{$ENDIF}
 
 function DegreeToDir(const D: Single): String;
 var
@@ -1256,6 +1385,49 @@ end;
 
 {$REGION "Common Object Implementation"}
 
+{ TWeatherGraphic }
+
+constructor TWeatherGraphic.Create;
+begin
+  FStream:= TStringStream.Create;
+end;
+
+constructor TWeatherGraphic.Create(AStream: TStream);
+begin
+  Create;
+  FStream.LoadFromStream(AStream);
+  FStream.Position:= 0;
+end;
+
+constructor TWeatherGraphic.Create(AFilename: WideString);
+begin
+  Create;
+  FStream.LoadFromFile(AFilename);
+  FStream.Position:= 0;
+end;
+
+destructor TWeatherGraphic.Destroy;
+begin
+  FreeAndNil(FStream);
+  inherited;
+end;
+
+function TWeatherGraphic.GetBase64: WideString;
+begin
+  Result:= FStream.DataString;
+end;
+
+function TWeatherGraphic.GetExt: WideString;
+begin
+  Result:= FExt;
+end;
+
+procedure TWeatherGraphic.SetBase64(const Value: WideString);
+begin
+  FStream.Clear;
+  FStream.WriteString(Value);
+end;
+
 { TWeatherLocation }
 
 constructor TWeatherLocation.Create;
@@ -1321,17 +1493,28 @@ end;
 
 { TWeatherConditions }
 
-constructor TWeatherConditions.Create(AOwner: TJDWeatherThread);
+//constructor TWeatherConditions.Create(AOwner: TJDWeatherThread);
+constructor TWeatherConditions.Create;
 begin
-  FOwner:= AOwner;
+  //FOwner:= AOwner;
   FLocation:= TWeatherLocation.Create;
   FLocation._AddRef;
+  {$IFDEF USE_VCL}
   FPicture:= TPicture.Create;
+  {$ELSE}
+  FPicture:= TWeatherGraphic.Create;
+  FPicture._AddRef;
+  {$ENDIF}
 end;
 
 destructor TWeatherConditions.Destroy;
 begin
+  {$IFDEF USE_VCL}
   FreeAndNil(FPicture);
+  {$ELSE}
+  FPicture._Release;
+  FPicture:= nil;
+  {$ENDIF}
   FLocation._Release;
   FLocation:= nil;
   inherited;
@@ -1367,10 +1550,17 @@ begin
   Result:= FLocation;
 end;
 
+{$IFDEF USE_VCL}
 function TWeatherConditions.GetPicture: TPicture;
 begin
   Result:= FPicture;
 end;
+{$ELSE}
+function TWeatherConditions.GetPicture: IWeatherGraphic;
+begin
+  Result:= FPicture;
+end;
+{$ENDIF}
 
 function TWeatherConditions.GetPressure: Single;
 begin
@@ -1397,6 +1587,7 @@ begin
   Result:= FWindSpeed;
 end;
 
+{
 function TWeatherConditions.SupportedProps: TWeatherConditionsProps;
 begin
   case FOwner.FOwner.FService of
@@ -1416,18 +1607,29 @@ begin
       ];
   end;
 end;
+}
 
 { TWeatherForecastItem }
 
 constructor TWeatherForecastItem.Create(AOwner: TWeatherForecast);
 begin
   FOwner:= AOwner;
+  {$IFDEF USE_VCL}
   FPicture:= TPicture.Create;
+  {$ELSE}
+  FPicture:= TWeatherGraphic.Create;
+  FPicture._AddRef;
+  {$ENDIF}
 end;
 
 destructor TWeatherForecastItem.Destroy;
 begin
+  {$IFDEF USE_VCL}
   FreeAndNil(FPicture);
+  {$ELSE}
+  FPicture._Release;
+  FPicture:= nil;
+  {$ENDIF}
   inherited;
 end;
 
@@ -1456,7 +1658,11 @@ begin
   Result:= FHumidity;
 end;
 
+{$IFDEF USE_VCL}
 function TWeatherForecastItem.GetPicture: TPicture;
+{$ELSE}
+function TWeatherForecastItem.GetPicture: IWeatherGraphic;
+{$ENDIF}
 begin
   Result:= FPicture;
 end;
@@ -1496,30 +1702,10 @@ begin
   Result:= FWindSpeed;
 end;
 
-function TWeatherForecastItem.SupportedProps: TWeatherForecastProps;
-begin
-  case FOwner.FOwner.FOwner.FService of
-    wsOpenWeatherMap:   Result:= [fpPressureMB, fpWindDir, fpWindSpeed,
-      fpHumidity, fpTemp, fpTempMin, fpTempMax, fpCaption, fpDescription,
-      fpIcon, fpGroundPressure, fpSeaPressure];
-    wsWUnderground: begin
-      Result:= [fpWindDir, fpWindSpeed, fpHumidity, fpTemp, fpTempMin,
-        fpTempMax, fpCaption, fpDescription, fpIcon];
-    end;
-    wsAccuWeather:      Result:= [fpIcon, fpCaption, fpTemp, fpPrecip,
-      fpURL, fpDaylight];
-    wsNWS:              Result:= [
-      ];
-    wsNOAA:             Result:= [
-      ];
-  end;
-end;
-
 { TWeatherForecast }
 
-constructor TWeatherForecast.Create(AOwner: TJDWeatherThread);
+constructor TWeatherForecast.Create;
 begin
-  FOwner:= AOwner;
   FItems:= TList<IWeatherForecastItem>.Create;
   FLocation:= TWeatherLocation.Create;
   FLocation._AddRef;
@@ -1722,9 +1908,8 @@ end;
 
 { TWeatherAlert }
 
-constructor TWeatherAlert.Create(AOwner: TJDWeatherThread);
+constructor TWeatherAlert.Create;
 begin
-  FOwner:= AOwner;
   FZones:= TWeatherAlertZones.Create;
   FZones._AddRef;
   FStorm:= TWeatherAlertStorm.Create;
@@ -1738,19 +1923,6 @@ begin
   FZones._Release;
   FZones:= nil;
   inherited;
-end;
-
-function TWeatherAlert.SupportedFunctions: TWeatherAlertProps;
-begin
-  case FOwner.FOwner.FService of
-    wsOpenWeatherMap: Result:= [];
-    wsWUnderground: Result:= [apZones, apVerticies, apStorm, apType, apDescription,
-      apExpires, apMessage, apPhenomena, apSignificance];
-    wsAccuWeather: Result:= [];
-    wsForeca: Result:= [];
-    wsNWS: Result:= [];
-    wsNOAA: Result:= [];
-  end;
 end;
 
 function TWeatherAlert.GetAlertType: TWeatherAlertType;
@@ -1834,44 +2006,53 @@ end;
 
 { TWeatherMaps }
 
-constructor TWeatherMaps.Create(AOwner: TJDWeatherThread);
+constructor TWeatherMaps.Create;
 var
   X: TWeatherMapType;
 begin
+  {$IFDEF USE_VCL}
   for X := Low(TMapArray) to High(TMapArray) do begin
     FMaps[X]:= TPicture.Create;
   end;
+  {$ELSE}
+  for X := Low(TMapArray) to High(TMapArray) do begin
+    FMaps[X]:= TWeatherGraphic.Create;
+  end;
+  {$ENDIF}
 end;
 
 destructor TWeatherMaps.Destroy;
 var
   X: TWeatherMapType;
+{$IFDEF USE_VCL}
   P: TPicture;
+{$ELSE}
+  P: IWeatherGraphic;
+{$ENDIF}
 begin
   for X := Low(TMapArray) to High(TMapArray) do begin
     P:= FMaps[X];
+  {$IFDEF USE_VCL}
     FreeAndNil(P);
+  {ELSE}
+    P._Release;
+    P:= nil;
+  {$ENDIF}
   end;
   inherited;
 end;
 
+{$IFDEF USE_VCL}
 function TWeatherMaps.GetMap(const MapType: TWeatherMapType): TPicture;
 begin
   Result:= FMaps[MapType];
 end;
-
-function TWeatherMaps.SupportedFunctions: TWeatherMapTypes;
+{$ELSE}
+function TWeatherMaps.GetMap(const MapType: TWeatherMapType): IWeatherGraphic;
 begin
-  case Self.FOwner.FOwner.FService of
-    wsOpenWeatherMap: Result:= [mpClouds, mpPrecip, mpPressureSea,
-      mpWind, mpTemp, mpSnowCover];
-    wsWUnderground: Result:= [mpSatellite, mpRadar, mpSatelliteRadar];
-    wsAccuWeather: Result:= [];
-    wsForeca: Result:= [];
-    wsNWS: Result:= [];
-    wsNOAA: Result:= [];
-  end;
+  Result:= FMaps[MapType];
 end;
+{$ENDIF}
 
 {$ENDREGION}
 
@@ -1944,17 +2125,18 @@ begin
       FAlerts._Release;
     if Assigned(FMaps) then
       FMaps._Release;
-    FConditions:= TWeatherConditions.Create(Self);
+    //FConditions:= TWeatherConditions.Create(Self);
+    FConditions:= TWeatherConditions.Create;
     FConditions._AddRef;
-    FForecast:= TWeatherForecast.Create(Self);
+    FForecast:= TWeatherForecast.Create;
     FForecast._AddRef;
-    FForecastDaily:= TWeatherForecast.Create(Self);
+    FForecastDaily:= TWeatherForecast.Create;
     FForecastDaily._AddRef;
-    FForecastHourly:= TWeatherForecast.Create(Self);
+    FForecastHourly:= TWeatherForecast.Create;
     FForecastHourly._AddRef;
     FAlerts:= TWeatherAlerts.Create;
     FAlerts._AddRef;
-    FMaps:= TWeatherMaps.Create(Self);
+    FMaps:= TWeatherMaps.Create;
     FMaps._AddRef;
     R:= DoAll(FConditions, FForecast, FForecastDaily, FForecastHourly, FAlerts, FMaps);
     if R then begin
@@ -1991,7 +2173,8 @@ begin
   try
     if Assigned(FConditions) then
       FConditions._Release;
-    FConditions:= TWeatherConditions.Create(Self);
+    //FConditions:= TWeatherConditions.Create(Self);
+    FConditions:= TWeatherConditions.Create;
     FConditions._AddRef;
     R:= DoConditions(FConditions);
     if R then begin
@@ -2013,7 +2196,7 @@ begin
   try
     if Assigned(FForecast) then
       FForecast._Release;
-    FForecast:= TWeatherForecast.Create(Self);
+    FForecast:= TWeatherForecast.Create;
     FForecast._AddRef;
     R:= DoForecast(FForecast);
     if R then begin
@@ -2035,7 +2218,7 @@ begin
   try
     if Assigned(FForecastDaily) then
       FForecastDaily._Release;
-    FForecastDaily:= TWeatherForecast.Create(Self);
+    FForecastDaily:= TWeatherForecast.Create;
     FForecastDaily._AddRef;
     R:= DoForecast(FForecastDaily);
     if R then begin
@@ -2057,7 +2240,7 @@ begin
   try
     if Assigned(FForecastHourly) then
       FForecastHourly._Release;
-    FForecastHourly:= TWeatherForecast.Create(Self);
+    FForecastHourly:= TWeatherForecast.Create;
     FForecastHourly._AddRef;
     R:= DoForecast(FForecastHourly);
     if R then begin
@@ -2101,7 +2284,7 @@ begin
   try
     if Assigned(FMaps) then
       FMaps._Release;
-    FMaps:= TWeatherMaps.Create(Self);
+    FMaps:= TWeatherMaps.Create;
     FMaps._AddRef;
     R:= DoMaps(FMaps);
     if R then begin
@@ -2174,6 +2357,7 @@ begin
   end;
 end;
 
+{$IFDEF USE_VCL}
 function TJDWeatherThread.LoadPicture(const U: String; const P: TPicture): Boolean;
 var
   S: TMemoryStream;
@@ -2200,6 +2384,27 @@ begin
 
   end;
 end;
+{$ELSE}
+function TJDWeatherThread.LoadPicture(const U: String;
+  const P: IWeatherGraphic): Boolean;
+var
+  S: TStringStream;
+begin
+  Result:= False;
+  try
+    S:= TStringStream.Create;
+    try
+      FWeb.Get(U, S);
+      S.Position:= 0;
+      P.Base64:= S.DataString;
+    finally
+      FreeAndNil(S);
+    end;
+  except
+
+  end;
+end;
+{$ENDIF}
 
 function TJDWeatherThread.Owner: TJDWeather;
 begin
@@ -2464,5 +2669,54 @@ begin
 end;
 
 {$ENDREGION}
+
+{ TTemperature }
+
+function TTemperature.GetAsCelsius: Double;
+begin
+  Result:= Value;
+end;
+
+function TTemperature.GetAsCelsiusStr: String;
+begin
+  Result:= FormatFloat('0° C', GetAsCelsius);
+end;
+
+function TTemperature.GetAsFarenheit: Double;
+begin
+  Result:= Value - 32;
+  Result:= Result * 0.5556;
+end;
+
+function TTemperature.GetAsFarenheitStr: String;
+begin
+  Result:= FormatFloat('0° F', GetAsFarenheit);
+end;
+
+function TTemperature.GetAsStr: String;
+begin
+  Result:= FormatFloat('0°', GetAsFarenheit);
+end;
+
+procedure TTemperature.SetAsCelsius(const Value: Double);
+begin
+  Self.Value:= Value;
+end;
+
+procedure TTemperature.SetAsFarenheit(const Value: Double);
+begin
+  Self.Value:= Value * 1.8;
+  Self.Value:= Self.Value + 32;
+end;
+
+class operator TTemperature.Implicit(const Value: TTemperature): Double;
+begin
+  Result:= Value.Value;
+end;
+
+class operator TTemperature.Implicit(const Value: Double): TTemperature;
+begin
+  Result.Value:= Value;
+end;
 
 end.

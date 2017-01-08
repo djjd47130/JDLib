@@ -26,7 +26,6 @@ type
     procedure InvalidateLocation;
     procedure CheckLocation;
   public
-    function Support: TWeatherThreadFunctions; override;
     function GetUrl: String; override;
     function DoAll(Conditions: TWeatherConditions; Forecast: TWeatherForecast;
       ForecastDaily: TWeatherForecast; ForecastHourly: TWeatherForecast;
@@ -45,14 +44,6 @@ uses
   DateUtils, StrUtils, Math;
 
 { TAWWeatherThread }
-
-function TAWWeatherThread.Support: TWeatherThreadFunctions;
-begin
-  Result:= [tfConditionByZip, tfConditionByCoords, tfConditionByCity,
-    tfConditionByIP, tafForecastByZip, tfForecastByCoords, tfForecastByCity, tfForecastByIP,
-    tfAlertsByZip, tfAlertsByCoords, tfAlertsByCity, tfAlertsByIP, tfMapsByZip,
-    tfMapsByCoords, tfMapsByCity, tfMapsByIP];
-end;
 
 function TAWWeatherThread.GetEndpointUrl(const Endpoint: TAWEndpoint;
   const S: String): String;

@@ -14,7 +14,6 @@ type
   public
     function GetEndpointUrl(const Endpoint: TOWMEndpoint): String;
   public
-    function Support: TWeatherThreadFunctions; override;
     function GetUrl: String; override;
     function DoAll(Conditions: TWeatherConditions; Forecast: TWeatherForecast;
       ForecastDaily: TWeatherForecast; ForecastHourly: TWeatherForecast;
@@ -35,14 +34,6 @@ uses
   DateUtils, StrUtils, Math;
 
 { TOWMWeatherThread }
-
-function TOWMWeatherThread.Support: TWeatherThreadFunctions;
-begin
-  Result:= [tfConditionByZip, tfConditionByCoords, tfConditionByCity,
-    tfConditionByIP, tafForecastByZip, tfForecastByCoords, tfForecastByCity,
-    tfForecastByIP, tfMapsByZip, tfMapsByCoords, tfMapsByCity,
-    tfMapsByIP];
-end;
 
 function TOWMWeatherThread.GetEndpointUrl(const Endpoint: TOWMEndpoint): String;
 begin

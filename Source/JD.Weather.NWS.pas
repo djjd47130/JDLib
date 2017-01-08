@@ -12,7 +12,6 @@ type
   public
 
   public
-    function Support: TWeatherThreadFunctions; override;
     function GetUrl: String; override;
     function DoAll(Conditions: TWeatherConditions; Forecast: TWeatherForecast;
       ForecastDaily: TWeatherForecast; ForecastHourly: TWeatherForecast;
@@ -31,14 +30,6 @@ uses
   DateUtils, StrUtils, Math;
 
 { TNWSWeatherThread }
-
-function TNWSWeatherThread.Support: TWeatherThreadFunctions;
-begin
-  Result:= [tfConditionByZip, tfConditionByCoords, tfConditionByCity,
-    tfConditionByIP, tafForecastByZip, tfForecastByCoords, tfForecastByCity, tfForecastByIP,
-    tfAlertsByZip, tfAlertsByCoords, tfAlertsByCity, tfAlertsByIP, tfMapsByZip,
-    tfMapsByCoords, tfMapsByCity, tfMapsByIP];
-end;
 
 function TNWSWeatherThread.GetUrl: String;
 begin

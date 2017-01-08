@@ -29,11 +29,11 @@ package JDLibComponents;
 
 requires
   rtl,
-  DesignIDE,
   VclSmp,
   IndyCore,
   IndySystem,
-  IndyProtocols;
+  IndyProtocols,
+  vclimg;
 
 contains
   JD.Ctrls.FontButton in 'Source\JD.Ctrls.FontButton.pas',
