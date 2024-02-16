@@ -137,7 +137,6 @@
         <DCCReference Include="Source\JD.Ctrls.ImageGrid.pas"/>
         <DCCReference Include="Source\JD.VolumeControls.pas"/>
         <DCCReference Include="Source\JD.SysMon.pas"/>
-        <DCCReference Include="Source\JD.SuperObject.pas"/>
         <DCCReference Include="Source\JD.AppBar.pas"/>
         <DCCReference Include="Source\JD.Vector.pas"/>
         <DCCReference Include="Source\JD.Sockets.pas"/>

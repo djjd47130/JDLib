@@ -2,8 +2,8 @@ object frmGaugeTestMain: TfrmGaugeTestMain
   Left = 0
   Top = 0
   Caption = 'JD Gauge Test'
-  ClientHeight = 142
-  ClientWidth = 677
+  ClientHeight = 340
+  ClientWidth = 656
   Color = clBlack
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWhite
@@ -17,8 +17,8 @@ object frmGaugeTestMain: TfrmGaugeTestMain
   object Gauge: TJDGauge
     Left = 0
     Top = 31
-    Width = 677
-    Height = 92
+    Width = 656
+    Height = 290
     Hint = 'CPU Activity'
     Align = alTop
     Anchors = [akLeft, akTop, akRight, akBottom]
@@ -43,7 +43,7 @@ object frmGaugeTestMain: TfrmGaugeTestMain
     Font.Height = -24
     Font.Name = 'Tahoma'
     Font.Style = []
-    GaugeType = 'Horizontal Bar'
+    GaugeType = 'Circle'
     Glyph.Glyph = #58055
     Glyph.Font.Charset = DEFAULT_CHARSET
     Glyph.Font.Color = clWindowText
@@ -128,14 +128,17 @@ object frmGaugeTestMain: TfrmGaugeTestMain
     OnCaptionClick = GaugeCaptionClick
     OnGlyphClick = GaugeGlyphClick
     OnValueClick = GaugeValueClick
+    ExplicitWidth = 677
+    ExplicitHeight = 92
   end
   object pTop: TPanel
     Left = 0
     Top = 0
-    Width = 677
+    Width = 656
     Height = 31
     Align = alTop
     TabOrder = 1
+    ExplicitWidth = 677
     object cboType: TComboBox
       AlignWithMargins = True
       Left = 4

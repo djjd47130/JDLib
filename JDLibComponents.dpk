@@ -53,7 +53,6 @@ contains
   JD.Ctrls.ImageGrid in 'Source\JD.Ctrls.ImageGrid.pas',
   JD.VolumeControls in 'Source\JD.VolumeControls.pas',
   JD.SysMon in 'Source\JD.SysMon.pas',
-  JD.SuperObject in 'Source\JD.SuperObject.pas',
   JD.AppBar in 'Source\JD.AppBar.pas',
   JD.Vector in 'Source\JD.Vector.pas',
   JD.Sockets in 'Source\JD.Sockets.pas',
