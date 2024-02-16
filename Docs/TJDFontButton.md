@@ -1,7 +1,7 @@
-# TFontButton Control
+# TJDFontButton Control
 
 ### About
-1. Completely custom, inherits directly from `TCustomControl`.
+1. Completely custom, inherits from `TCustomControl`.
 2. Comparable to a `TBitBtn` control.
 3. Uses a font glyph instead of other image types for a glyph.
 4. Glyph can be scaled and colored as desired.

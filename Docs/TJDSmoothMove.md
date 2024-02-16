@@ -1,4 +1,4 @@
-# TSmoothMove
+# TJDSmoothMove
 
 ### About
 1. Event-based component which provides ease of control movement.
@@ -7,7 +7,7 @@
 3. Provides options to slow down while approaching destination.
 
 ### Related Units
-  1. JD.SmoothMove.pas - Contains all code related to `TSmoothMove` component.
+  1. JD.SmoothMove.pas - Contains all code related to `TJDSmoothMove` component.
 
 ### How to Use
   1. Assign an event handler.....
