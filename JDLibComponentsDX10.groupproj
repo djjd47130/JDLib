@@ -9,7 +9,10 @@
         <Projects Include="DclJDLibComponents.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Test\JDCompsTest.dproj">
+        <Projects Include="JDGaugeTest\JDGaugeTest.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="JDSysMonTest\JDSysMonTest.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -38,23 +41,32 @@
     <Target Name="DclJDLibComponents:Make">
         <MSBuild Projects="DclJDLibComponents.dproj" Targets="Make"/>
     </Target>
-    <Target Name="JDCompsTest">
-        <MSBuild Projects="Test\JDCompsTest.dproj"/>
+    <Target Name="JDGaugeTest">
+        <MSBuild Projects="JDGaugeTest\JDGaugeTest.dproj"/>
     </Target>
-    <Target Name="JDCompsTest:Clean">
-        <MSBuild Projects="Test\JDCompsTest.dproj" Targets="Clean"/>
+    <Target Name="JDGaugeTest:Clean">
+        <MSBuild Projects="JDGaugeTest\JDGaugeTest.dproj" Targets="Clean"/>
     </Target>
-    <Target Name="JDCompsTest:Make">
-        <MSBuild Projects="Test\JDCompsTest.dproj" Targets="Make"/>
+    <Target Name="JDGaugeTest:Make">
+        <MSBuild Projects="JDGaugeTest\JDGaugeTest.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="JDSysMonTest">
+        <MSBuild Projects="JDSysMonTest\JDSysMonTest.dproj"/>
+    </Target>
+    <Target Name="JDSysMonTest:Clean">
+        <MSBuild Projects="JDSysMonTest\JDSysMonTest.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="JDSysMonTest:Make">
+        <MSBuild Projects="JDSysMonTest\JDSysMonTest.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="JDLibComponents;DclJDLibComponents;JDCompsTest"/>
+        <CallTarget Targets="JDLibComponents;DclJDLibComponents;JDGaugeTest;JDSysMonTest"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="JDLibComponents:Clean;DclJDLibComponents:Clean;JDCompsTest:Clean"/>
+        <CallTarget Targets="JDLibComponents:Clean;DclJDLibComponents:Clean;JDGaugeTest:Clean;JDSysMonTest:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="JDLibComponents:Make;DclJDLibComponents:Make;JDCompsTest:Make"/>
+        <CallTarget Targets="JDLibComponents:Make;DclJDLibComponents:Make;JDGaugeTest:Make;JDSysMonTest:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

@@ -1,5 +1,5 @@
 ﻿(*
-  TFontButton - custom control encapsulating a button with custom effects
+  TJDFontButton - custom control encapsulating a button with custom effects
     Uses font (vector) glyphs instead of bitmaps or other image types
     Allows for scalable lightweight buttons
 
@@ -15,13 +15,16 @@
   - Add option to not move text when hovering
     - Actually "CaptionGrow" property needed
   - Fix "ImageGrow" property (always enabled?)
+  - Implement "SubText" feature for secondary caption
+  - Implement "Overlay" feature for secondary glyph
+  - Implement action support
 
 *)
 
 unit JD.Ctrls.FontButton;
 
-//DO NOT ENABLE!!!
-{    $DEFINE BUF_BMP}
+{$DEFINE FB_ACTIONS}
+{ $DEFINE FB_ACTIONS_IMG}
 
 interface
 
@@ -31,66 +34,36 @@ uses
   System.Generics.Collections,
   Vcl.Graphics, Vcl.Controls, Vcl.Buttons, Vcl.StdCtrls, Vcl.ExtCtrls,
   Vcl.Forms, Vcl.Styles, Vcl.Themes,
-  Vcl.Dialogs;
-
-const
-  WM_COLORCHANGE = WM_USER + 42;
+  Vcl.Dialogs
+  {$IFDEF FB_ACTIONS}
+  , Vcl.ActnList
+  {$ENDIF}
+  , JD.Ctrls
+  , JD.Common
+  , JD.Graphics
+  , JD.FontGlyphs
+  ;
 
 type
-  TFontButtonImgPosition = (fpImgTop, fpImgBottom, fpImgLeft, fpImgRight, fpImgOnly, fpImgNone);
+  TJDFontButtonImgPosition = (fpImgTop, fpImgBottom, fpImgLeft, fpImgRight, fpImgOnly, fpImgNone);
 
-  TFontButtonState = (fsDisabled, fsFocused, fsHot, fsNormal, fsPressed);
+  TJDFontButtonState = (fsDisabled, fsFocused, fsHot, fsNormal, fsPressed);
 
-  TFontButtonStyleColor = (scCaption, scImage, scBack, scFrame);
-  TFontButtonStyleColors = set of TFontButtonStyleColor;
+  TJDFontButtonStyleColor = (scCaption, scImage, scBack, scFrame);
+  TJDFontButtonStyleColors = set of TJDFontButtonStyleColor;
 
-  TFontButtonDrawStyle = (fdThemed, fdTransparent, fdHybrid);
+  TJDFontButtonDrawStyle = (fdThemed, fdTransparent, fdHybrid);
 
-  TFontButtonKind = (fkCustom, fkOK, fkCancel, fkClose, fkClear, fkEdit, fkSave, fkAdd,
+  TJDFontButtonKind = (fkCustom, fkOK, fkCancel, fkClose, fkClear, fkEdit, fkSave, fkAdd,
     fkDelete, fkInfo, fkHelp, fkPrint, fkPrintTag, fkCalc, fkRefresh, fkView, fkMerge,
     fkEmail, fkCloseX, fkUndo);
 
-  TFontButtonColor = (fcNeutral, fcBlue, fcGreen, fcRed, fcYellow, fcOrange);
+  TJDFontButtonSubTextStyle = (fsNone, fsOpposite, fsBelow);
 
-  TFontButtonColors = array[TFontButtonColor] of TColor;
+  TJDFontButtonOverlayPosition = (foNone, foTopLeft, foTopRight, foBottomLeft,
+    foBottomRight, foCenter);
 
-  TFontButtonSubTextStyle = (fsNone, fsOpposite, fsBelow);
-
-  TMessageComponent = class(TComponent)
-  private
-    FHandle: HWND;
-  protected
-    procedure WndMethod(var Message: TMessage); virtual;
-  public
-    constructor Create(AOwner: TComponent); override;
-    destructor Destroy; override;
-    property Handle: HWND read FHandle;
-  end;
-
-  TColorManager = class(TObject)
-  private
-    FBaseColor: TColor;
-    FColors: TFontButtonColors;
-    FIsBaseDark: Boolean;
-    FComponents: TObjectList<TMessageComponent>;
-    FControls: TObjectList<TWinControl>;
-    procedure SetBaseColor(const Value: TColor);
-    function GetColor(Clr: TFontButtonColor): TColor;
-    procedure SetColor(Clr: TFontButtonColor; const Value: TColor);
-  public
-    constructor Create;
-    destructor Destroy; override;
-    procedure Invalidate;
-    procedure RegisterComponent(AComponent: TMessageComponent);
-    procedure UnregisterComponent(AComponent: TMessageComponent);
-    procedure RegisterControl(AControl: TWinControl);
-    procedure UnregisterControl(AControl: TWinControl);
-  public
-    property IsBaseDark: Boolean read FIsBaseDark;
-    property BaseColor: TColor read FBaseColor write SetBaseColor;
-    property Color[Clr: TFontButtonColor]: TColor read GetColor write SetColor;
-  end;
-
+{$REGION 'Default Constants'}
 
 const
   DEFAULT_WIDTH = 100;
@@ -115,7 +88,7 @@ const
   DEFAULT_SUB_TEXT = '';
   DEFAULT_SUB_TEXT_COLOR = clGray;
 
-  DEFAULT_IMAGE_FONT = 'RMPicons';
+  DEFAULT_IMAGE_FONT = 'FontAwesome';
   DEFAULT_IMAGE_QUALITY = fqAntialiased;
   DEFAULT_IMAGE_SIZE = 16;
   DEFAULT_IMAGE_TEXT = '';
@@ -130,32 +103,34 @@ const
   DEFAULT_FRAME_SHOW_HOVER = True;
   DEFAULT_FRAME_SHOW_ALWAYS = True;
 
+{$ENDREGION}
+
+//TODO: What were these constants defined for?
 const
   CLR_DK_BLUE = clNavy;
   CLR_BLUE = clBlue;
 
 type
-  TFontButtonImage = class;
-  TFontButton = class;
+  TJDFontButton = class;
 
-  TFontButtonImage = class(TPersistent)
+  TJDFontButtonImage = class(TPersistent)
   private
-    FOwner: TFontButton;
+    FOwner: TJDFontButton;
     FFont: TFont;
     FText: TCaption;
     FAutoSize: Boolean;
     FGrowSize: Integer;
-    FStandardColor: TFontButtonColor;
+    FStandardColor: TJDStandardColor;
     FUseStandardColor: Boolean;
     procedure FontChanged(Sender: TObject);
     procedure SetText(const Value: TCaption);
     procedure SetFont(const Value: TFont);
     procedure SetAutoSize(const Value: Boolean);
     procedure SetGrowSize(const Value: Integer);
-    procedure SetStandardColor(const Value: TFontButtonColor);
+    procedure SetStandardColor(const Value: TJDStandardColor);
     procedure SetUseStandardColor(const Value: Boolean);
   public
-    constructor Create(AOwner: TFontButton);
+    constructor Create(AOwner: TJDFontButton);
     destructor Destroy; override;
     procedure Invalidate;
   published
@@ -163,41 +138,68 @@ type
     property Text: TCaption read FText write SetText;
     property Font: TFont read FFont write SetFont;
     property GrowSize: Integer read FGrowSize write SetGrowSize default 3;
-    property StandardColor: TFontButtonColor read FStandardColor write SetStandardColor default DEFAULT_IMAGE_STANDARD_COLOR;
+    property StandardColor: TJDStandardColor read FStandardColor write SetStandardColor default DEFAULT_IMAGE_STANDARD_COLOR;
     property UseStandardColor: Boolean read FUseStandardColor write SetUseStandardColor default DEFAULT_IMAGE_USE_STANDARD_COLOR;
   end;
 
-  TFontButton = class(TCustomControl)
+  TJDFontButtonOverlay = class(TPersistent)
+  private
+    FOwner: TJDFontButton;
+    FFont: TFont;
+    FText: TCaption;
+    FStandardColor: TJDStandardColor;
+    FUseStandardColor: Boolean;
+    FPosition: TJDFontButtonOverlayPosition;
+    FMargin: Integer;
+    procedure FontChanged(Sender: TObject);
+    procedure SetText(const Value: TCaption);
+    procedure SetFont(const Value: TFont);
+    procedure SetStandardColor(const Value: TJDStandardColor);
+    procedure SetUseStandardColor(const Value: Boolean);
+    procedure SetPosition(const Value: TJDFontButtonOverlayPosition);
+    procedure SetMargin(const Value: Integer);
+  public
+    constructor Create(AOwner: TJDFontButton);
+    destructor Destroy; override;
+    procedure Invalidate;
+  published
+    property Text: TCaption read FText write SetText;
+    property Font: TFont read FFont write SetFont;
+    property StandardColor: TJDStandardColor read FStandardColor write SetStandardColor default DEFAULT_IMAGE_STANDARD_COLOR;
+    property UseStandardColor: Boolean read FUseStandardColor write SetUseStandardColor default DEFAULT_IMAGE_USE_STANDARD_COLOR;
+    property Position: TJDFontButtonOverlayPosition read FPosition write SetPosition;
+    property Margin: Integer read FMargin write SetMargin;
+  end;
+
+  TJDFontButton = class(TJDControl)
   private
     FTmp: TBitmap;
-    {$IFDEF BUF_BMP}
-    FBuf: TBitmap;
-    {$ENDIF}
     FActive: Boolean;
     FClicking: Boolean;
     FHovering: Boolean;
     FButtonTheme: THandle;
     FCancel: Boolean;
-    FColor: TColor;
-    FImage: TFontButtonImage;
+    FColor: TColor; //TODO: Should I be using built-in Color property?
+    FImage: TJDFontButtonImage;
+    FOverlay: TJDFontButtonOverlay;
     FDownSize: Integer;
-    FStyleColors: TFontButtonStyleColors;
-    FImagePosition: TFontButtonImgPosition;
+    FStyleColors: TJDFontButtonStyleColors;
+    FImagePosition: TJDFontButtonImgPosition;
     FShowFocusRect: Boolean;
     FModalResult: TModalResult;
     FSpacing: Integer;
     FMargin: Integer;
     FDefault: Boolean;
     FShowGuides: Boolean;
-    FDrawStyle: TFontButtonDrawStyle;
-    FKind: TFontButtonKind;
-    FSubTextStyle: TFontButtonSubTextStyle;
+    FDrawStyle: TJDFontButtonDrawStyle;
+    FKind: TJDFontButtonKind;
+    FSubTextStyle: TJDFontButtonSubTextStyle;
     FSubText: TCaption;
     FSubTextFont: TFont;
     FParentColorOverride: Boolean;
     procedure SetDownSize(const Value: Integer);
-    procedure SetImagePosition(const Value: TFontButtonImgPosition);
-    procedure SetStyleColors(const Value: TFontButtonStyleColors);
+    procedure SetImagePosition(const Value: TJDFontButtonImgPosition);
+    procedure SetStyleColors(const Value: TJDFontButtonStyleColors);
     procedure Reset;
     function CaptionRect: TRect;
     function ImageRect: TRect;
@@ -217,7 +219,7 @@ type
     procedure DrawFocus;
     //Property Getters/Setters
     procedure SetColor(Value: TColor);
-    procedure SetImage(const Value: TFontButtonImage);
+    procedure SetImage(const Value: TJDFontButtonImage);
     procedure SetShowFocusRect(const Value: Boolean);
     procedure SetMargin(const Value: Integer);
     procedure SetSpacing(const Value: Integer);
@@ -226,21 +228,28 @@ type
     procedure SetDefault(const Value: Boolean);
     procedure SetCancel(const Value: Boolean);
     procedure SetShowGuides(const Value: Boolean);
-    procedure SetDrawStyle(const Value: TFontButtonDrawStyle);
+    procedure SetDrawStyle(const Value: TJDFontButtonDrawStyle);
     function GetFont: TFont;
     procedure SetFont(const Value: TFont);
-    procedure SetKind(const Value: TFontButtonKind);
+    procedure SetKind(const Value: TJDFontButtonKind);
     function ActiveCanvas: TCanvas;
     procedure SubTextFontChanged(Sender: TObject);
     function SubCaptionRect: TRect;
     procedure SetParentColorOverride(const Value: Boolean);
-
+    procedure SetOverlay(const Value: TJDFontButtonOverlay);
+    function OverlayRect: TRect;
+    function OverlayFontSize: Integer;
+    function OverlayColor: TColor;
+    function OverlayDims: TPoint;
   protected
     procedure Paint; override;
     function GetEnabled: Boolean; reintroduce;
     procedure SetEnabled(Value: Boolean); reintroduce;
     procedure Loaded; override;
-    //Catch Windows Messages
+    {$IFDEF FB_ACTIONS}
+    procedure ActionChange(Sender: TObject; CheckDefaults: Boolean); override;
+    {$ENDIF}
+    //Windows Message Handling
     procedure CMStyleChanged(var Message: TMessage); message CM_STYLECHANGED;
     procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
     procedure CMMouseLeave(var Message: TMessage); message CM_MOUSELEAVE;
@@ -261,11 +270,10 @@ type
     procedure WMKillFocus(var Message: TWMKillFocus); message WM_KILLFOCUS;
     procedure WMResize(var Message: TWMSize); message WM_SIZE;
     procedure WMGetDlgCode(var Message: TWMGetDlgCode); message WM_GETDLGCODE;
-    procedure WMColorChange(var Message: TMessage); message WM_COLORCHANGE;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function State: TFontButtonState;
+    function State: TJDFontButtonState;
     procedure Assign(Source: TPersistent); override;
     procedure Click; override;
     function BackColor: TColor;
@@ -273,9 +281,14 @@ type
     function ParentIsDark: Boolean;
     function SubCaptionFlags: Cardinal;
     procedure SetSubTextFont(const Value: TFont);
-    procedure SetSubTextStyle(const Value: TFontButtonSubTextStyle);
+    procedure SetSubTextStyle(const Value: TJDFontButtonSubTextStyle);
     procedure SetSubText(const Value: TCaption);
+    function GlyphImageIndex: Integer;
+    function GlyphImageByIndex(const Index: Integer): TCaption;
   published
+    {$IFDEF FB_ACTIONS}
+    property Action;
+    {$ENDIF}
     property Align;
     property Anchors;
     property Cancel: Boolean read FCancel write SetCancel default DEFAULT_CANCEL;
@@ -285,13 +298,14 @@ type
     property Default: Boolean read FDefault write SetDefault default DEFAULT_DEFAULT;
     property DoubleBuffered;
     property DownSize: Integer read FDownSize write SetDownSize default DEFAULT_DOWN_SIZE;
-    property DrawStyle: TFontButtonDrawStyle read FDrawStyle write SetDrawStyle default DEFAULT_DRAW_STYLE;
+    property DrawStyle: TJDFontButtonDrawStyle read FDrawStyle write SetDrawStyle default DEFAULT_DRAW_STYLE;
     property Enabled: Boolean read GetEnabled write SetEnabled default DEFAULT_ENABLED;
     property Font: TFont read GetFont write SetFont;
     property Hint;
-    property Image: TFontButtonImage read FImage write SetImage;
-    property ImagePosition: TFontButtonImgPosition read FImagePosition write SetImagePosition default DEFAULT_IMAGE_POSITION;
-    property Kind: TFontButtonKind read FKind write SetKind default DEFAULT_KIND;
+    property Image: TJDFontButtonImage read FImage write SetImage;
+    property Overlay: TJDFontButtonOverlay read FOverlay write SetOverlay;
+    property ImagePosition: TJDFontButtonImgPosition read FImagePosition write SetImagePosition default DEFAULT_IMAGE_POSITION;
+    property Kind: TJDFontButtonKind read FKind write SetKind default DEFAULT_KIND;
     property Margin: Integer read FMargin write SetMargin default DEFAULT_MARGIN;
     property ModalResult: TModalResult read FModalResult write FModalResult default DEFAULT_MODAL_RESULT;
     property ParentColorOverride: Boolean read FParentColorOverride write SetParentColorOverride default DEFAULT_PARENT_COLOR_OVERRIDE;
@@ -301,10 +315,10 @@ type
     property ShowGuides: Boolean read FShowGuides write SetShowGuides default DEFAULT_SHOW_GUIDES;
     property ShowHint;
     property Spacing: Integer read FSpacing write SetSpacing default DEFAULT_SPACING;
-    property StyleColors: TFontButtonStyleColors read FStyleColors write SetStyleColors default DEFAULT_STYLE_COLORS;
-    //property SubText: TCaption read FSubText write SetSubText;
-    //property SubTextStyle: TFontButtonSubTextStyle read FSubTextStyle write SetSubTextStyle default DEFAULT_SUB_TEXT_STYLE;
-    //property SubTextFont: TFont read FSubTextFont write SetSubTextFont;
+    property StyleColors: TJDFontButtonStyleColors read FStyleColors write SetStyleColors default DEFAULT_STYLE_COLORS;
+    property SubText: TCaption read FSubText write SetSubText;
+    property SubTextStyle: TJDFontButtonSubTextStyle read FSubTextStyle write SetSubTextStyle default DEFAULT_SUB_TEXT_STYLE;
+    property SubTextFont: TFont read FSubTextFont write SetSubTextFont;
     property TabOrder;
     property TabStop default DEFAULT_TAB_STOP;
     property Text: TCaption read GetText write SetText;
@@ -324,24 +338,30 @@ type
     property OnMouseUp;
   end;
 
+{$REGION 'Windows Themes'}
+
 //Used for drawing new Windows Themes (XP and up) - only if enabled
+
+const
+  THEME_LIB = 'uxtheme.dll';
+
 function DrawThemeBackground(hTheme: THandle; hdc: HDC; iPartId, iStateId: Integer;
   const pRect: TRect; pClipRect: PRECT): HRESULT; stdcall;
-  external 'uxtheme.dll';
+  external THEME_LIB;
 function OpenThemeData(hwnd: HWND; pszClassList: LPCWSTR): THandle; stdcall;
-  external 'uxtheme.dll';
+  external THEME_LIB;
 function CloseThemeData(hTheme: THandle): HRESULT; stdcall;
-  external 'uxtheme.dll';
+  external THEME_LIB;
 
-function ColorManager: TColorManager;
+{$ENDREGION}
 
 implementation
 
 uses
-  Math,
-  JD.Graphics;
+  Math;
 
 const
+  //Button states
   PBS_NORMAL = 1;
   PBS_HOT = 2;
   PBS_PRESSED = 3;
@@ -349,21 +369,9 @@ const
   PBS_DEFAULTED = 5;
   PBS_DEFAULTED_ANIMATING = 6;
 
+function JDIsThemeActive: Boolean;
 type
   TIsThemeActive = function: Bool; stdcall;
-
-const
-  THEME_LIB = 'uxtheme.dll';
-
-var
-  _ColorManager: TColorManager;
-
-function ColorManager: TColorManager;
-begin
-  Result:= _ColorManager;
-end;
-
-function IsThemeActive: Boolean;
 var
   IsThemeActive: TIsThemeActive;
   hUxTheme: HINST;
@@ -387,7 +395,7 @@ begin
   end;
 end;
 
-function IntToButtonState(const Value: Integer): TFontButtonState;
+function JDIntToButtonState(const Value: Integer): TJDFontButtonState;
 begin
   //Converts an integer (from Winapi) to state enum
   case Value of
@@ -401,7 +409,7 @@ begin
   end;
 end;
 
-function ButtonStateToInt(const Value: TFontButtonState): Integer;
+function JDButtonStateToInt(const Value: TJDFontButtonState): Integer;
 begin
   //Converts a state enum to integer (from Winapi)
   case Value of
@@ -414,14 +422,12 @@ begin
   end;
 end;
 
-{ TFontButtonImage }
+{ TJDFontButtonImage }
 
-constructor TFontButtonImage.Create(AOwner: TFontButton);
+constructor TJDFontButtonImage.Create(AOwner: TJDFontButton);
 begin
   FOwner:= AOwner;
   FFont:= TFont.Create;
-
-
   FFont.Quality:= DEFAULT_IMAGE_QUALITY;
   FFont.Size:= DEFAULT_IMAGE_SIZE;
   FFont.Name:= DEFAULT_IMAGE_FONT;
@@ -433,93 +439,156 @@ begin
   FUseStandardColor:= DEFAULT_IMAGE_USE_STANDARD_COLOR;
 end;
 
-destructor TFontButtonImage.Destroy;
+destructor TJDFontButtonImage.Destroy;
 begin
-  FFont.Free;
+  FreeAndNil(FFont);
   inherited;
 end;
 
-procedure TFontButtonImage.FontChanged(Sender: TObject);
+procedure TJDFontButtonImage.FontChanged(Sender: TObject);
 begin
   Invalidate;
 end;
 
-procedure TFontButtonImage.Invalidate;
+procedure TJDFontButtonImage.Invalidate;
 begin
   FOwner.Invalidate;
 end;
 
-procedure TFontButtonImage.SetAutoSize(const Value: Boolean);
+procedure TJDFontButtonImage.SetAutoSize(const Value: Boolean);
 begin
   FAutoSize := Value;
   Invalidate;
 end;
 
-procedure TFontButtonImage.SetFont(const Value: TFont);
+procedure TJDFontButtonImage.SetFont(const Value: TFont);
 begin
   FFont.Assign(Value);
   Invalidate;
 end;
 
-procedure TFontButtonImage.SetText(const Value: TCaption);
+procedure TJDFontButtonImage.SetText(const Value: TCaption);
 begin
   FText:= Value;
   FOwner.FKind:= fkCustom;
   Invalidate;
 end;
 
-procedure TFontButtonImage.SetUseStandardColor(const Value: Boolean);
+procedure TJDFontButtonImage.SetUseStandardColor(const Value: Boolean);
 begin
   FUseStandardColor := Value;
   FOwner.FKind:= fkCustom;
   Invalidate;
 end;
 
-procedure TFontButtonImage.SetGrowSize(const Value: Integer);
+procedure TJDFontButtonImage.SetGrowSize(const Value: Integer);
 begin
   FGrowSize := Value;
   Invalidate;
 end;
 
-procedure TFontButtonImage.SetStandardColor(const Value: TFontButtonColor);
+procedure TJDFontButtonImage.SetStandardColor(const Value: TJDStandardColor);
 begin
   FStandardColor := Value;
   FOwner.FKind:= fkCustom;
   Invalidate;
 end;
 
-{ TFontButton }
+{ TJDFontButtonOverlay }
 
-constructor TFontButton.Create(AOwner: TComponent);
+constructor TJDFontButtonOverlay.Create(AOwner: TJDFontButton);
+begin
+  //TODO: Update default values...
+  FOwner:= AOwner;
+  FFont:= TFont.Create;
+  FFont.Quality:= DEFAULT_IMAGE_QUALITY;
+  FFont.Size:= DEFAULT_IMAGE_SIZE div 3;
+  FFont.Name:= DEFAULT_IMAGE_FONT;
+  FFont.OnChange:= FontChanged;
+  FText:= DEFAULT_IMAGE_TEXT;
+  FStandardColor:= DEFAULT_IMAGE_STANDARD_COLOR;
+  FUseStandardColor:= DEFAULT_IMAGE_USE_STANDARD_COLOR;
+  FMargin:= 3;
+end;
+
+destructor TJDFontButtonOverlay.Destroy;
+begin
+  FreeAndNil(FFont);
+  inherited;
+end;
+
+procedure TJDFontButtonOverlay.FontChanged(Sender: TObject);
+begin
+  Invalidate;
+end;
+
+procedure TJDFontButtonOverlay.Invalidate;
+begin
+  FOwner.Invalidate;
+end;
+
+procedure TJDFontButtonOverlay.SetFont(const Value: TFont);
+begin
+  FFont.Assign(Value);
+  Invalidate;
+end;
+
+procedure TJDFontButtonOverlay.SetMargin(const Value: Integer);
+begin
+  FMargin := Value;
+  Invalidate;
+end;
+
+procedure TJDFontButtonOverlay.SetPosition(
+  const Value: TJDFontButtonOverlayPosition);
+begin
+  FPosition := Value;
+  Invalidate;
+end;
+
+procedure TJDFontButtonOverlay.SetStandardColor(const Value: TJDStandardColor);
+begin
+  FStandardColor:= Value;
+  Invalidate;
+end;
+
+procedure TJDFontButtonOverlay.SetText(const Value: TCaption);
+begin
+  FText:= Value;
+  Invalidate;
+end;
+
+procedure TJDFontButtonOverlay.SetUseStandardColor(const Value: Boolean);
+begin
+  FUseStandardColor:= Value;
+  Invalidate;
+end;
+
+{ TJDFontButton }
+
+constructor TJDFontButton.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   FHovering:= False;
   FClicking:= False;
   FTmp:= TBitmap.Create;
-  {$IFDEF BUF_BMP}
-  FBuf:= TBitmap.Create;
-  {$ENDIF}
-  FImage:= TFontButtonImage.Create(Self);
+  FImage:= TJDFontButtonImage.Create(Self);
+  FOverlay:= TJDFontButtonOverlay.Create(Self);
   FSubTextFont:= TFont.Create;
   FSubTextFont.OnChange:= SubTextFontChanged;
-  //Font.OnChange:= FontChanged;
-  ColorManager.RegisterControl(Self);
 end;
 
-destructor TFontButton.Destroy;
+destructor TJDFontButton.Destroy;
 begin
-  ColorManager.UnregisterControl(Self);
-  FSubTextFont.Free;
-  FImage.Free;
-  {$IFDEF BUF_BMP}
-  FBuf.Free;
-  {$ENDIF}
-  FTmp.Free;
+  FreeAndNil(FSubTextFont);
+  FreeAndNil(FOverlay);
+  FreeAndNil(FImage);
+  FreeAndNil(FTmp);
   CloseThemeData(FButtonTheme);
   inherited;
 end;
 
-procedure TFontButton.AfterConstruction;
+procedure TJDFontButton.AfterConstruction;
 begin
   inherited;
   //Set default values
@@ -545,22 +614,22 @@ begin
   FSubTextFont.Color:= DEFAULT_SUB_TEXT_COLOR;
 end;
 
-procedure TFontButton.Loaded;
+procedure TJDFontButton.Loaded;
 const
   ButtonDataName: PWideChar = 'button';
 begin
   inherited;
-
   FButtonTheme := OpenThemeData(Handle, ButtonDataName);
-
 end;
 
-procedure TFontButton.Assign(Source: TPersistent);
+procedure TJDFontButton.Assign(Source: TPersistent);
 var
-  S, D: TFontButton;
+  S, D: TJDFontButton;
+  //S = Source
+  //D = Destination
 begin
-  if Source is TFontButton then begin
-    S:= TFontButton(Source);
+  if Source is TJDFontButton then begin
+    S:= TJDFontButton(Source);
     D:= Self;
 
     D.Width:= S.Width;
@@ -587,105 +656,104 @@ begin
     D.Default:= S.Default;
     D.Cancel:= S.Cancel;
 
-
   end else
     inherited;
 end;
 
-function TFontButton.GetEnabled: Boolean;
+function TJDFontButton.GetEnabled: Boolean;
 begin
   Result:= inherited Enabled;
 end;
 
-function TFontButton.GetFont: TFont;
+function TJDFontButton.GetFont: TFont;
 begin
   Result:= inherited Font;
 end;
 
-function TFontButton.GetText: TCaption;
+function TJDFontButton.GetText: TCaption;
 begin
   Result:= inherited Caption;
 end;
 
-procedure TFontButton.SetCancel(const Value: Boolean);
+procedure TJDFontButton.SetCancel(const Value: Boolean);
 begin
   FCancel := Value;
   Invalidate;
 end;
 
-procedure TFontButton.SetText(const Value: TCaption);
+procedure TJDFontButton.SetText(const Value: TCaption);
 begin
   inherited Text:= Value;
   Invalidate;
 end;
 
-procedure TFontButton.SetColor(Value: TColor);
+procedure TJDFontButton.SetColor(Value: TColor);
 begin
   FColor := Value;
   Invalidate;
 end;
 
-procedure TFontButton.SetEnabled(Value: Boolean);
+procedure TJDFontButton.SetEnabled(Value: Boolean);
 begin
   inherited Enabled:= Value;
   Invalidate;
 end;
 
-procedure TFontButton.SetFont(const Value: TFont);
+procedure TJDFontButton.SetFont(const Value: TFont);
 begin
   inherited Font.Assign(Value);
   Invalidate;
 end;
 
-procedure TFontButton.SetImage(const Value: TFontButtonImage);
+procedure TJDFontButton.SetImage(const Value: TJDFontButtonImage);
 begin
   FImage.Assign(Value);
   Invalidate;
 end;
 
-procedure TFontButton.SetShowFocusRect(const Value: Boolean);
+procedure TJDFontButton.SetShowFocusRect(const Value: Boolean);
 begin
   FShowFocusRect := Value;
   Invalidate;
 end;
 
-procedure TFontButton.SetShowGuides(const Value: Boolean);
+procedure TJDFontButton.SetShowGuides(const Value: Boolean);
 begin
   FShowGuides := Value;
   Invalidate;
 end;
 
-procedure TFontButton.SetSpacing(const Value: Integer);
+procedure TJDFontButton.SetSpacing(const Value: Integer);
 begin
   FSpacing := Value;
   Invalidate;
 end;
 
-procedure TFontButton.SetStyleColors(const Value: TFontButtonStyleColors);
+procedure TJDFontButton.SetStyleColors(const Value: TJDFontButtonStyleColors);
 begin
   FStyleColors := Value;
   Invalidate;
 end;
 
-procedure TFontButton.SetSubText(const Value: TCaption);
+procedure TJDFontButton.SetSubText(const Value: TCaption);
 begin
   FSubText := Value;
   Invalidate;
 end;
 
-procedure TFontButton.SetSubTextFont(const Value: TFont);
+procedure TJDFontButton.SetSubTextFont(const Value: TFont);
 begin
   FSubTextFont.Assign(Value);
   Invalidate;
 end;
 
-procedure TFontButton.SetSubTextStyle(const Value: TFontButtonSubTextStyle);
+procedure TJDFontButton.SetSubTextStyle(const Value: TJDFontButtonSubTextStyle);
 begin
   FSubTextStyle := Value;
   Invalidate;
 end;
 
-procedure TFontButton.SetDefault(const Value: Boolean);
+procedure TJDFontButton.SetDefault(const Value: Boolean);
 var
   Form: TCustomForm;
 begin
@@ -698,7 +766,7 @@ begin
   Invalidate;
 end;
 
-procedure TFontButton.SetDownSize(const Value: Integer);
+procedure TJDFontButton.SetDownSize(const Value: Integer);
 begin
   if Value < 1 then begin
     FDownSize:= 1;
@@ -709,31 +777,37 @@ begin
   Invalidate;
 end;
 
-procedure TFontButton.SetDrawStyle(const Value: TFontButtonDrawStyle);
+procedure TJDFontButton.SetDrawStyle(const Value: TJDFontButtonDrawStyle);
 begin
   FDrawStyle := Value;
   Invalidate;
 end;
 
-procedure TFontButton.SetImagePosition(const Value: TFontButtonImgPosition);
+procedure TJDFontButton.SetImagePosition(const Value: TJDFontButtonImgPosition);
 begin
   FImagePosition := Value;
   Invalidate;
 end;
 
-procedure TFontButton.SetMargin(const Value: Integer);
+procedure TJDFontButton.SetMargin(const Value: Integer);
 begin
   FMargin := Value;
   Invalidate;
 end;
 
-procedure TFontButton.SetParentColorOverride(const Value: Boolean);
+procedure TJDFontButton.SetOverlay(const Value: TJDFontButtonOverlay);
+begin
+  FOverlay.Assign(Value);
+  Invalidate;
+end;
+
+procedure TJDFontButton.SetParentColorOverride(const Value: Boolean);
 begin
   FParentColorOverride := Value;
   Invalidate;
 end;
 
-function TFontButton.State: TFontButtonState;
+function TJDFontButton.State: TJDFontButtonState;
 begin
   if FClicking then
     Result:= fsPressed
@@ -747,32 +821,25 @@ begin
     Result:= fsNormal;
 end;
 
-procedure TFontButton.SubTextFontChanged(Sender: TObject);
+procedure TJDFontButton.SubTextFontChanged(Sender: TObject);
 begin
   Invalidate;
 end;
 
-procedure TFontButton.WMColorChange(var Message: TMessage);
-begin
-  Invalidate;
-  Repaint;
-  inherited;
-end;
-
-procedure TFontButton.WMFontChange(var Message: TMessage);
+procedure TJDFontButton.WMFontChange(var Message: TMessage);
 begin
   Invalidate;
   Repaint;
   inherited;
 end;
 
-procedure TFontButton.WMGetDlgCode(var Message: TWMGetDlgCode);
+procedure TJDFontButton.WMGetDlgCode(var Message: TWMGetDlgCode);
 begin
   Message.Result:= DLGC_BUTTON;
   inherited;
 end;
 
-procedure TFontButton.WMKeyDown(var Message: TWMKeyDown);
+procedure TJDFontButton.WMKeyDown(var Message: TWMKeyDown);
 begin
   if (Message.CharCode = vkReturn) or
     (Message.CharCode = vkSpace) then
@@ -784,7 +851,7 @@ begin
   inherited;
 end;
 
-procedure TFontButton.WMKeyUp(var Message: TWMKeyUp);
+procedure TJDFontButton.WMKeyUp(var Message: TWMKeyUp);
 begin
   FClicking:= False;
   Invalidate;
@@ -792,14 +859,14 @@ begin
   inherited;
 end;
 
-procedure TFontButton.WMKillFocus(var Message: TWMKillFocus);
+procedure TJDFontButton.WMKillFocus(var Message: TWMKillFocus);
 begin
   Invalidate;
   Repaint;
   inherited;
 end;
 
-procedure TFontButton.WMLButtonDown(var Message: TWMLButtonDown);
+procedure TJDFontButton.WMLButtonDown(var Message: TWMLButtonDown);
 begin
   FClicking:= True;
   if TabStop then
@@ -808,14 +875,14 @@ begin
   inherited;
 end;
 
-procedure TFontButton.WMLButtonUp(var Message: TWMLButtonUp);
+procedure TJDFontButton.WMLButtonUp(var Message: TWMLButtonUp);
 begin
   FClicking:= False;
   Invalidate;
   inherited;
 end;
 
-procedure TFontButton.WMMButtonDown(var Message: TWMMButtonDown);
+procedure TJDFontButton.WMMButtonDown(var Message: TWMMButtonDown);
 begin
   FClicking:= True;
   if TabStop then
@@ -824,19 +891,20 @@ begin
   inherited;
 end;
 
-procedure TFontButton.WMMButtonUp(var Message: TWMMButtonUp);
+procedure TJDFontButton.WMMButtonUp(var Message: TWMMButtonUp);
 begin
   FClicking:= False;
   Invalidate;
   inherited;
 end;
 
-procedure TFontButton.WMNCHitTest(var Message: TWMNCHitTest);
+procedure TJDFontButton.WMNCHitTest(var Message: TWMNCHitTest);
 begin
   Message.Result := HTCLIENT;
+  //TODO...
 end;
 
-procedure TFontButton.WMRButtonDown(var Message: TWMRButtonDown);
+procedure TJDFontButton.WMRButtonDown(var Message: TWMRButtonDown);
 begin
   FClicking:= True;
   if TabStop then
@@ -845,27 +913,27 @@ begin
   inherited;
 end;
 
-procedure TFontButton.WMRButtonUp(var Message: TWMRButtonUp);
+procedure TJDFontButton.WMRButtonUp(var Message: TWMRButtonUp);
 begin
   FClicking:= False;
   Invalidate;
   inherited;
 end;
 
-procedure TFontButton.WMResize(var Message: TWMSize);
+procedure TJDFontButton.WMResize(var Message: TWMSize);
 begin
   Invalidate;
   inherited;
 end;
 
-procedure TFontButton.WMSetFocus(var Message: TWMSetFocus);
+procedure TJDFontButton.WMSetFocus(var Message: TWMSetFocus);
 begin
   Invalidate;
   Repaint;
   inherited;
 end;
 
-procedure TFontButton.CMDialogChar(var Message: TCMDialogChar);
+procedure TJDFontButton.CMDialogChar(var Message: TCMDialogChar);
 begin
   if (Message.keydata and $20000000) <> 0 then begin
     if IsAccel(Message.charcode, Text) then begin
@@ -876,7 +944,7 @@ begin
   inherited;
 end;
 
-procedure TFontButton.CMMouseEnter(var Message: TMessage);
+procedure TJDFontButton.CMMouseEnter(var Message: TMessage);
 begin
   if Enabled then
     FHovering:= True;
@@ -884,23 +952,23 @@ begin
   inherited;
 end;
 
-procedure TFontButton.CMMouseLeave(var Message: TMessage);
+procedure TJDFontButton.CMMouseLeave(var Message: TMessage);
 begin
   FHovering:= False;
   Invalidate;
   inherited;
 end;
 
-procedure TFontButton.CMStyleChanged(var Message: TMessage);
+procedure TJDFontButton.CMStyleChanged(var Message: TMessage);
 begin
   Reset;
   inherited;
 end;
 
-procedure TFontButton.CMFocusChanged(var Message: TCMFocusChanged);
+procedure TJDFontButton.CMFocusChanged(var Message: TCMFocusChanged);
 begin
   with Message do
-    if Sender is TFontButton then
+    if Sender is TJDFontButton then
       FActive := Sender = Self
     else
       FActive := FDefault;
@@ -908,7 +976,7 @@ begin
   inherited;
 end;
 
-procedure TFontButton.CMDialogKey(var Message: TCMDialogKey);
+procedure TJDFontButton.CMDialogKey(var Message: TCMDialogKey);
 begin
   with Message do
     if  (((CharCode = VK_RETURN) and FActive) or
@@ -922,14 +990,14 @@ begin
   Invalidate;
 end;
 
-procedure TFontButton.Reset;
+procedure TJDFontButton.Reset;
 begin
   FHovering:= False;
   FClicking:= False;
   Invalidate;
 end;
 
-procedure TFontButton.Click;
+procedure TJDFontButton.Click;
 var
   Form: TCustomForm;
 begin
@@ -938,7 +1006,7 @@ begin
   inherited Click;
 end;
 
-function TFontButton.BackColor: TColor;
+function TJDFontButton.BackColor: TColor;
 begin
   if scBack in StyleColors then begin
     case State of
@@ -969,7 +1037,7 @@ begin
   end;
 end;
 
-function TFontButton.ParentIsDark: Boolean;
+function TJDFontButton.ParentIsDark: Boolean;
 begin
   Result:= False;
   //TODO: Detect parent control's background color,
@@ -977,7 +1045,7 @@ begin
 
 end;
 
-function TFontButton.CaptionColor: TColor;
+function TJDFontButton.CaptionColor: TColor;
 begin
   Result:= TStyleManager.ActiveStyle.GetStyleFontColor(sfButtonTextNormal);
   if scCaption in StyleColors then begin
@@ -1014,7 +1082,50 @@ begin
   end;
 end;
 
-function TFontButton.ImageColor: TColor;
+function TJDFontButton.OverlayColor: TColor;
+begin
+  //TODO: Return color of overlay image glyph...
+  Result:= TStyleManager.ActiveStyle.GetStyleFontColor(sfButtonTextNormal);
+  if scImage in StyleColors then begin
+    case State of
+      fsHot: begin
+        Result:= TStyleManager.ActiveStyle.GetStyleFontColor(sfButtonTextHot);
+      end;
+      fsPressed: begin
+        Result:= TStyleManager.ActiveStyle.GetStyleFontColor(sfButtonTextPressed);
+      end;
+      fsFocused: begin
+        Result:= TStyleManager.ActiveStyle.GetStyleFontColor(sfButtonTextFocused);
+      end;
+      fsDisabled: begin
+        Result:= TStyleManager.ActiveStyle.GetStyleFontColor(sfButtonTextDisabled);
+      end;
+      fsNormal: begin
+        Result:= TStyleManager.ActiveStyle.GetStyleFontColor(sfButtonTextNormal);
+      end;
+      else begin
+        Result:= TStyleManager.ActiveStyle.GetStyleFontColor(sfButtonTextNormal);
+      end;
+    end;
+  end else begin
+    if FParentColorOverride then begin
+      //Detect parent color instead of global main color
+
+    end else begin
+      if State = fsDisabled then
+        Result:= TStyleManager.ActiveStyle.GetStyleFontColor(sfButtonTextDisabled)
+      else begin
+        if Image.UseStandardColor then begin
+          Result:= ColorManager.Color[Overlay.StandardColor];
+        end else begin
+          Result:= TStyleManager.ActiveStyle.GetSystemColor(Overlay.Font.Color);
+        end;
+      end;
+    end;
+  end;
+end;
+
+function TJDFontButton.ImageColor: TColor;
 begin
   Result:= TStyleManager.ActiveStyle.GetStyleFontColor(sfButtonTextNormal);
   if scImage in StyleColors then begin
@@ -1056,7 +1167,42 @@ begin
   end;
 end;
 
-function TFontButton.ImageFontSize: Integer;
+function TJDFontButton.OverlayFontSize: Integer;
+const
+  RANGE_MIN = 6;
+  RANGE_MAX = 3000;
+  DIVIDE_BY = 1.7;
+  SHRINK_BY = 3;
+var
+  P: TPoint;
+begin
+  //TODO: Return the font size for image overlay glyph...
+  Result:= FOverlay.Font.Size;
+  //TODO: HOW THE HELL DOES IMAGEFONTSIZE WORK?!
+  if Image.AutoSize then begin
+    P:= CaptionDims;
+    case FImagePosition of
+      fpImgTop, fpImgBottom: begin
+        Result:= IntRange(Trunc(ClientRect.Height - P.Y / DIVIDE_BY) - SHRINK_BY,
+          RANGE_MIN, RANGE_MAX);
+      end;
+      fpImgLeft, fpImgRight, fpImgOnly: begin
+        Result:= IntRange(Trunc(ClientRect.Height / DIVIDE_BY) - SHRINK_BY,
+          RANGE_MIN, RANGE_MAX);
+      end;
+      fpImgNone: begin
+
+      end;
+    end;
+  end;
+  if FImage.FGrowSize > 0 then begin
+    if FHovering then begin
+      Result:= Result + FImage.FGrowSize;
+    end;
+  end;
+end;
+
+function TJDFontButton.ImageFontSize: Integer;
 const
   RANGE_MIN = 6;
   RANGE_MAX = 3000;
@@ -1089,7 +1235,7 @@ begin
   end;
 end;
 
-function TFontButton.ImageDims: TPoint;
+function TJDFontButton.ImageDims: TPoint;
 begin
   FTmp.Canvas.Font.Assign(Image.Font);
   FTmp.Canvas.Font.Size:= ImageFontSize;
@@ -1098,7 +1244,16 @@ begin
   Result.X:= Result.Y;
 end;
 
-function TFontButton.CaptionDims: TPoint;
+function TJDFontButton.OverlayDims: TPoint;
+begin
+  FTmp.Canvas.Font.Assign(Overlay.Font);
+  FTmp.Canvas.Font.Size:= OverlayFontSize;
+  //Result.X:= Canvas.TextWidth(Overlay.Text);
+  Result.Y:= FTmp.Canvas.TextHeight(Overlay.Text);
+  Result.X:= Result.Y;
+end;
+
+function TJDFontButton.CaptionDims: TPoint;
 begin
   //Returns the dimensions of the caption text with given font
   FTmp.Canvas.Font.Assign(Font);
@@ -1106,7 +1261,7 @@ begin
   Result.Y:= FTmp.Canvas.TextHeight(Text);
 end;
 
-function TFontButton.ContentRect: TRect;
+function TJDFontButton.ContentRect: TRect;
 var
   Cap, Img, D: TPoint;
   W, H: Integer;
@@ -1171,7 +1326,7 @@ begin
 
 end;
 
-function TFontButton.CaptionRect: TRect;
+function TJDFontButton.CaptionRect: TRect;
 var
   Dims: TPoint;
 begin
@@ -1204,25 +1359,31 @@ begin
   end;
 end;
 
-function TFontButton.SubCaptionRect: TRect;
+function TJDFontButton.SubCaptionRect: TRect;
 var
   Dims: TPoint;
+  T: Integer;
 begin
-  Result:= ContentRect;
+  Result:= CaptionRect;
   Dims:= CaptionDims;
 
   case ImagePosition of
     fpImgTop: begin
       //Text resized on bottom, image filled on top
-      Result.Top:= Result.Bottom - Dims.Y;
+      T:= Result.Height;
+      Result.Top:= Result.Bottom;
+      Result.Height:= T;
     end;
     fpImgBottom: begin
       //Text resized on top, image filled on bottom
-      Result.Bottom:= Result.Top + Dims.Y;
+      T:= Result.Height;
+      Result.Top:= Result.Top - T;
+      Result.Height:= T;
     end;
     fpImgLeft: begin
       //Image resized on left, text filled on right
-      Result.Left:= Result.Right - Dims.X;
+      //Result.Left:= Result.Right - Dims.X;
+      Result.Top:= Result.Top + 30; //TEMPORARY
     end;
     fpImgRight: begin
       //Image resized on right, text filled on left
@@ -1237,7 +1398,7 @@ begin
   end;
 end;
 
-function TFontButton.ImageRect: TRect;
+function TJDFontButton.ImageRect: TRect;
 var
   Dims: TPoint;
 begin
@@ -1272,7 +1433,56 @@ begin
   end;
 end;
 
-function TFontButton.CaptionFlags: Cardinal;
+function TJDFontButton.OverlayRect: TRect;
+var
+  Dims: TPoint;
+  M: Integer;
+begin
+  Result:= ImageRect;
+  Dims:= OverlayDims;
+  M:= FOverlay.Margin;
+
+  //TODO: Return rect of overlay image glyph...
+  case FOverlay.FPosition of
+    foNone: begin
+      //No overlay image
+    end;
+    foTopLeft: begin
+      //Overlay on top-left
+      Result.Width:= Dims.X + M;
+      Result.Height:= Dims.Y + M;
+      Result.Left:= Result.Left + M;
+      Result.Top:= Result.Top + M;
+    end;
+    foTopRight: begin
+      //Overlay on top-right
+      Result.Top:= Result.Top + FOverlay.FMargin;
+      Result.Left:= (Result.Right) - Dims.X - M;
+      Result.Height:= Dims.Y;
+      Result.Width:= Dims.X;
+    end;
+    foBottomLeft: begin
+      //Overlay on bottom-left
+      Result.Top:= (Result.Bottom) - Dims.Y - M;
+      Result.Left:= Result.Left + M;
+      Result.Width:= Dims.X;
+      Result.Height:= Dims.Y;
+    end;
+    foBottomRight: begin
+      //Overlay on bottom-right
+      Result.Left:= (Result.Right) - Dims.X - M;
+      Result.Top:= (Result.Bottom) - Dims.Y - M;
+      Result.Width:= Result.Width - M;
+      Result.Height:= Result.Height - M;
+    end;
+    foCenter: begin
+      //Overlay centered with main image
+      //Keep same?
+    end;
+  end;
+end;
+
+function TJDFontButton.CaptionFlags: Cardinal;
 begin
   Result:= DT_SINGLELINE or DT_NOCLIP;
   case ImagePosition of
@@ -1302,7 +1512,7 @@ begin
   end;
 end;
 
-function TFontButton.SubCaptionFlags: Cardinal;
+function TJDFontButton.SubCaptionFlags: Cardinal;
 begin
   Result:= DT_SINGLELINE or DT_NOCLIP;
   case ImagePosition of
@@ -1332,18 +1542,19 @@ begin
   end;
 end;
 
-function TFontButton.ImageFlags: Cardinal;
+function TJDFontButton.ImageFlags: Cardinal;
 begin
   Result:= DT_SINGLELINE or DT_CENTER or DT_VCENTER or DT_NOCLIP;
 end;
 
-procedure TFontButton.DrawTheme;
+procedure TJDFontButton.DrawTheme;
 const
   WordBreakFlag: array[Boolean] of Integer = (0, DT_WORDBREAK);
 var
   Details:  TThemedElementDetails;
   DrawRect: TRect;
 begin
+  //Draw VCL Styles themed button background...
   DrawRect := ClientRect;
   case State of
     fsDisabled: begin
@@ -1368,36 +1579,74 @@ begin
   StyleServices.DrawElement(ActiveCanvas.Handle, Details, DrawRect);
 end;
 
-procedure TFontButton.DrawBtn;
+procedure TJDFontButton.DrawBtn;
 var
   R: TRect;
 begin
-  {$IFDEF BUF_BMP}
-  R:= FBuf.Canvas.ClipRect;
-  {$ELSE}
-  R:= Canvas.ClipRect;
-  {$ENDIF}
   //Draw Windows Standard Button Background
-  if IsThemeActive then begin
+  R:= ActiveCanvas.ClipRect;
+  if JDIsThemeActive then begin
     //If Windows Themes are Enabled
-    DrawThemeBackground(FButtonTheme, ActiveCanvas.Handle, 1, ButtonStateToInt(State), R, nil);
+    DrawThemeBackground(FButtonTheme, ActiveCanvas.Handle, 1, JDButtonStateToInt(State), R, nil);
   end else begin
     //If Windows Themes are Disabled
     DrawFrameControl(ActiveCanvas.Handle, R, DFC_BUTTON, DFCS_BUTTONPUSH);
   end;
 end;
 
-function TFontButton.ActiveCanvas: TCanvas;
+function TJDFontButton.GlyphImageIndex: Integer;
+var
+  L: TCharArray;
+  X: Integer;
 begin
-  //Switches which canvas to draw to based on whether buffer is enabled or not
-  {$IFDEF BUF_BMP}
-  Result:= FBuf.Canvas;
-  {$ELSE}
-  Result:= Canvas;
-  {$ENDIF}
+  Result:= -1;
+  L:= JD.FontGlyphs.GetFontGlyphs(ActiveCanvas.Handle, True);
+  for X := 0 to Length(L)-1 do begin
+    if L[X] = FImage.Text then begin
+      Result:= X;
+      Break;
+    end;
+  end;
 end;
 
-procedure TFontButton.DrawBackground;
+function TJDFontButton.GlyphImageByIndex(const Index: Integer): TCaption;
+var
+  L: TCharArray;
+begin
+  Result:= ' ';
+  L:= JD.FontGlyphs.GetFontGlyphs(ActiveCanvas.Handle, True);
+  if (Index >= 0) and (Index < Length(L)) then begin
+    Result:= L[Index];
+  end;
+end;
+
+{$IFDEF FB_ACTIONS}
+procedure TJDFontButton.ActionChange(Sender: TObject; CheckDefaults: Boolean);
+begin
+  inherited ActionChange(Sender, CheckDefaults);
+  if Sender is TCustomAction then begin
+    with TCustomAction(Sender) do begin
+      if not CheckDefaults or (Self.HelpContext = 0) then
+        Self.HelpContext := HelpContext;
+      Self.Text:= Caption;
+      Self.Enabled:= Enabled;
+      Self.Visible:= Visible;
+      {$IFDEF FB_ACTIONS_IMG}
+      Self.Image.Text:= GlyphImageByIndex(ImageIndex);
+      {$ENDIF}
+    end;
+  end;
+  Invalidate;
+end;
+{$ENDIF}
+
+function TJDFontButton.ActiveCanvas: TCanvas;
+begin
+  //Returns whichever canvas to draw to based on whether BUF_BMP is defined
+  Result:= Canvas;
+end;
+
+procedure TJDFontButton.DrawBackground;
   procedure DoDraw;
   begin
     if (StyleServices.Available) and
@@ -1431,7 +1680,7 @@ begin
 
 end;
 
-procedure TFontButton.DrawCaption;
+procedure TJDFontButton.DrawCaption;
 var
   R: TRect;
 begin
@@ -1452,35 +1701,30 @@ begin
       ActiveCanvas.Pen.Width:= 1;
       ActiveCanvas.Rectangle(R);
     end;
-    //DrawTextW(Canvas.Handle, Caption.Text, Length(Caption.Text), R, CaptionFlags or DT_CALCRECT);
     DrawTextW(ActiveCanvas.Handle, Text, Length(Text), R, CaptionFlags);
 
-    R:= SubCaptionRect;
-    {
-    case Self.FSubTextStyle of
-      fsNone: begin
-        //Do nothing
+    //Sub Caption
+    if SubTextStyle <> fsNone then begin
+      ActiveCanvas.Font.Assign(SubTextFont);
+      R:= SubCaptionRect;
+      if FShowGuides then begin
+        ActiveCanvas.Pen.Style:= psSolid;
+        ActiveCanvas.Pen.Color:= clBlack;
+        ActiveCanvas.Pen.Width:= 1;
+        ActiveCanvas.Rectangle(R);
       end;
-      fsOpposite: begin
-        //Draw sub text on opposite side
-        DrawTextW(ActiveCanvas.Handle, SubText, Length(SubText), R, SubCaptionFlags);
-
-      end;
-      fsBelow: begin
-        //Draw sub text below main text
-        DrawTextW(ActiveCanvas.Handle, SubText, Length(SubText), R, SubCaptionFlags);
-
-      end;
+      //TODO: Finish implmentation of SubText
+      DrawTextW(ActiveCanvas.Handle, SubText, Length(SubText), R, SubCaptionFlags);
     end;
-    }
+
   end;
 end;
 
-procedure TFontButton.DrawImage;
+procedure TJDFontButton.DrawImage;
 var
   R: TRect;
 begin
-  //Image
+  //Image Glyph
   if ImagePosition <> fpImgNone then begin
     R:= ImageRect;
     ActiveCanvas.Font.Assign(FImage.Font);
@@ -1498,12 +1742,33 @@ begin
       ActiveCanvas.Pen.Width:= 1;
       ActiveCanvas.Rectangle(R);
     end;
-    //DrawTextW(Canvas.Handle, FImage.Text, Length(FImage.Text), R, ImageFlags or DT_CALCRECT);
     DrawTextW(ActiveCanvas.Handle, FImage.Text, Length(FImage.Text), R, ImageFlags);
   end;
+
+  //Overlay Glyph
+  if Overlay.Position <> foNone then begin
+    R:= OverlayRect;
+    ActiveCanvas.Font.Assign(FOverlay.Font);
+    ActiveCanvas.Font.Size:= OverlayFontSize;
+    ActiveCanvas.Brush.Style:= bsClear;
+    ActiveCanvas.Pen.Style:= psClear;
+    ActiveCanvas.Font.Color:= OverlayColor;
+    if FClicking then begin
+      R.Left:= R.Left + DownSize;
+      R.Top:= R.Top + DownSize;
+    end;
+    if FShowGuides then begin
+      ActiveCanvas.Pen.Style:= psSolid;
+      ActiveCanvas.Pen.Color:= clBlack;
+      ActiveCanvas.Pen.Width:= 1;
+      ActiveCanvas.Rectangle(R);
+    end;
+    DrawTextW(ActiveCanvas.Handle, FOverlay.Text, Length(FOverlay.Text), R, ImageFlags);
+  end;
+
 end;
 
-procedure TFontButton.DrawFocus;
+procedure TJDFontButton.DrawFocus;
 begin
   //Focus Frame
   if (Focused) and (FShowFocusRect) then begin
@@ -1511,40 +1776,33 @@ begin
   end;
 end;
 
-procedure TFontButton.Paint;
+procedure TJDFontButton.Paint;
 var
   PS: PAINTSTRUCT;
 begin
   BeginPaint(Handle, PS);
   try
-    {$IFDEF BUF_BMP}
-    if FBuf.Width <> Width then
-      FBuf.Width:= Width;
-    if FBuf.Height <> Height then
-      FBuf.Height:= Height;
-    {$ENDIF}
     DrawBackground;
     DrawCaption;
     DrawImage;
     DrawFocus;
-
-    {$IFDEF BUF_BMP}
-    BitBlt(Canvas.Handle, 0, 0, Width, Height, FBuf.Handle, 0, 0, SRCCOPY);
-    {$ENDIF}
   finally
     EndPaint(Handle, PS);
   end;
 end;
 
-procedure TFontButton.SetKind(const Value: TFontButtonKind);
+procedure TJDFontButton.SetKind(const Value: TJDFontButtonKind);
 begin
+  if Value = FKind then Exit;
+  
   if Value <> fkCustom then begin
     //Standard for all
-    Image.Font.Name:= 'RMPicons';
+    Image.Font.Name:= 'FontAwesome';
     Image.UseStandardColor:= True;
     Image.StandardColor:= fcNeutral;
     StyleColors:= StyleColors - [scImage];
   end;
+  //TODO: Change values below to FontAwesom...
   case Value of
     fkCustom: begin
       //Do nothing
@@ -1630,115 +1888,4 @@ begin
   Invalidate;
 end;
 
-{ TMessageComponent }
-
-constructor TMessageComponent.Create(AOwner: TComponent);
-begin
-  inherited;
-  FHandle:= AllocateHwnd(WndMethod);
-  ColorManager.RegisterComponent(Self);
-end;
-
-destructor TMessageComponent.Destroy;
-begin
-  ColorManager.UnregisterComponent(Self);
-  DeallocateHWnd(FHandle);
-  inherited;
-end;
-
-procedure TMessageComponent.WndMethod(var Message: TMessage);
-begin
-
-end;
-
-{ TColorManager }
-
-constructor TColorManager.Create;
-begin
-  FBaseColor:= clWhite;
-  FComponents:= TObjectList<TMessageComponent>.Create(False);
-  FControls:= TObjectList<TWinControl>.Create(False);
-  Invalidate;
-end;
-
-destructor TColorManager.Destroy;
-begin
-  FControls.Free;
-  FComponents.Free;
-  inherited;
-end;
-
-function TColorManager.GetColor(Clr: TFontButtonColor): TColor;
-begin
-  Result:= FColors[Clr];
-end;
-
-procedure TColorManager.Invalidate;
-var
-  B: Byte;
-  CR: TColorRec;
-  X: Integer;
-begin
-  CR:= FBaseColor;
-  B:= (CR.Red+CR.Green+CR.Blue) div 3;
-  FIsBaseDark:= B < 100;
-  if FIsBaseDark then begin
-    FColors[fcNeutral]:= LIGHT_NEUTRAL;
-    FColors[fcBlue]:= LIGHT_BLUE;
-    FColors[fcGreen]:= LIGHT_GREEN;
-    FColors[fcRed]:= LIGHT_RED;
-    FColors[fcYellow]:= LIGHT_YELLOW;
-    FColors[fcOrange]:= LIGHT_ORANGE;
-  end else begin
-    FColors[fcNeutral]:= DARK_NEUTRAL;
-    FColors[fcBlue]:= DARK_BLUE;
-    FColors[fcGreen]:= DARK_GREEN;
-    FColors[fcRed]:= DARK_RED;
-    FColors[fcYellow]:= DARK_YELLOW;
-    FColors[fcOrange]:= DARK_ORANGE;
-  end;
-  for X := 0 to FComponents.Count-1 do begin
-    SendMessage(FComponents[X].Handle, WM_COLORCHANGE, 0, 0);
-  end;
-  for X := 0 to FControls.Count-1 do begin
-    SendMessage(FControls[X].Handle, WM_COLORCHANGE, 0, 0);
-  end;
-end;
-
-procedure TColorManager.SetBaseColor(const Value: TColor);
-begin
-  FBaseColor:= TColor(Value);
-  Invalidate;
-end;
-
-procedure TColorManager.SetColor(Clr: TFontButtonColor; const Value: TColor);
-begin
-  FColors[Clr]:= Value;
-  Invalidate;
-end;
-
-procedure TColorManager.RegisterComponent(AComponent: TMessageComponent);
-begin
-  FComponents.Add(AComponent);
-end;
-
-procedure TColorManager.UnregisterComponent(AComponent: TMessageComponent);
-begin
-  FComponents.Delete(FComponents.IndexOf(AComponent));
-end;
-
-procedure TColorManager.RegisterControl(AControl: TWinControl);
-begin
-  FControls.Add(AControl)
-end;
-
-procedure TColorManager.UnregisterControl(AControl: TWinControl);
-begin
-  FControls.Delete(FControls.IndexOf(AControl));
-end;
-
-initialization
-  _ColorManager:= TColorManager.Create;
-finalization
-  _ColorManager.Free;
 end.

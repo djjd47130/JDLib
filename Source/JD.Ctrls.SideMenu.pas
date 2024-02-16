@@ -4,7 +4,8 @@ unit JD.Ctrls.SideMenu;
   JD Side Menu
   Designed to display a dynamically drawn menu along side with many customizable options
 
-  NOTE: Extremely raw code, in beginning stages - Can compile, but in fresh development so not actually working yet.
+  NOTE: Extremely raw code, in beginning stages - Can compile,
+    but in fresh development so not actually working yet.
 
 *)
 
@@ -17,9 +18,11 @@ uses
 
 type
   TSideButtonStateProps = class;
-  TSideMenu = class;
+  TJDSideMenu = class;
   TSideMenuItem = class;
   TSideMenuItems = class;
+  TSideMenuGroup = class;
+  TSideMenuGroups = class;
 
   TSideMenuBorder = (lbNone, lbRect, lbElipse, lbRoundRect,
     lbBtnDown, lbBtnUp, lbBtnHover); //NOTE: "Btn" refers to Windows/VCL styled drawing
@@ -54,7 +57,7 @@ type
 
   TSideMenuItem = class(TCollectionItem)
   private
-    FToolbar: TSideMenu;
+    FToolbar: TJDSideMenu;
     FPicture: TPicture;
     FCaption: TCaption;
     FGroupIndex: Integer;
@@ -76,17 +79,17 @@ type
 
   TSideMenuItems = class(TOwnedCollection)
   private
-    FToolbar: TSideMenu;
+    FToolbar: TJDSideMenu;
     function GetItem(Index: Integer): TSideMenuItem;
     procedure SetItem(Index: Integer; const Value: TSideMenuItem);
   public
-    constructor Create(AOwner: TPersistent; AToolbar: TSideMenu); reintroduce;
+    constructor Create(AOwner: TPersistent; AToolbar: TJDSideMenu); reintroduce;
     property Items[Index: Integer]: TSideMenuItem read GetItem write SetItem; default;
   end;
 
   TSideMenuGroup = class(TCollectionItem)
   private
-    FToolbar: TSideMenu;
+    FToolbar: TJDSideMenu;
     FCaption: TCaption;
     procedure SetCaption(const Value: TCaption);
   protected
@@ -102,15 +105,15 @@ type
 
   TSideMenuGroups = class(TOwnedCollection)
   private
-    FToolbar: TSideMenu;
+    FToolbar: TJDSideMenu;
     function GetItem(Index: Integer): TSideMenuGroup;
     procedure SetItem(Index: Integer; const Value: TSideMenuGroup);
   public
-    constructor Create(AOwner: TPersistent; AToolbar: TSideMenu); reintroduce;
+    constructor Create(AOwner: TPersistent; AToolbar: TJDSideMenu); reintroduce;
     property Items[Index: Integer]: TSideMenuGroup read GetItem write SetItem; default;
   end;
 
-  TSideMenu = class(TCustomControl)
+  TJDSideMenu = class(TCustomControl)
   private
     FItems: TSideMenuItems;
     FGroups: TSideMenuGroups;
@@ -137,7 +140,9 @@ type
     destructor Destroy; override;
   published
     property Align;
+    property Anchors;
     property Color;
+    property DoubleBuffered;
     property Font;
     property Groups: TSideMenuGroups read FGroups write SetGroups;
     property Height;
@@ -145,6 +150,7 @@ type
     property ItemIndex: Integer read FItemIndex write SetItemIndex;
     property ItemHeight: Integer read FItemHeight write SetItemHeight;
     property ParentColor;
+    property ParentDoubleBuffered;
     property ParentFont;
     property StyleNormal: TSideButtonStateProps read FStyleNormal write SetStyleNormal;
     property StyleHover: TSideButtonStateProps read FStyleHover write SetStyleHover;
@@ -266,7 +272,7 @@ end;
 
 { TSideMenuItems }
 
-constructor TSideMenuItems.Create(AOwner: TPersistent; AToolbar: TSideMenu);
+constructor TSideMenuItems.Create(AOwner: TPersistent; AToolbar: TJDSideMenu);
 begin
   inherited Create(AOwner, TSideMenuItem);
   FToolbar:= AToolbar;
@@ -320,7 +326,7 @@ end;
 { TSideMenuGroups }
 
 constructor TSideMenuGroups.Create(AOwner: TPersistent;
-  AToolbar: TSideMenu);
+  AToolbar: TJDSideMenu);
 begin
   inherited Create(AOwner, TSideMenuGroup);
   FToolbar:= AToolbar;
@@ -337,9 +343,9 @@ begin
   inherited Items[Index]:= Value;
 end;
 
-{ TSideMenu }
+{ TJDSideMenu }
 
-constructor TSideMenu.Create(AOwner: TComponent);
+constructor TJDSideMenu.Create(AOwner: TComponent);
 begin
   inherited;
   FItems:= TSideMenuItems.Create(Self, Self);
@@ -381,7 +387,7 @@ begin
 
 end;
 
-destructor TSideMenu.Destroy;
+destructor TJDSideMenu.Destroy;
 begin
 
   FGroups.Free;
@@ -389,55 +395,55 @@ begin
   inherited;
 end;
 
-procedure TSideMenu.SetGroups(const Value: TSideMenuGroups);
+procedure TJDSideMenu.SetGroups(const Value: TSideMenuGroups);
 begin
   FGroups := Value;
   Invalidate;
 end;
 
-procedure TSideMenu.SetItemHeight(const Value: Integer);
+procedure TJDSideMenu.SetItemHeight(const Value: Integer);
 begin
   FItemHeight := Value;
   Invalidate;
 end;
 
-procedure TSideMenu.SetItemIndex(const Value: Integer);
+procedure TJDSideMenu.SetItemIndex(const Value: Integer);
 begin
   FItemIndex := Value;
   Invalidate;
 end;
 
-procedure TSideMenu.SetItems(const Value: TSideMenuItems);
+procedure TJDSideMenu.SetItems(const Value: TSideMenuItems);
 begin
   FItems.Assign(Value);
   Invalidate;
 end;
 
-procedure TSideMenu.SetStyleClick(const Value: TSideButtonStateProps);
+procedure TJDSideMenu.SetStyleClick(const Value: TSideButtonStateProps);
 begin
   FStyleClick.Assign(Value);
   Invalidate;
 end;
 
-procedure TSideMenu.SetStyleDown(const Value: TSideButtonStateProps);
+procedure TJDSideMenu.SetStyleDown(const Value: TSideButtonStateProps);
 begin
   FStyleDown.Assign(Value);
   Invalidate;
 end;
 
-procedure TSideMenu.SetStyleHover(const Value: TSideButtonStateProps);
+procedure TJDSideMenu.SetStyleHover(const Value: TSideButtonStateProps);
 begin
   FStyleHover.Assign(Value);
   Invalidate;
 end;
 
-procedure TSideMenu.SetStyleNormal(const Value: TSideButtonStateProps);
+procedure TJDSideMenu.SetStyleNormal(const Value: TSideButtonStateProps);
 begin
   FStyleNormal.Assign(Value);
   Invalidate;
 end;
 
-procedure TSideMenu.CMHitTest(var Msg: TWMNCHitTest);
+procedure TJDSideMenu.CMHitTest(var Msg: TWMNCHitTest);
 var
   X: Integer;
   P: TPoint;
@@ -480,7 +486,7 @@ begin
 
 end;
 
-procedure TSideMenu.Paint;
+procedure TJDSideMenu.Paint;
 var
   C: TCanvas;
   B: TBrush;
@@ -518,6 +524,8 @@ var
   procedure DrawBorder;
   begin
     //TODO: Draw border around full item
+
+    //TODO: Draw differently depending on item state (Hover, Pressed...)
 
   end;
 

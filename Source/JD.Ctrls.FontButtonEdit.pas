@@ -16,7 +16,7 @@ uses
   DesignEditors, DesignIntf,
   JD.Ctrls.FontButton, Vcl.ComCtrls, Vcl.Samples.Spin,
   JD.Ctrls.FontButtonEditCtrl,
-  JD.Graphics;
+  JD.Graphics, JD.FontGlyphs;
 
 type
   TfrmFontButtonEditor = class(TForm)
@@ -32,26 +32,53 @@ type
     Label2: TLabel;
     Grd: TStringGrid;
     lblPreview: TLabel;
-    dlgColor: TColorDialog;
     GroupBox1: TGroupBox;
-    seGrowSize: TSpinEdit;
     cboImagePosition: TComboBox;
-    Label4: TLabel;
-    Label3: TLabel;
-    seDownSize: TSpinEdit;
     chkAutoSize: TCheckBox;
-    GroupBox3: TGroupBox;
-    chkEnabled: TCheckBox;
-    shpColor: TShape;
+    Panel3: TPanel;
     GroupBox4: TGroupBox;
     chkStyleCaption: TCheckBox;
     chkStyleImage: TCheckBox;
     chkStyleBack: TCheckBox;
     chkStyleFrame: TCheckBox;
+    Label6: TLabel;
+    Label5: TLabel;
+    cboStandardColor: TComboBox;
+    GroupBox2: TGroupBox;
+    lblGrowSize: TLabel;
+    lblDownSize: TLabel;
+    seGrowSize: TSpinEdit;
+    seDownSize: TSpinEdit;
+    GroupBox5: TGroupBox;
+    chkAnchorLeft: TCheckBox;
+    chkAnchorTop: TCheckBox;
+    chkAnchorRight: TCheckBox;
+    chkAnchorBottom: TCheckBox;
     Label7: TLabel;
-    chkTransparent: TCheckBox;
+    cboDrawStyle: TComboBox;
+    lblMargin: TLabel;
+    seMargin: TSpinEdit;
+    lblSpacing: TLabel;
+    seSpacing: TSpinEdit;
+    Label10: TLabel;
+    txtCaptionFont: TEdit;
+    BitBtn2: TBitBtn;
+    dlgCaptionFont: TFontDialog;
+    Panel4: TPanel;
+    GroupBox3: TGroupBox;
+    chkEnabled: TCheckBox;
     chkShowFocusRect: TCheckBox;
-    cmdTest: TFontButton;
+    chkVisible: TCheckBox;
+    chkShowHint: TCheckBox;
+    txtHint: TEdit;
+    Label11: TLabel;
+    txtCaption: TEdit;
+    GroupBox6: TGroupBox;
+    cboHelpType: TComboBox;
+    seHelpContextID: TSpinEdit;
+    lblContextID: TLabel;
+    Label3: TLabel;
+    txtHelpKeyword: TEdit;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormResize(Sender: TObject);
@@ -63,12 +90,13 @@ type
     procedure GrdDblClick(Sender: TObject);
     procedure BitBtn1Click(Sender: TObject);
     procedure PropChange(Sender: TObject);
-    procedure shpColorMouseUp(Sender: TObject; Button: TMouseButton;
-      Shift: TShiftState; X, Y: Integer);
+    procedure BitBtn2Click(Sender: TObject);
+    procedure txtHintChange(Sender: TObject);
   private
     FImageFont: TFont;
+    FCaptionFont: TFont;
     FChars: TCharArray;
-    FBtn: TFontButton;
+    FBtn: TJDFontButton;
     FBmp: TBitmap;
     function GetImageChar: String;
     procedure SetImageFont(const Value: TFont);
@@ -80,13 +108,15 @@ type
     procedure FontChanged(Sender: TObject);
     procedure SelectChar(const Value: String);
     procedure ApplyTest;
+    procedure SetCaptionFont(const Value: TFont);
   public
-    constructor Create(ABtn: TFontButton); reintroduce;
-    procedure LoadFrom(ASrc: TFontButton);
-    procedure SaveTo(ADst: TFontButton);
+    constructor Create(ABtn: TJDFontButton); reintroduce;
+    procedure LoadFrom(ASrc: TJDFontButton);
+    function SaveTo(ADst: TJDFontButton): Boolean;
   public
     property ImageChar: String read GetImageChar write SetImageChar;
     property ImageFont: TFont read FImageFont write SetImageFont;
+    property CaptionFont: TFont read FCaptionFont write SetCaptionFont;
   end;
 
 var
@@ -100,7 +130,7 @@ implementation
 
 { TfrmFontCharSelector }
 
-constructor TfrmFontButtonEditor.Create(ABtn: TFontButton);
+constructor TfrmFontButtonEditor.Create(ABtn: TJDFontButton);
 begin
   inherited Create(nil);
   FBtn:= ABtn;
@@ -111,10 +141,25 @@ begin
   FBmp:= TBitmap.Create;
   FImageFont:= TFont.Create;
   FImageFont.OnChange:= FontChanged;
+  FCaptionFont:= TFont.Create;
+  FCaptionFont.OnChange:= FontChanged;
+
+  lblGrowSize.Align:= alTop;
+  seGrowSize.Align:= alTop;
+  lblDownSize.Align:= alTop;
+  seDownSize.Align:= alTop;
+  lblMargin.Align:= alTop;
+  seMargin.Align:= alTop;
+  lblSpacing.Align:= alTop;
+  seSpacing.Align:= alTop;
+
+  seHelpContextID.Align:= alTop;
+
 end;
 
 procedure TfrmFontButtonEditor.FormDestroy(Sender: TObject);
 begin
+  FCaptionFont.Free;
   FImageFont.Free;
   FBmp.Free;
 end;
@@ -130,7 +175,7 @@ begin
   FormResize(Sender);
   LoadFrom(FBtn);
   Invalidate;
-  Grd.SetFocus;
+  //Grd.SetFocus;
 end;
 
 procedure TfrmFontButtonEditor.FontChanged(Sender: TObject);
@@ -183,6 +228,7 @@ begin
   //Font has changed, reset to reflect newly selected font
   FBmp.Canvas.Font.Assign(ImageFont);
   txtImageFont.Text:= ImageFont.Name;
+  txtCaptionFont.Text:= CaptionFont.Name;
   lblPreview.Font.Name:= ImageFont.Name;
 
   FChars:= GetFontGlyphs(FBmp.Canvas.Handle);
@@ -205,14 +251,14 @@ begin
   FImageFont.Assign(Value);
 end;
 
-procedure TfrmFontButtonEditor.shpColorMouseUp(Sender: TObject;
-  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+procedure TfrmFontButtonEditor.txtHintChange(Sender: TObject);
 begin
-  dlgColor.Color:= shpColor.Brush.Color;
-  if dlgColor.Execute then begin
-    shpColor.Brush.Color:= dlgColor.Color;
-    ApplyTest;
-  end;
+  Self.ApplyTest;
+end;
+
+procedure TfrmFontButtonEditor.SetCaptionFont(const Value: TFont);
+begin
+  FCaptionFont.Assign(Value);
 end;
 
 procedure TfrmFontButtonEditor.BitBtn1Click(Sender: TObject);
@@ -220,6 +266,16 @@ begin
   dlgImageFont.Font.Assign(ImageFont);
   if dlgImageFont.Execute then begin
     ImageFont.Assign(dlgImageFont.Font);
+    ApplyTest;
+  end;
+end;
+
+procedure TfrmFontButtonEditor.BitBtn2Click(Sender: TObject);
+begin
+  dlgCaptionFont.Font.Assign(CaptionFont);
+  if dlgCaptionFont.Execute then begin
+    CaptionFont.Assign(dlgCaptionFont.Font);
+    ApplyTest;
   end;
 end;
 
@@ -254,53 +310,252 @@ begin
   ApplyTest;
 end;
 
-procedure TfrmFontButtonEditor.LoadFrom(ASrc: TFontButton);
+procedure TfrmFontButtonEditor.LoadFrom(ASrc: TJDFontButton);
 begin
   FBtn:= ASrc;
-  cmdTest.Assign(ASrc);
+  //cmdTest.Assign(ASrc);
 
   chkShowFocusRect.Checked:= ASrc.ShowFocusRect;
   seDownSize.Value:= ASrc.DownSize;
-  shpColor.Brush.Color:= ASrc.Color;
+
   chkEnabled.Checked:= ASrc.Enabled;
+  chkVisible.Checked:= ASrc.Visible;
+  chkShowHint.Checked:= ASrc.ShowHint;
+  txtHint.Text:= ASrc.Hint;
+  txtCaption.Text:= ASrc.Text;
+
   chkStyleCaption.Checked:= scCaption in ASrc.StyleColors;
   chkStyleImage.Checked:= scImage in ASrc.StyleColors;
   chkStyleBack.Checked:= scBack in ASrc.StyleColors;
   chkStyleFrame.Checked:= scFrame in ASrc.StyleColors;
 
+  chkAnchorLeft.Checked:= akLeft in ASrc.Anchors;
+  chkAnchorTop.Checked:= akTop in ASrc.Anchors;
+  chkAnchorRight.Checked:= akRight in ASrc.Anchors;
+  chkAnchorBottom.Checked:= akBottom in ASrc.Anchors;
+
+  CaptionFont.Assign(ASrc.Font);
   ImageFont.Assign(ASrc.Image.Font);
   ImageChar:= ASrc.Image.Text;
   seGrowSize.Value:= ASrc.Image.GrowSize;
   chkAutoSize.Checked:= ASrc.Image.AutoSize;
 
+  if ASrc.Image.UseStandardColor then begin
+  cboStandardColor.ItemIndex:= Integer(ASrc.Image.StandardColor)+1;
+  end else begin
+    cboStandardColor.ItemIndex:= 0;
+  end;
+
+  cboImagePosition.ItemIndex:= Integer(ASrc.ImagePosition);
+
+  cboDrawStyle.ItemIndex:= Integer(ASrc.DrawStyle);
+
+  cboHelpType.ItemIndex:= Integer(ASrc.HelpType);
+  txtHelpKeyword.Text:= ASrc.HelpKeyword;
+  seHelpContextID.Value:= ASrc.HelpContext;
+
+  seMargin.Value:= ASrc.Margin;
+  seSpacing.Value:= ASrc.Spacing;
+
 end;
 
-procedure TfrmFontButtonEditor.SaveTo(ADst: TFontButton);
+function SameFonts(AFont1, AFont2: TFont): Boolean;
 begin
-  ADst.ShowFocusRect:= chkShowFocusRect.Checked;
-  ADst.DownSize:= seDownSize.Value;
-  ADst.Color:= shpColor.Brush.Color;
-  ADst.Enabled:= chkEnabled.Checked;
-  ADst.StyleColors:= [];
-  if chkStyleCaption.Checked then
-    ADst.StyleColors:= ADst.StyleColors + [scCaption];
-  if chkStyleImage.Checked then
-    ADst.StyleColors:= ADst.StyleColors + [scImage];
-  if chkStyleBack.Checked then
-    ADst.StyleColors:= ADst.StyleColors + [scBack];
-  if chkStyleFrame.Checked then
-    ADst.StyleColors:= ADst.StyleColors + [scFrame];
+  Result:= SameText(AFont1.Name, AFont2.Name);
+  if Result then
+    Result:= AFont1.Size = AFont2.Size;
+  if Result then
+    Result:= AFont1.Height = AFont2.Height;
+  if Result then
+    Result:= AFont1.Charset = AFont2.Charset;
+  if Result then
+    Result:= AFont1.Color = AFont2.Color;
+  if Result then
+    Result:= AFont1.Orientation = AFont2.Orientation;
+  if Result then
+    Result:= AFont1.Pitch = AFont2.Pitch;
+  if Result then
+    Result:= AFont1.Quality = AFont2.Quality;
+  if Result then
+    Result:= AFont1.Style = AFont2.Style;
 
-  ADst.Image.Font.Assign(ImageFont);
-  ADst.Image.GrowSize:= seGrowSize.Value;
-  ADst.Image.Text:= lblPreview.Caption;
-  ADst.Image.AutoSize:= chkAutoSize.Checked;
+end;
+
+function TfrmFontButtonEditor.SaveTo(ADst: TJDFontButton): Boolean;
+  function SelAnchors: TAnchors;
+  begin
+    Result:= [];
+    if chkAnchorLeft.Checked then
+      Result:= Result + [akLeft];
+    if chkAnchorTop.Checked then
+      Result:= Result + [akTop];
+    if chkAnchorRight.Checked then
+      Result:= Result + [akRight];
+    if chkAnchorBottom.Checked then
+      Result:= Result + [akBottom];
+  end;
+  function SelStyleColors: TJDFontButtonStyleColors;
+  begin
+    Result:= [];
+    if chkStyleCaption.Checked then
+      Result:= Result + [scCaption];
+    if chkStyleImage.Checked then
+      Result:= Result + [scImage];
+    if chkStyleBack.Checked then
+      Result:= Result + [scBack];
+    if chkStyleFrame.Checked then
+      Result:= Result + [scFrame];
+  end;
+  function SelDrawStyle: TJDFontButtonDrawStyle;
+  begin
+    Result:= TJDFontButtonDrawStyle(cboDrawStyle.ItemIndex);
+  end;
+  function SelHelpType: THelpType;
+  begin
+    Result:= THelpType(cboHelpType.ItemIndex);
+  end;
+  function SelImagePosition: TJDFontButtonImgPosition;
+  begin
+    Result:= TJDFontButtonImgPosition(cboImagePosition.ItemIndex);
+  end;
+  function SelStandardColor: TJDStandardColor;
+  begin
+    case cboStandardColor.ItemIndex of
+      -1, 0: begin
+        Result:= fcNeutral;
+      end;
+      else begin
+        Result:= TJDStandardColor(cboStandardColor.ItemIndex-1);
+      end;
+    end;
+  end;
+  function SelUseStandardColor: Boolean;
+  begin
+    Result:= cboStandardColor.ItemIndex > 0;
+  end;
+begin
+  Result:= False;
+
+  if not SameFonts(ADst.Font, CaptionFont) then begin
+    ADst.Font.Assign(CaptionFont);
+    Result:= True;
+  end;
+
+  if not SameFonts(ADst.Image.Font, ImageFont) then begin
+    ADst.Image.Font.Assign(ImageFont);
+    Result:= True;
+  end;
+
+  if ADst.Image.StandardColor <> SelStandardColor then begin
+    ADst.Image.StandardColor:= SelStandardColor;
+    Result:= True;
+  end;
+
+  if SelUseStandardColor <> ADst.Image.UseStandardColor then begin
+    ADst.Image.UseStandardColor:= SelUseStandardColor;
+    Result:= True;
+  end;
+
+  if chkShowFocusRect.Checked <> ADst.ShowFocusRect then begin
+    ADst.ShowFocusRect:= chkShowFocusRect.Checked;
+    Result:= True;
+  end;
+
+  if seDownSize.Value <> ADst.DownSize then begin
+    ADst.DownSize:= seDownSize.Value;
+    Result:= True;
+  end;
+
+  if chkVisible.Checked <> ADst.Visible then begin
+    ADst.Visible:= chkVisible.Checked;
+    Result:= True;
+  end;
+
+  if chkEnabled.Checked <> ADst.Enabled then begin
+    ADst.Enabled:= chkEnabled.Checked;
+    Result:= True;
+  end;
+
+  if chkShowHint.Checked <> ADst.ShowHint then begin
+    ADst.ShowHint:= chkShowHint.Checked;
+    Result:= True;
+  end;
+
+  if txtHint.Text <> ADst.Hint then begin
+    ADst.Hint:= txtHint.Text;
+    Result:= True;
+  end;
+
+  if txtCaption.Text <> ADst.Text then begin
+    ADst.Text:= txtCaption.Text;
+    Result:= True;
+  end;
+
+  if seGrowSize.Value <> ADst.Image.GrowSize then begin
+    ADst.Image.GrowSize:= seGrowSize.Value;
+    Result:= True;
+  end;
+
+  if lblPreview.Caption <> ADst.Image.Text then begin
+    ADst.Image.Text:= lblPreview.Caption;
+    Result:= True;
+  end;
+
+  if chkAutoSize.Checked <> ADst.Image.AutoSize then begin
+    ADst.Image.AutoSize:= chkAutoSize.Checked;
+    Result:= True;
+  end;
+
+  if SelDrawStyle <> ADst.DrawStyle then begin
+    ADst.DrawStyle:= SelDrawStyle;
+    Result:= True;
+  end;
+
+  if seHelpContextID.Value <> ADst.HelpContext then begin
+    ADst.HelpContext:= seHelpContextID.Value;
+    Result:= True;
+  end;
+
+  if txtHelpKeyword.Text <> ADst.HelpKeyword then begin
+    ADst.HelpKeyword:= txtHelpKeyword.Text;
+    Result:= True;
+  end;
+
+  if SelHelpType <> ADst.HelpType then begin
+    ADst.HelpType:= SelHelpType;
+    Result:= True;
+  end;
+
+  if seMargin.Value <> ADst.Margin then begin
+    ADst.Margin:= seMargin.Value;
+    Result:= True;
+  end;
+
+  if seSpacing.Value <> ADst.Spacing then begin
+    ADst.Spacing:= seSpacing.Value;
+    Result:= True;
+  end;
+
+  if SelImagePosition <> ADst.ImagePosition then begin
+    ADst.ImagePosition:= SelImagePosition;
+    Result:= True;
+  end;
+
+  if ADst.StyleColors <> SelStyleColors then begin
+    ADst.StyleColors:= SelStyleColors;
+    Result:= True;
+  end;
+
+  if ADst.Anchors <> SelAnchors then begin
+    ADst.Anchors:= SelAnchors;
+    Result:= True;
+  end;
 
 end;
 
 procedure TfrmFontButtonEditor.ApplyTest;
 begin
-  SaveTo(cmdTest);
+  //SaveTo(cmdTest);
 end;
 
 procedure TfrmFontButtonEditor.GrdDrawCell(Sender: TObject; ACol,
@@ -400,9 +655,11 @@ var
   F: TfrmSelectControl;
 begin
   //Show dialog prompting list of all controls matching given AClass
-  F:= TfrmSelectControl.Create(TFontButton(Component));
+  F:= TfrmSelectControl.Create(TJDFontButton(Component));
   try
     Result:= F.ShowModal = mrOK;
+    if Result then
+      Designer.Modified;
   finally
     F.Free;
   end;
@@ -416,14 +673,13 @@ begin
       ExecEditor;
     end;
     1: begin
-      MessageDlg('Font Button Control - by RM Innovation', mtInformation, [mbOK], 0);
+      MessageDlg('Font Button Control - by Jerry Dodge', mtInformation, [mbOK], 0);
     end;
     2: begin
       //Convert from TButton
       ConvertFromControl;
     end;
   end;
-  Designer.Modified;
 end;
 
 function TFontButtonEditor.GetVerb(Index: Integer): String;
@@ -447,11 +703,12 @@ var
   F: TfrmFontButtonEditor;
 begin
   //Executes the actual component editor window to modify properties
-  F:= TfrmFontButtonEditor.Create(TFontButton(Component));
+  F:= TfrmFontButtonEditor.Create(TJDFontButton(Component));
   try
     case F.ShowModal of
       mrOK: begin
-        F.SaveTo(TFontButton(Component));
+        if F.SaveTo(TJDFontButton(Component)) then
+          Designer.Modified;
       end;
       else begin
         //Cancelled
@@ -462,10 +719,9 @@ begin
   end;
 end;
 
-
 procedure Register;
 begin
-  RegisterComponentEditor(TFontButton, TFontButtonEditor);
+  RegisterComponentEditor(TJDFontButton, TFontButtonEditor);
 end;
 
 end.

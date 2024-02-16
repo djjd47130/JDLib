@@ -21,7 +21,7 @@ type
     procedure OptionChanged(Sender: TObject);
     procedure cmdOKClick(Sender: TObject);
   private
-    FBtn: TFontButton;
+    FBtn: TJDFontButton;
     FSrc: TControl;
     function GetSelectedControl: String;
     procedure SetSelectedControl(const Value: String);
@@ -33,7 +33,7 @@ type
     procedure ApplySpeedButton;
     procedure ApplyBitBtn;
   public
-    constructor Create(ABtn: TFontButton); reintroduce;
+    constructor Create(ABtn: TJDFontButton); reintroduce;
     property ControlClass: TControlClass read GetControlClass write SetControlClass;
     property SelectedControl: String read GetSelectedControl write SetSelectedControl;
   end;
@@ -45,7 +45,7 @@ implementation
 
 {$R *.dfm}
 
-constructor TfrmSelectControl.Create(ABtn: TFontButton);
+constructor TfrmSelectControl.Create(ABtn: TJDFontButton);
 begin
   inherited Create(nil);
   FBtn:= ABtn;
@@ -60,7 +60,7 @@ begin
   FSrc:= TControl(F.FindComponent(SelectedControl));
   if Assigned(FSrc) then begin
 
-    FBtn.Image.Font.Name:= 'RMPicons';
+    FBtn.Image.Font.Name:= 'FontAwesome';
     //FBtn.Image.Text:= ' ';
 
     FBtn.Parent:= FSrc.Parent;
@@ -156,9 +156,9 @@ begin
   FBtn.ImagePosition:= fpImgLeft;
   FBtn.TabStop:= False;
   if B.Flat then
-    FBtn.DrawStyle:= TFontButtonDrawStyle.fdHybrid
+    FBtn.DrawStyle:= TJDFontButtonDrawStyle.fdHybrid
   else
-    FBtn.DrawStyle:= TFontButtonDrawStyle.fdThemed;
+    FBtn.DrawStyle:= TJDFontButtonDrawStyle.fdThemed;
 
   if B.Caption = '' then
     FBtn.ImagePosition:= fpImgOnly

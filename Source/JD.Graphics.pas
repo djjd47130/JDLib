@@ -1,251 +1,485 @@
 unit JD.Graphics;
 
+//Delphi class operators: https://docwiki.embarcadero.com/RADStudio/Sydney/en/Operator_Overloading_(Delphi)
+
+//Code review: https://codereview.stackexchange.com/questions/79214/converting-delphi-colors-between-tcolor-rgb-cmyk-and-hsv
+
+//32bit Bitmap Alpha: https://stackoverflow.com/questions/10147932/how-change-the-alpha-value-of-a-specific-color-in-a-32-bit-tbitmap
+
 interface
 
+{$DEFINE USE_GDIP}
+
 uses
-  System.Classes, System.SysUtils,
+  System.Classes, System.SysUtils, System.Generics.Collections,
   Winapi.Windows, Winapi.Messages,
-  Vcl.Graphics, Vcl.Controls, Vcl.ImgList,
-  Dialogs,
-  JD.Ctrls.FontButton;
+  Vcl.Graphics, Vcl.Controls, Vcl.ImgList, Vcl.Dialogs
+  , GDIPAPI, GDIPOBJ, GDIPUTIL
+  , JD.Common //This unit should NOT use any other JD related units!
+  ;
 
 const
-
   //GLOBAL COLOR SETUP
+  //These are the default colors for the 3 color modes,
+  //  as well as colors in Windows default themes.
 
-  DARK_NEUTRAL =  $005F4A3F;//$006B4732;
-  DARK_BLUE =     $00986D34;//
+  //Light version of colors
+  LIGHT_NEUTRAL = $00D1C6B8; //$00DEC4AB;
+  LIGHT_GRAY =    clSilver;
+  LIGHT_BLUE =    $00F7392B; //clBlue; //$003C0E00; //$00D7A36F;
+  LIGHT_GREEN =   $0000B900; //$0055A667;
+  LIGHT_RED =     $004A4ADF; //$006464E3;
+  LIGHT_YELLOW =  $003EFFFF;
+  LIGHT_ORANGE =  $002492FF;
+  LIGHT_PURPLE =  $009212BC;
+
+  //Medium version of colors
+  MED_NEUTRAL =   clSilver;
+  MED_GRAY =      clGray;
+  MED_BLUE =      clBlue;
+  MED_GREEN =     clGreen;
+  MED_RED =       clRed;
+  MED_YELLOW =    clYellow;
+  MED_ORANGE =    $000080FF;
+  MED_PURPLE =    clPurple;
+
+  //Dark version of colors
+  DARK_NEUTRAL =  $005F4A3F; //$006B4732;
+  DARK_GRAY =     clDkGray;
+  DARK_BLUE =     $00986D34;
   DARK_GREEN =    $002C6137;
   DARK_RED =      $002629B9;
   DARK_YELLOW =   $0000B0B0;
-  DARK_ORANGE =   $00145CD6;//$00165792;
+  DARK_ORANGE =   $00145CD6; //$00165792;
+  DARK_PURPLE =   $00400080;
 
-  LIGHT_NEUTRAL = $00D1C6B8;//$00DEC4AB;
-  LIGHT_BLUE =    $00D7A36F;//
-  LIGHT_GREEN =   $0055A667;
-  LIGHT_RED =     $004A4ADF;//$006464E3;
-  LIGHT_YELLOW =  $003EFFFF;
-  LIGHT_ORANGE =  $002492FF;
-
+  //Default windows colors
   WIN_NEUTRAL =   DARK_NEUTRAL;
+  WIN_GRAY =      DARK_GRAY;
   WIN_BLUE =      DARK_BLUE;
   WIN_GREEN =     DARK_GREEN;
   WIN_RED =       DARK_RED;
   WIN_YELLOW =    DARK_YELLOW;
   WIN_ORANGE =    DARK_ORANGE;
+  WIN_PURPLE =    DARK_PURPLE;
+
+  //Extended
   WIN_MAIN =      $00F8F8ED;
   WIN_GRAD_FROM = $00E4E1C0;
   WIN_GRAD_TO =   $00F8F8ED;
 
 type
-  EOutOfRange = Exception;
 
-  TColorMode = (cmLight, cmDark, cmMiddle);
+  ///  <summary>
+  ///  JD standard colors, to avoid having to decide on specific colors.
+  ///  Automatically differs whether using light or dark modes.
+  ///  Customizable via ColorManager (TJDColorManager).
+  ///  </summary>
+  TJDStandardColor = (fcNeutral, fcGray, fcBlue, fcGreen,
+    fcRed, fcYellow, fcOrange, fcPurple);
 
-  THue = record
+  ///  <summary>
+  ///  A set of TJDStandardColor enum values.
+  ///  </summary>
+  TJDStandardColors = array[TJDStandardColor] of TColor;
+
+  ///  <summary>
+  ///  Enum to define whether in light or dark mode.
+  ///  Middle mode not yet supported.
+  ///  </summary>
+  TJDColorMode = (cmLight, cmMedium, cmDark);
+
+  ///  <summary>
+  ///  Hue value of an HSB color value.
+  ///  <br/>Min: 0.0
+  ///  <br/>Max: 360.0
+  ///  </summary>
+  TJDCHue = record
   private
     FValue: Double;
   public
-    class operator implicit(Value: THue): Double;
-    class operator implicit(Value: Double): THue;
+    class operator Implicit(Value: TJDCHue): Double;
+    class operator Implicit(Value: Double): TJDCHue;
+    class operator Negative(a: TJDCHue): TJDCHue;
+    class operator Positive(a: TJDCHue): TJDCHue;
+    class operator Inc(a: TJDCHue): TJDCHue;
+    class operator Dec(a: TJDCHue): TJDCHue;
+    class operator Equal(a: TJDCHue; b: TJDCHue): Boolean;
+    class operator NotEqual(a: TJDCHue; b: TJDCHue): Boolean;
+    class operator GreaterThan(a: TJDCHue; b: TJDCHue): Boolean;
+    class operator GreaterThanOrEqual(a: TJDCHue; b: TJDCHue): Boolean;
+    class operator LessThan(a: TJDCHue; b: TJDCHue): Boolean;
+    class operator LessThanOrEqual(a: TJDCHue; b: TJDCHue): Boolean;
+    class operator Add(a: TJDCHue; b: TJDCHue): TJDCHue;
+    class operator Subtract(a: TJDCHue; b: TJDCHue): TJDCHue;
+    class operator Multiply(a: TJDCHue; b: TJDCHue): TJDCHue;
+    class operator Divide(a: TJDCHue; b: TJDCHue): TJDCHue;
   end;
 
-  TSaturation = record
+  ///  <summary>
+  ///  Saturation of an HSB color value.
+  ///  <br/>Min: 0.0
+  ///  <br/>Max: 100.0
+  ///  </summary>
+  TJDCSaturation = record
   private
     FValue: Double;
   public
-    class operator implicit(Value: TSaturation): Double;
-    class operator implicit(Value: Double): TSaturation;
+    class operator Implicit(Value: TJDCSaturation): Double;
+    class operator Implicit(Value: Double): TJDCSaturation;
+    class operator Negative(a: TJDCSaturation): TJDCSaturation;
+    class operator Positive(a: TJDCSaturation): TJDCSaturation;
+    class operator Inc(a: TJDCSaturation): TJDCSaturation;
+    class operator Dec(a: TJDCSaturation): TJDCSaturation;
+    class operator Equal(a: TJDCSaturation; b: TJDCSaturation): Boolean;
+    class operator NotEqual(a: TJDCSaturation; b: TJDCSaturation): Boolean;
+    class operator GreaterThan(a: TJDCSaturation; b: TJDCSaturation): Boolean;
+    class operator GreaterThanOrEqual(a: TJDCSaturation; b: TJDCSaturation): Boolean;
+    class operator LessThan(a: TJDCSaturation; b: TJDCSaturation): Boolean;
+    class operator LessThanOrEqual(a: TJDCSaturation; b: TJDCSaturation): Boolean;
+    class operator Add(a: TJDCSaturation; b: TJDCSaturation): TJDCSaturation;
+    class operator Subtract(a: TJDCSaturation; b: TJDCSaturation): TJDCSaturation;
+    class operator Multiply(a: TJDCSaturation; b: TJDCSaturation): TJDCSaturation;
+    class operator Divide(a: TJDCSaturation; b: TJDCSaturation): TJDCSaturation;
   end;
 
-  TBrightness = record
+  ///  <summary>
+  ///  Brightness of an HSB color value.
+  ///  <br/>Min: 0.0
+  ///  <br/>Max: 100.0
+  ///  </summary>
+  TJDCBrightness = record
   private
     FValue: Double;
   public
-    class operator implicit(Value: TBrightness): Double;
-    class operator implicit(Value: Double): TBrightness;
+    class operator Implicit(Value: TJDCBrightness): Double;
+    class operator Implicit(Value: Double): TJDCBrightness;
+    class operator Negative(a: TJDCBrightness): TJDCBrightness;
+    class operator Positive(a: TJDCBrightness): TJDCBrightness;
+    class operator Inc(a: TJDCBrightness): TJDCBrightness;
+    class operator Dec(a: TJDCBrightness): TJDCBrightness;
+    class operator Equal(a: TJDCBrightness; b: TJDCBrightness): Boolean;
+    class operator NotEqual(a: TJDCBrightness; b: TJDCBrightness): Boolean;
+    class operator GreaterThan(a: TJDCBrightness; b: TJDCBrightness): Boolean;
+    class operator GreaterThanOrEqual(a: TJDCBrightness; b: TJDCBrightness): Boolean;
+    class operator LessThan(a: TJDCBrightness; b: TJDCBrightness): Boolean;
+    class operator LessThanOrEqual(a: TJDCBrightness; b: TJDCBrightness): Boolean;
+    class operator Add(a: TJDCBrightness; b: TJDCBrightness): TJDCBrightness;
+    class operator Subtract(a: TJDCBrightness; b: TJDCBrightness): TJDCBrightness;
+    class operator Multiply(a: TJDCBrightness; b: TJDCBrightness): TJDCBrightness;
+    class operator Divide(a: TJDCBrightness; b: TJDCBrightness): TJDCBrightness;
   end;
 
-  TColorRec = record
+  ///  <summary>
+  ///  Encapsulates an RGB value, and can be modified using
+  ///  CMYK and HSB. Also cast to/from HTML color string.
+  ///  Can be implicitly cast with TColor.
+  ///  </summary>
+  TJDColor = record
   private
+    //FAlpha: Byte;
+
     FRed: Byte;
     FGreen: Byte;
     FBlue: Byte;
-    function GetHue: Double;
-    function GetSaturation: Double;
-    function GetBrightness: Double;
-    procedure SetHue(const Value: Double);
-    procedure SetSaturation(const Value: Double);
-    procedure SetBrightness(const Value: Double);
-    function GetBlack: Byte;
+
+    //TODO: Support JD Standard colors
+    //TODO: Support Alpha channel
+    //TODO: Support GDI+ colors
+
+    //function GetAlpha: Byte;
+    //procedure SetAlpha(const Value: Byte);
+
+    function GetHue: TJDCHue;
+    function GetSaturation: TJDCSaturation;
+    function GetBrightness: TJDCBrightness;
+    procedure SetHue(const Value: TJDCHue);
+    procedure SetSaturation(const Value: TJDCSaturation);
+    procedure SetBrightness(const Value: TJDCBrightness);
+
     function GetCyan: Byte;
     function GetMagenta: Byte;
     function GetYellow: Byte;
-    procedure SetBlack(const Value: Byte);
+    function GetBlack: Byte;
     procedure SetCyan(const Value: Byte);
     procedure SetMagenta(const Value: Byte);
     procedure SetYellow(const Value: Byte);
+    procedure SetBlack(const Value: Byte);
+
+    function GetHTML: String;
+    procedure SetHTML(const Value: String);
   public
-    class operator implicit(Value: TColorRec): TColor;
-    class operator implicit(Value: TColor): TColorRec;
+    class operator Implicit(Value: TJDColor): TColor;
+    class operator Implicit(Value: TColor): TJDColor;
+    class operator Equal(a: TJDColor; b: TJDColor): Boolean;
+    class operator NotEqual(a: TJDColor; b: TJDColor): Boolean;
+
+    //property Alpha: Byte read GetAlpha write SetAlpha;
+
     property Red: Byte read FRed write FRed;
     property Green: Byte read FGreen write FGreen;
     property Blue: Byte read FBlue write FBlue;
-    property Hue: Double read GetHue write SetHue;
-    property Saturation: Double read GetSaturation write SetSaturation;
-    property Brightness: Double read GetBrightness write SetBrightness;
+
+    property Hue: TJDCHue read GetHue write SetHue;
+    property Saturation: TJDCSaturation read GetSaturation write SetSaturation;
+    property Brightness: TJDCBrightness read GetBrightness write SetBrightness;
+
     property Cyan: Byte read GetCyan write SetCyan;
     property Magenta: Byte read GetMagenta write SetMagenta;
     property Yellow: Byte read GetYellow write SetYellow;
     property Black: Byte read GetBlack write SetBlack;
+
+    property HTML: String read GetHTML write SetHTML;
   end;
 
-  TImageListRef = class;
-  TImageListRefs = class;
-  TRMProFontGlyph = class;
-  TRMProFontGlyphList = class;
-  TRMProFontGlyphs = class;
+  TJDColorRef = class;
 
-  TImageListRef = class(TCollectionItem)
+  TJDColorRGBRef = class(TPersistent)
   private
-    FImageList: TImageList;
-    FOwner: TImageListRefs;
-    procedure SetImageList(const Value: TImageList);
-  protected
-    function GetDisplayName: String; override;
+    FOwner: TJDColorRef;
+    function GetB: Byte;
+    function GetG: Byte;
+    function GetR: Byte;
+    procedure SetB(const Value: Byte);
+    procedure SetG(const Value: Byte);
+    procedure SetR(const Value: Byte);
   public
-    constructor Create(AOwner: TCollection); override;
+    constructor Create(AOwner: TJDColorRef);
+    destructor Destroy; override;
+    procedure Invalidate;
+  published
+    property R: Byte read GetR write SetR stored False;
+    property G: Byte read GetG write SetG stored False;
+    property B: Byte read GetB write SetB stored False;
+  end;
+
+  TJDColorHSVRef = class(TPersistent)
+  private
+    FOwner: TJDColorRef;
+    function GetH: TJDCHue;
+    function GetS: TJDCSaturation;
+    function GetV: TJDCBrightness;
+    procedure SetH(const Value: TJDCHue);
+    procedure SetS(const Value: TJDCSaturation);
+    procedure SetV(const Value: TJDCBrightness);
+  public
+    constructor Create(AOwner: TJDColorRef);
+    destructor Destroy; override;
+    procedure Invalidate;
+  published
+    property H: TJDCHue read GetH write SetH stored False;
+    property S: TJDCSaturation read GetS write SetS stored False;
+    property V: TJDCBrightness read GetV write SetV stored False;
+  end;
+
+  TJDColorCMYKRef = class(TPersistent)
+  private
+    FOwner: TJDColorRef;
+    function GetC: Byte;
+    function GetK: Byte;
+    function GetM: Byte;
+    function GetY: Byte;
+    procedure SetC(const Value: Byte);
+    procedure SetK(const Value: Byte);
+    procedure SetM(const Value: Byte);
+    procedure SetY(const Value: Byte);
+  public
+    constructor Create(AOwner: TJDColorRef);
+    destructor Destroy; override;
+    procedure Invalidate;
+  published
+    property C: Byte read GetC write SetC stored False;
+    property M: Byte read GetM write SetM stored False;
+    property Y: Byte read GetY write SetY stored False;
+    property K: Byte read GetK write SetK stored False;
+  end;
+
+  ///  <summary>
+  ///  A selection of a color, interchangeable between
+  ///  a JD standard color or a custom color.
+  ///  </summary>
+  TJDColorRef = class(TPersistent)
+  private
+    FStandardColor: TJDStandardColor;
+    FColor: TColor;
+    FUseStandardColor: Boolean;
+    FRGB: TJDColorRGBRef;
+    FHSV: TJDColorHSVRef;
+    FCMYK: TJDColorCMYKRef;
+    FOnChange: TNotifyEvent;
+    procedure SetColor(const Value: TColor);
+    procedure SetStandardColor(const Value: TJDStandardColor);
+    procedure SetUseStandardColor(const Value: Boolean);
+    procedure SetCMYK(const Value: TJDColorCMYKRef);
+    procedure SetHSV(const Value: TJDColorHSVRef);
+    procedure SetRGB(const Value: TJDColorRGBRef);
+  public
+    constructor Create;
     destructor Destroy; override;
     procedure Assign(Source: TPersistent); override;
     procedure Invalidate;
+    function GetColor: TJDColor;
+    property OnChange: TNotifyEvent read FOnChange write FOnChange;
   published
-    property ImageList: TImageList read FImageList write SetImageList;
+    property Color: TColor read FColor write SetColor;
+    property StandardColor: TJDStandardColor read FStandardColor write SetStandardColor;
+    property UseStandardColor: Boolean read FUseStandardColor write SetUseStandardColor;
+    property RGB: TJDColorRGBRef read FRGB write SetRGB stored False;
+    property HSV: TJDColorHSVRef read FHSV write SetHSV stored False;
+    property CMYK: TJDColorCMYKRef read FCMYK write SetCMYK stored False;
   end;
 
-  TImageListRefs = class(TOwnedCollection)
+  ///  <summary>
+  ///  Global object to keep track of color themes throughout JDLib.
+  ///  </summary>
+  TJDColorManager = class(TObject)
   private
-    FOwner: TRMProFontGlyphs;
-    function GetItem(Index: Integer): TImageListRef;
-    procedure SetItem(Index: Integer; const Value: TImageListRef);
+    FComponents: TObjectList<TJDMessageComponent>;
+    FControls: TObjectList<TWinControl>;
+    FBaseColor: TColor;
+    FLtColors: TJDStandardColors;
+    FMdColors: TJDStandardColors;
+    FDkColors: TJDStandardColors;
+    FColorMode: TJDColorMode;
+    procedure SetBaseColor(const Value: TColor);
+    function GetColor(Clr: TJDStandardColor): TColor;
+    function GetColorNew(Mode: TJDColorMode; Clr: TJDStandardColor): TColor;
+    procedure SetColorNew(Mode: TJDColorMode; Clr: TJDStandardColor;
+      const Value: TColor);
   public
-    constructor Create(AOwner: TPersistent);
-    procedure Invalidate;
-    function Add: TImageListRef;
-    function Insert(Index: Integer): TImageListRef;
-    property Items[Index: Integer]: TImageListRef read GetItem write SetItem; default;
-  end;
-
-  TRMProFontGlyph = class(TCollectionItem)
-  private
-    FOwner: TRMProFontGlyphList;
-    FGlyph: String;
-    FCaption: String;
-    FColor: TFontButtonColor;
-    FScale: Double;
-    procedure SetGlyph(const Value: String);
-    procedure SetCaption(const Value: String);
-    procedure SetColor(const Value: TFontButtonColor);
-    procedure SetScale(const Value: Double);
-  protected
-    function GetDisplayName: String; override;
-  public
-    constructor Create(AOwner: TCollection); override;
-    destructor Destroy; override;
-    procedure Assign(Source: TPersistent); override;
-    procedure Invalidate;
-  published
-    property Caption: String read FCaption write SetCaption;
-    property Glyph: String read FGlyph write SetGlyph;
-    property Color: TFontButtonColor read FColor write SetColor;
-    property Scale: Double read FScale write SetScale;
-  end;
-
-  TRMProFontGlyphList = class(TOwnedCollection)
-  private
-    FOwner: TRMProFontGlyphs;
-    function GetItem(Index: Integer): TRMProFontGlyph;
-    procedure SetItem(Index: Integer; const Value: TRMProFontGlyph);
-  protected
-    procedure Update(Item: TCollectionItem); override;
-  public
-    constructor Create(AOwner: TRMProFontGlyphs);
-    procedure Invalidate;
-    function Add: TRMProFontGlyph;
-    function Insert(Index: Integer): TRMProFontGlyph;
-    property Items[Index: Integer]: TRMProFontGlyph read GetItem write SetItem; default;
-  end;
-
-  TRMProFontGlyphs = class(TMessageComponent)
-  private
-    FBuffer: TBitmap;
-    FImageLists: TImageListRefs;
-    FGlyphs: TRMProFontGlyphList;
-    FUpdating: Boolean;
-    FUpdated: Boolean;
-    procedure SetGlyphs(const Value: TRMProFontGlyphList);
-    procedure SetImageLists(const Value: TImageListRefs);
-  protected
-    procedure WndMethod(var Message: TMessage); override;
-  public
-    constructor Create(AOwner: TComponent); override;
+    constructor Create;
     destructor Destroy; override;
     procedure Invalidate;
-    procedure PopulateImageList;
-    procedure Assign(Source: TPersistent); override;
-    procedure BeginUpdate;
-    procedure EndUpdate;
-    function Updating: Boolean; reintroduce;
-  published
-    property ImageLists: TImageListRefs read FImageLists write SetImageLists;
-    property Glyphs: TRMProFontGlyphList read FGlyphs write SetGlyphs;
+    procedure RegisterComponent(AComponent: TJDMessageComponent);
+    procedure UnregisterComponent(AComponent: TJDMessageComponent);
+    procedure RegisterControl(AControl: TWinControl);
+    procedure UnregisterControl(AControl: TWinControl);
+  public
+    procedure PopulateColors; virtual;
+    property ColorMode: TJDColorMode read FColorMode;
+    property BaseColor: TColor read FBaseColor write SetBaseColor;
+    property Color[Clr: TJDStandardColor]: TColor read GetColor;
+    property ColorNew[Mode: TJDColorMode; Clr: TJDStandardColor]: TColor
+      read GetColorNew write SetColorNew;
   end;
 
-function GetFontGlyphs(dc: HDC; const PrivateOnly: Boolean = True): TCharArray;
+  TJDCanvas = class(TPersistent)
+  private
+    FCanvas: TCanvas;
+    FCreatedCanvas: Boolean;
+    {$IFDEF USE_GDIP}
+    FGPCanvas: TGPGraphics;
+    FGPPen: TGPPen;
+    FGPSolidBrush: TGPSolidBrush;
+    {$ENDIF}
+    FPainting: Boolean;
+    FBrushColor: TJDColor;
+    FPenColor: TJDColor;
+    procedure SetBrushColor(const Value: TJDColor);
+    procedure SetPenColor(const Value: TJDColor);
+    procedure SetPenWidth(const Value: Single);
+    function GetPenWidth: Single;
+  public
+    constructor Create(ACanvas: TCanvas);
+    destructor Destroy; override;
+    procedure BeginPaint;
+    procedure EndPaint;
+    property Canvas: TCanvas read FCanvas;
+    {$IFDEF USE_GDIP}
+    property GPCanvas: TGPGraphics read FGPCanvas;
+    {$ENDIF}
+    function ClipRect: TJDRect;
+  published
+    property BrushColor: TJDColor read FBrushColor write SetBrushColor;
+    property PenColor: TJDColor read FPenColor write SetPenColor;
+    property PenWidth: Single read GetPenWidth write SetPenWidth;
+  end;
+
+//Color related
+function DetectColorMode(const AColor: TColor): TJDColorMode;
 function RGBToHSV(R, G, B: Byte; var H, S, V: Double): Boolean;
 function HSVToRGB(H, S, V: Double; var R, G, B: Byte): Boolean;
-function IntRange(const Value, Min, Max: Integer): Integer;
+function ColorToHtml(Color: TColor): string;
+function ColorToHtml2(Clr: TColor): string;
+function HtmlToColor(Color: string): TColor;
 function TweakColor(const AColor: TColor; const Diff: Integer): TColor;
-function DetectColorMode(const AColor: TColor): TColorMode;
+
+//General graphics related
 procedure DrawParentImage(Control: TControl; Dest: TCanvas);
+function PointAroundCenter(Center: TJDPoint; Distance: Single; Degrees: Single;
+  OvalOffset: Single = 1): TJDPoint;
+function DrawTextJD(hDC: HDC; Str: String;
+  var lpRect: TJDRect; uFormat: UINT): Integer;
+
+{$IFDEF USE_GDIP}
+function RectToGPRect(R: TRect): TGPRectF;
+function ColorToGPColor(C: TColor): Cardinal;
+{$ENDIF}
+
+///  <summary>
+///  Global access to central color manager
+///  </summary>
+function ColorManager: TJDColorManager;
 
 implementation
 
 uses
-  Vcl.Forms,
   Math;
 
-//var
-  //FOldWndProc: TFarProc;
-
-function GetFontGlyphs(dc: HDC; const PrivateOnly: Boolean = True): TCharArray;
 var
-  n: dword;
-  GlyphSet: PGlyphSet;
-  I, J: integer;
-  CharCode: DWORD;
-  procedure AddChar(const Code: DWORD);
-  begin
-    SetLength(Result, Length(Result)+1);
-    Result[Length(Result)-1]:= Chr(Code);
-  end;
+  _ColorManager: TJDColorManager;
+
+function ColorManager: TJDColorManager;
 begin
-  SetLength(Result, 0);
-  n := GetFontUnicodeRanges(dc, nil);
-  GlyphSet := AllocMem(n);
-  try
-    n := GetFontUnicodeRanges(dc, GlyphSet);
-    if n <> 0 then begin
-      for I := 0 to GlyphSet^.cRanges-1 do begin
-        for J := 0 to GlyphSet^.ranges[i].cGlyphs-1 do begin
-          CharCode:= Ord(GlyphSet^.ranges[i].wcLow) + J;
-          if (not PrivateOnly) or (PrivateOnly and (CharCode >= $E000)) then
-            AddChar(CharCode);
-        end;
-      end;
-    end;
-  finally
-    FreeMem(GlyphSet);
-  end;
+  Result:= _ColorManager;
+end;
+
+{$IFDEF USE_GDIP}
+function RectToGPRect(R: TRect): TGPRectF;
+begin
+  Result.X:= R.Left;
+  Result.Y:= R.Top;
+  Result.Width:= R.Width;
+  Result.Height:= R.Height;
+end;
+
+function ColorToGPColor(C: TColor): Cardinal;
+begin
+  Result:= MakeColor(GetRValue(C), GetGValue(C), GetBValue(C));
+end;
+{$ENDIF}
+
+function DrawTextJD(hDC: HDC; Str: String;
+  var lpRect: TJDRect; uFormat: UINT): Integer;
+var
+  R: TRect;
+begin
+  R:= lpRect;
+  Result:= DrawText(hDC, PChar(Str), Length(Str), R, uFormat);
+  lpRect:= R;
+end;
+
+function ColorToHtml(Color: TColor): string;
+var
+  COL: LongInt;
+begin
+  COL := ColorToRGB(Color);
+  { first convert TColor to Integer to remove the higher bits }
+  { erst TColor zu Integer, da die Unnötigen höheren Bit entfernt werden }
+  Result := '#' + IntToHex(COL and $FF, 2) +
+    IntToHex(COL shr 8 and $FF, 2) +
+    IntToHex(COL shr 16 and $FF, 2);
+end;
+
+function ColorToHtml2(Clr: TColor): string;
+begin
+  Result := IntToHex(clr, 6);
+  Result := '#' + Copy(Result, 5, 2) + Copy(Result, 3, 2) + Copy(Result, 1, 2);
+end;
+
+function HtmlToColor(Color: string): TColor;
+begin
+  Result := StringToColor('$' + Copy(Color, 6, 2) + Copy(Color, 4, 2) + Copy(Color, 2, 2));
 end;
 
 procedure DrawParentImage(Control: TControl; Dest: TCanvas);
@@ -268,14 +502,6 @@ begin
   end;
 end;
 
-function IntRange(const Value, Min, Max: Integer): Integer;
-begin
-  //Ensures an integer falls within a given min/max range
-  Result:= Value;
-  if Result < Min then Result:= Min;
-  if Result > Max then Result:= Max;
-end;
-
 function TweakColor(const AColor: TColor; const Diff: Integer): TColor;
 var
   R, G, B: Byte;
@@ -283,11 +509,12 @@ var
   Dir: Integer;
 begin
   //Modifies color to slight offset
+  //TODO: Change to HSV via TJDColor and adjust brightness instead...
   R:= GetRValue(AColor);
   G:= GetGValue(AColor);
   B:= GetBValue(AColor);
-  D:= (R + G + B) div 3;
-  if D >= (256 div 2) then begin
+  D:= (R + G + B) div 3; //Calculate average per color channel
+  if D >= (256 div 2) then begin //Compare whether it's light or dark
     Dir:= -Diff;
   end else begin
     Dir:= Diff;
@@ -298,19 +525,18 @@ begin
   Result:= RGB(R, G, B);
 end;
 
-function DetectColorMode(const AColor: TColor): TColorMode;
+function DetectColorMode(const AColor: TColor): TJDColorMode;
 var
-  Clr: TColorRec;
+  Clr: TJDColor;
 begin
   //Determine whether color is light, dark, or middle
   Clr:= AColor;
-  if (Clr.Brightness > 0.4) and (Clr.Brightness < 0.6) then begin
-    Result:= cmMiddle;
-  end else if Clr.Brightness >= 0.5 then begin
-    Result:= cmLight;
-  end else begin
-    Result:= cmDark;
-  end;
+  if Clr.Brightness <= 40 then
+    Result:= cmDark
+  else if Clr.Brightness >= 60 then
+    Result:= cmLight
+  else
+    Result:= cmMedium;
 end;
 
 //H = Hue         (0.0..360.0) [0.0..1.0]
@@ -392,57 +618,280 @@ begin
   Result:= True;
 end;
 
-{ THue }
+function PointAroundCenter(Center: TJDPoint; Distance: Single; Degrees: Single;
+  OvalOffset: Single = 1): TJDPoint;
+var
+  Radians: Real;
+begin
+  //Oval support: https://stackoverflow.com/questions/8433443/modify-a-formula-from-calculating-around-a-circle-to-around-an-oval
+  //Return point around a center point, based on angle and distance (radius)...
+  //Convert angle from degrees to radians; Subtract 135 to bring position to 0 Degrees
+  Radians:= (Degrees - 135) * Pi / 180;
+  Result.X:= Distance*Cos(Radians) - Distance*Sin(Radians) + Center.X;
+  Result.Y:= (Distance*Sin(Radians) + Distance*Cos(Radians)) / OvalOffset + Center.Y;
+end;
 
-class operator THue.implicit(Value: THue): Double;
+{ TJDCHue }
+
+class operator TJDCHue.Implicit(Value: TJDCHue): Double;
 begin
   Result:= Value.FValue;
 end;
 
-class operator THue.implicit(Value: Double): THue;
+class operator TJDCHue.Implicit(Value: Double): TJDCHue;
 begin
   if (Value < 0.0) or (Value > 360.0) then
-    raise EOutOfRange.Create('Hue value out of range');
+    raise EJDOutOfRange.Create('Hue value out of range');
   Result.FValue:= Value;
 end;
 
-{ TSaturation }
+class operator TJDCHue.Add(a, b: TJDCHue): TJDCHue;
+begin
+  Result:= Double(A) + Double(B);
+end;
 
-class operator TSaturation.implicit(Value: TSaturation): Double;
+class operator TJDCHue.Dec(a: TJDCHue): TJDCHue;
+begin
+  Result:= Double(A) - 1;
+end;
+
+class operator TJDCHue.Divide(a, b: TJDCHue): TJDCHue;
+begin
+  Result:= Double(A) / Double(B);
+end;
+
+class operator TJDCHue.Equal(a, b: TJDCHue): Boolean;
+begin
+  Result:= Double(A) = Double(B);
+end;
+
+class operator TJDCHue.GreaterThan(a, b: TJDCHue): Boolean;
+begin
+  Result:= Double(A) > Double(B);
+end;
+
+class operator TJDCHue.GreaterThanOrEqual(a, b: TJDCHue): Boolean;
+begin
+  Result:= Double(A) > Double(B);
+end;
+
+class operator TJDCHue.Inc(a: TJDCHue): TJDCHue;
+begin
+  Result:= Double(A) + 1;
+end;
+
+class operator TJDCHue.LessThan(a, b: TJDCHue): Boolean;
+begin
+  Result:= Double(A) < Double(B);
+end;
+
+class operator TJDCHue.LessThanOrEqual(a, b: TJDCHue): Boolean;
+begin
+  Result:= Double(A) < Double(B);
+end;
+
+class operator TJDCHue.Multiply(a, b: TJDCHue): TJDCHue;
+begin
+  Result:= Double(A) * Double(B);
+end;
+
+class operator TJDCHue.Negative(a: TJDCHue): TJDCHue;
+begin
+  Result:= -Double(A);
+end;
+
+class operator TJDCHue.NotEqual(a, b: TJDCHue): Boolean;
+begin
+  Result:= Double(A) <> Double(B);
+end;
+
+class operator TJDCHue.Positive(a: TJDCHue): TJDCHue;
+begin
+  Result:= +Double(A);
+end;
+
+class operator TJDCHue.Subtract(a, b: TJDCHue): TJDCHue;
+begin
+  Result:= Double(A) - Double(B);
+end;
+
+{ TJDCSaturation }
+
+class operator TJDCSaturation.Implicit(Value: TJDCSaturation): Double;
 begin
   Result:= Value.FValue;
 end;
 
-class operator TSaturation.implicit(Value: Double): TSaturation;
+class operator TJDCSaturation.Implicit(Value: Double): TJDCSaturation;
 begin
   if (Value < 0.0) or (Value > 100.0) then
-    raise EOutOfRange.Create('Saturation value out of range');
+    raise EJDOutOfRange.Create('Saturation value out of range');
   Result.FValue:= Value;
 end;
 
-{ TBrightness }
+class operator TJDCSaturation.Add(a, b: TJDCSaturation): TJDCSaturation;
+begin
+  Result:= Double(A) + Double(B);
+end;
 
-class operator TBrightness.implicit(Value: TBrightness): Double;
+class operator TJDCSaturation.Dec(a: TJDCSaturation): TJDCSaturation;
+begin
+  Result:= Double(A) - 1;
+end;
+
+class operator TJDCSaturation.Divide(a, b: TJDCSaturation): TJDCSaturation;
+begin
+  Result:= Double(A) / Double(B);
+end;
+
+class operator TJDCSaturation.Equal(a, b: TJDCSaturation): Boolean;
+begin
+  Result:= Double(A) = Double(B);
+end;
+
+class operator TJDCSaturation.GreaterThan(a, b: TJDCSaturation): Boolean;
+begin
+  Result:= Double(A) > Double(B);
+end;
+
+class operator TJDCSaturation.GreaterThanOrEqual(a, b: TJDCSaturation): Boolean;
+begin
+  Result:= Double(A) >= Double(B);
+end;
+
+class operator TJDCSaturation.Inc(a: TJDCSaturation): TJDCSaturation;
+begin
+  Result:= Double(A) + 1;
+end;
+
+class operator TJDCSaturation.LessThan(a, b: TJDCSaturation): Boolean;
+begin
+  Result:= Double(A) < Double(B);
+end;
+
+class operator TJDCSaturation.LessThanOrEqual(a, b: TJDCSaturation): Boolean;
+begin
+  Result:= Double(A) <= Double(B);
+end;
+
+class operator TJDCSaturation.Multiply(a, b: TJDCSaturation): TJDCSaturation;
+begin
+  Result:= Double(A) * Double(B);
+end;
+
+class operator TJDCSaturation.Negative(a: TJDCSaturation): TJDCSaturation;
+begin
+  Result:= -(Double(A));
+end;
+
+class operator TJDCSaturation.NotEqual(a, b: TJDCSaturation): Boolean;
+begin
+  Result:= Double(A) <> Double(B);
+end;
+
+class operator TJDCSaturation.Positive(a: TJDCSaturation): TJDCSaturation;
+begin
+  Result:= +Double(A);
+end;
+
+class operator TJDCSaturation.Subtract(a, b: TJDCSaturation): TJDCSaturation;
+begin
+  Result:= Double(A) - Double(B);
+end;
+
+{ TJDCBrightness }
+
+class operator TJDCBrightness.Implicit(Value: TJDCBrightness): Double;
 begin
   Result:= Value.FValue;
 end;
 
-class operator TBrightness.implicit(Value: Double): TBrightness;
+class operator TJDCBrightness.Implicit(Value: Double): TJDCBrightness;
 begin
   if (Value < 0.0) or (Value > 100.0) then
-    raise EOutOfRange.Create('Brightness value out of range');
+    raise EJDOutOfRange.Create('Brightness value out of range');
   Result.FValue:= Value;
 end;
 
-{ TColorRec }
+class operator TJDCBrightness.Add(a, b: TJDCBrightness): TJDCBrightness;
+begin
+  Result:= Double(A) + Double(B);
+end;
 
-class operator TColorRec.implicit(Value: TColorRec): TColor;
+class operator TJDCBrightness.Subtract(a, b: TJDCBrightness): TJDCBrightness;
+begin
+  Result:= Double(A) - Double(B);
+end;
+
+class operator TJDCBrightness.Dec(a: TJDCBrightness): TJDCBrightness;
+begin
+  Result:= Double(A) - 1;
+end;
+
+class operator TJDCBrightness.Divide(a, b: TJDCBrightness): TJDCBrightness;
+begin
+  Result:= Double(A) / Double(B);
+end;
+
+class operator TJDCBrightness.Equal(a, b: TJDCBrightness): Boolean;
+begin
+  Result:= Double(A) = Double(B);
+end;
+
+class operator TJDCBrightness.GreaterThan(a, b: TJDCBrightness): Boolean;
+begin
+  Result:= Double(A) > Double(B);
+end;
+
+class operator TJDCBrightness.GreaterThanOrEqual(a, b: TJDCBrightness): Boolean;
+begin
+  Result:= Double(A) >= Double(B);
+end;
+
+class operator TJDCBrightness.Inc(a: TJDCBrightness): TJDCBrightness;
+begin
+  Result:= Double(A) + 1;
+end;
+
+class operator TJDCBrightness.LessThan(a, b: TJDCBrightness): Boolean;
+begin
+  Result:= Double(A) < Double(B);
+end;
+
+class operator TJDCBrightness.LessThanOrEqual(a, b: TJDCBrightness): Boolean;
+begin
+  Result:= Double(A) <= Double(B);
+end;
+
+class operator TJDCBrightness.Multiply(a, b: TJDCBrightness): TJDCBrightness;
+begin
+  Result:= Double(A) * Double(B);
+end;
+
+class operator TJDCBrightness.Negative(a: TJDCBrightness): TJDCBrightness;
+begin
+  Result:= -Double(A);
+end;
+
+class operator TJDCBrightness.NotEqual(a, b: TJDCBrightness): Boolean;
+begin
+  Result:= Double(A) <> Double(B);
+end;
+
+class operator TJDCBrightness.Positive(a: TJDCBrightness): TJDCBrightness;
+begin
+  Result:= +Double(A);
+end;
+
+{ TJDColor }
+
+class operator TJDColor.Implicit(Value: TJDColor): TColor;
 begin
   with Value do
     Result:= RGB(Red, Green, Blue);
 end;
 
-class operator TColorRec.implicit(Value: TColor): TColorRec;
+class operator TJDColor.Implicit(Value: TColor): TJDColor;
 begin
   with Result do begin
     FRed:= GetRValue(Value);
@@ -451,7 +900,12 @@ begin
   end;
 end;
 
-function TColorRec.GetHue: Double;
+class operator TJDColor.NotEqual(a, b: TJDColor): Boolean;
+begin
+  Result:= TColor(A) <> TColor(B);
+end;
+
+function TJDColor.GetHue: TJDCHue;
 var
   H, S, V: Double;
 begin
@@ -459,7 +913,7 @@ begin
   Result:= H;
 end;
 
-function TColorRec.GetSaturation: Double;
+function TJDColor.GetSaturation: TJDCSaturation;
 var
   H, S, V: Double;
 begin
@@ -467,7 +921,7 @@ begin
   Result:= S;
 end;
 
-function TColorRec.GetBrightness: Double;
+function TJDColor.GetBrightness: TJDCBrightness;
 var
   H, S, V: Double;
 begin
@@ -475,27 +929,32 @@ begin
   Result:= V;
 end;
 
-function TColorRec.GetCyan: Byte;
+function TJDColor.GetCyan: Byte;
 begin
   Result:= GetCValue(RGB(FRed, FGreen, FBlue));
 end;
 
-function TColorRec.GetMagenta: Byte;
+function TJDColor.GetMagenta: Byte;
 begin
   Result:= GetMValue(RGB(FRed, FGreen, FBlue));
 end;
 
-function TColorRec.GetYellow: Byte;
+function TJDColor.GetYellow: Byte;
 begin
   Result:= GetYValue(RGB(FRed, FGreen, FBlue));
 end;
 
-function TColorRec.GetBlack: Byte;
+class operator TJDColor.Equal(a, b: TJDColor): Boolean;
+begin
+  Result:= TColor(A) = TColor(B);
+end;
+
+function TJDColor.GetBlack: Byte;
 begin
   Result:= GetKValue(RGB(FRed, FGreen, FBlue));
 end;
 
-procedure TColorRec.SetBrightness(const Value: Double);
+procedure TJDColor.SetBrightness(const Value: TJDCBrightness);
 var
   H, S, V: Double;
 begin
@@ -504,7 +963,7 @@ begin
   HSVToRGB(H, S, V, FRed, FGreen, FBlue);
 end;
 
-procedure TColorRec.SetHue(const Value: Double);
+procedure TJDColor.SetHue(const Value: TJDCHue);
 var
   H, S, V: Double;
 begin
@@ -513,7 +972,7 @@ begin
   HSVToRGB(H, S, V, FRed, FGreen, FBlue);
 end;
 
-procedure TColorRec.SetSaturation(const Value: Double);
+procedure TJDColor.SetSaturation(const Value: TJDCSaturation);
 var
   H, S, V: Double;
 begin
@@ -522,331 +981,524 @@ begin
   HSVToRGB(H, S, V, FRed, FGreen, FBlue);
 end;
 
-procedure TColorRec.SetCyan(const Value: Byte);
+procedure TJDColor.SetCyan(const Value: Byte);
 begin
   Self:= CMYK(Value, Magenta, Yellow, Black);
 end;
 
-procedure TColorRec.SetMagenta(const Value: Byte);
+procedure TJDColor.SetMagenta(const Value: Byte);
 begin
   Self:= CMYK(Cyan, Value, Yellow, Black);
 end;
 
-procedure TColorRec.SetYellow(const Value: Byte);
+procedure TJDColor.SetYellow(const Value: Byte);
 begin
   Self:= CMYK(Cyan, Magenta, Value, Black);
 end;
 
-procedure TColorRec.SetBlack(const Value: Byte);
+procedure TJDColor.SetBlack(const Value: Byte);
 begin
   Self:= CMYK(Cyan, Magenta, Yellow, Value);
 end;
 
-{ TImageListRef }
-
-procedure TImageListRef.Assign(Source: TPersistent);
-var
-  S: TImageListRef;
+function TJDColor.GetHTML: String;
 begin
-  if Source is TImageListRef then begin
-    S:= TImageListRef(Source);
-    Self.ImageList:= S.ImageList;
+  Result:= ColorToHTML(Self);
+end;
+
+procedure TJDColor.SetHTML(const Value: String);
+begin
+  Self:= HTMLToColor(Value);
+end;
+
+{ TJDColorRef }
+
+procedure TJDColorRef.Assign(Source: TPersistent);
+begin
+  if Source is TJDColorRef then begin
+    FColor:= TJDColorRef(Source).FColor;
+    FStandardColor:= TJDColorRef(Source).FStandardColor;
+    FUseStandardColor:= TJDColorRef(Source).FUseStandardColor;
   end else
     inherited;
 end;
 
-constructor TImageListRef.Create(AOwner: TCollection);
+constructor TJDColorRef.Create;
 begin
-  inherited;
-  FOwner:= TImageListRefs(AOwner);
+  FRGB:= TJDColorRGBRef.Create(Self);
+  FHSV:= TJDColorHSVRef.Create(Self);
+  FCMYK:= TJDColorCMYKRef.Create(Self);
+  FColor:= clBlack;
+  FStandardColor:= fcNeutral;
+  FUseStandardColor:= True;
 end;
 
-destructor TImageListRef.Destroy;
+destructor TJDColorRef.Destroy;
 begin
-
+  FreeAndNil(FCMYK);
+  FreeAndNil(FHSV);
+  FreeAndNil(FRGB);
   inherited;
 end;
 
-function TImageListRef.GetDisplayName: String;
+function TJDColorRef.GetColor: TJDColor;
 begin
-  if Assigned(ImageList) then
-    Result:= ImageList.Name
+  if FUseStandardColor then
+    Result:= ColorManager.Color[FStandardColor]
   else
-    Result:= inherited GetDisplayName;
+    Result:= FColor;
 end;
 
-procedure TImageListRef.Invalidate;
+procedure TJDColorRef.Invalidate;
 begin
-  FOwner.Invalidate;
+  if Assigned(FOnChange) then
+    FOnChange(Self);
 end;
 
-procedure TImageListRef.SetImageList(const Value: TImageList);
+procedure TJDColorRef.SetColor(const Value: TColor);
 begin
-  FImageList := Value;
-  Invalidate;
-end;
-
-{ TImageListRefs }
-
-constructor TImageListRefs.Create(AOwner: TPersistent);
-begin
-  inherited Create(AOwner, TImageListRef);
-  FOwner:= TRMProFontGlyphs(AOwner);
-end;
-
-function TImageListRefs.Add: TImageListRef;
-begin
-  Result:= TImageListRef(inherited Add);
-end;
-
-function TImageListRefs.GetItem(Index: Integer): TImageListRef;
-begin
-  Result:= TImageListRef(inherited Items[Index]);
-end;
-
-function TImageListRefs.Insert(Index: Integer): TImageListRef;
-begin
-  Result:= TImageListRef(inherited Insert(Index));
-end;
-
-procedure TImageListRefs.Invalidate;
-begin
-  FOwner.Invalidate;
-end;
-
-procedure TImageListRefs.SetItem(Index: Integer; const Value: TImageListRef);
-begin
-  inherited Items[Index]:= Value;
-end;
-
-{ TRMProFontGlyph }
-
-procedure TRMProFontGlyph.Assign(Source: TPersistent);
-var
-  S: TRMProFontGlyph;
-begin
-  if Source is TRMProFontGlyph then begin
-    S:= TRMProFontGlyph(Source);
-    Self.Caption:= S.Caption;
-    Self.Glyph:= S.Glyph;
-    Self.Color:= S.Color;
-    Self.Scale:= S.Scale;
-  end else
-    inherited;
-end;
-
-constructor TRMProFontGlyph.Create(AOwner: TCollection);
-begin
-  inherited Create(AOwner);
-  FOwner:= TRMProFontGlyphList(AOwner);
-  FCaption:= 'New Glyph';
-  FGlyph:= 'a';
-  FScale:= 0.96;
-end;
-
-destructor TRMProFontGlyph.Destroy;
-begin
-  inherited;
-end;
-
-function TRMProFontGlyph.GetDisplayName: String;
-begin
-  Result:= FCaption;
-end;
-
-procedure TRMProFontGlyph.Invalidate;
-begin
-  FOwner.Invalidate;
-end;
-
-procedure TRMProFontGlyph.SetCaption(const Value: String);
-begin
-  FCaption := Value;
-  Invalidate;
-end;
-
-procedure TRMProFontGlyph.SetColor(const Value: TFontButtonColor);
-begin
+  FUseStandardColor:= False;
   FColor := Value;
   Invalidate;
 end;
 
-procedure TRMProFontGlyph.SetGlyph(const Value: String);
+procedure TJDColorRef.SetCMYK(const Value: TJDColorCMYKRef);
 begin
-  if Length(Value) <> 1 then
-    raise Exception.Create('Glyph text must be 1 character');
-  FGlyph := Value;
+  FCMYK.Assign(Value);
   Invalidate;
 end;
 
-procedure TRMProFontGlyph.SetScale(const Value: Double);
+procedure TJDColorRef.SetHSV(const Value: TJDColorHSVRef);
 begin
-  //if Value < 1 then
-    //raise Exception.Create('Value must be at least 1');
-  FScale := Value;
+  FHSV.Assign(Value);
   Invalidate;
 end;
 
-{ TRMProFontGlyphList }
-
-constructor TRMProFontGlyphList.Create(AOwner: TRMProFontGlyphs);
+procedure TJDColorRef.SetRGB(const Value: TJDColorRGBRef);
 begin
-  inherited Create(AOwner, TRMProFontGlyph);
-  FOwner:= TRMProFontGlyphs(AOwner);
-end;
-
-function TRMProFontGlyphList.GetItem(Index: Integer): TRMProFontGlyph;
-begin
-  Result:= TRMProFontGlyph(inherited Items[Index]);
-end;
-
-function TRMProFontGlyphList.Insert(Index: Integer): TRMProFontGlyph;
-begin
-  Result:= TRMProFontGlyph(inherited Insert(Index));
-end;
-
-procedure TRMProFontGlyphList.Invalidate;
-begin
-  FOwner.Invalidate;
-end;
-
-procedure TRMProFontGlyphList.SetItem(Index: Integer;
-  const Value: TRMProFontGlyph);
-begin
-  inherited Items[Index]:= Value;
-end;
-
-procedure TRMProFontGlyphList.Update(Item: TCollectionItem);
-begin
-  inherited;
+  FRGB.Assign(Value);
   Invalidate;
 end;
 
-function TRMProFontGlyphList.Add: TRMProFontGlyph;
+procedure TJDColorRef.SetStandardColor(const Value: TJDStandardColor);
 begin
-  Result:= TRMProFontGlyph(inherited Add);
+  FStandardColor := Value;
+  Invalidate;
 end;
 
-{ TRMProFontGlyphs }
-
-constructor TRMProFontGlyphs.Create(AOwner: TComponent);
+procedure TJDColorRef.SetUseStandardColor(const Value: Boolean);
 begin
-  inherited;
-  FBuffer:= TBitmap.Create;
-  FImageLists:= TImageListRefs.Create(Self);
-  FGlyphs:= TRMProFontGlyphList.Create(Self);
+  FUseStandardColor := Value;
+  Invalidate;
 end;
 
-destructor TRMProFontGlyphs.Destroy;
+{ TJDColorManager }
+
+constructor TJDColorManager.Create;
 begin
-  FreeAndNil(FGlyphs);
-  FBuffer.Free;
-  FImageLists.Free;
+  FComponents:= TObjectList<TJDMessageComponent>.Create(False);
+  FControls:= TObjectList<TWinControl>.Create(False);
+  FBaseColor:= clWhite;
+  PopulateColors;
+  Invalidate;
+end;
+
+destructor TJDColorManager.Destroy;
+begin
+  FControls.Free;
+  FComponents.Free;
   inherited;
 end;
 
-procedure TRMProFontGlyphs.Invalidate;
-begin
-  Self.PopulateImageList;
-end;
-
-procedure TRMProFontGlyphs.SetGlyphs(const Value: TRMProFontGlyphList);
-begin
-  FGlyphs.Assign(Value);
-  Invalidate;
-end;
-
-procedure TRMProFontGlyphs.SetImageLists(const Value: TImageListRefs);
-begin
-  FImageLists.Assign(Value);
-  Invalidate;
-end;
-
-function TRMProFontGlyphs.Updating: Boolean;
-begin
-  Result:= FUpdating;
-end;
-
-procedure TRMProFontGlyphs.WndMethod(var Message: TMessage);
-begin
-  if Message.Msg = WM_COLORCHANGE then begin
-    Invalidate;
-  end;
-  inherited;
-end;
-
-procedure TRMProFontGlyphs.Assign(Source: TPersistent);
+procedure TJDColorManager.Invalidate;
 var
-  S: TRMProFontGlyphs;
+  X: Integer;
 begin
-  if Source is TRMProFontGlyphs then begin
-    S:= TRMProFontGlyphs(Source);
-    Self.Glyphs.Assign(S.Glyphs);
-    Self.ImageLists.Assign(S.ImageLists);
+  try
+    //Automatically determine color mode based on base color's brightness...
+    FColorMode:= DetectColorMode(FBaseColor);
 
-  end else
-    inherited;
-end;
+    //Broadcast change to all registered components...
+    for X := 0 to FComponents.Count-1 do begin
+      SendMessage(FComponents[X].Handle, WM_JD_COLORCHANGE, 0, 0);
+    end;
 
-procedure TRMProFontGlyphs.BeginUpdate;
-begin
-  if not FUpdating then begin
-    FUpdating:= True;
-    FUpdated:= False;
-  end;
-end;
+    //Broadcast change to all registered controls...
+    for X := 0 to FControls.Count-1 do begin
+      SendMessage(FControls[X].Handle, WM_JD_COLORCHANGE, 0, 0);
+    end;
 
-procedure TRMProFontGlyphs.EndUpdate;
-begin
-  if FUpdating then begin
-    FUpdating:= False;
-    if FUpdated then
-      Invalidate;
-  end;
-end;
-
-procedure TRMProFontGlyphs.PopulateImageList;
-var
-  IL: TImageListRef;
-  G: TRMProFontGlyph;
-  MC: TColor;
-  X, Y: Integer;
-  R: TRect;
-begin
-  if FUpdating then begin
-    FUpdated:= True;
-    Exit;
-  end;
-
-  FBuffer.Canvas.Font.Name:= 'RMPicons';
-  FBuffer.Canvas.Font.Quality:= fqAntialiased;
-  MC:= ColorManager.BaseColor;
-  for X := 0 to FImageLists.Count-1 do begin
-    IL:= FImageLists[X];
-    if Assigned(IL.FImageList) then begin
-      IL.FImageList.BeginUpdate;
-      try
-        IL.FImageList.Clear;
-        FBuffer.Width:= IL.FImageList.Width;
-        FBuffer.Height:= IL.FImageList.Height;
-        R:= FBuffer.Canvas.ClipRect;
-        FBuffer.Canvas.Brush.Color:= MC;
-        for Y := 0 to FGlyphs.Count-1 do begin
-          G:= FGlyphs[Y];
-          FBuffer.Canvas.Font.Height:= Trunc(FBuffer.Height * G.Scale);
-          FBuffer.Canvas.Font.Color:= ColorManager.Color[G.Color];
-          FBuffer.Canvas.FillRect(R);
-
-          DrawText(FBuffer.Canvas.Handle, PChar(G.Glyph), Length(G.Glyph), R,
-            DT_CENTER or DT_SINGLELINE or DT_VCENTER);
-
-          IL.ImageList.AddMasked(FBuffer, MC);
-        end;
-      finally
-        IL.FImageList.EndUpdate;
-      end;
+  except
+    on E: Exception do begin
+      ShowMessage(E.Message);
     end;
   end;
 end;
 
+procedure TJDColorManager.PopulateColors;
+begin
+  //Light versions of colors
+  FLtColors[fcNeutral]:= LIGHT_NEUTRAL;
+  FLtColors[fcGray]:= LIGHT_GRAY;
+  FLtColors[fcBlue]:= LIGHT_BLUE;
+  FLtColors[fcGreen]:= LIGHT_GREEN;
+  FLtColors[fcRed]:= LIGHT_RED;
+  FLtColors[fcYellow]:= LIGHT_YELLOW;
+  FLtColors[fcOrange]:= LIGHT_ORANGE;
+  FLtColors[fcPurple]:= LIGHT_PURPLE;
+
+  //Medium versions of colors
+  FMdColors[fcNeutral]:= MED_NEUTRAL;
+  FMdColors[fcGray]:= MED_GRAY;
+  FMdColors[fcBlue]:= MED_BLUE;
+  FMdColors[fcGreen]:= MED_GREEN;
+  FMdColors[fcRed]:= MED_RED;
+  FMdColors[fcYellow]:= MED_YELLOW;
+  FMdColors[fcOrange]:= MED_ORANGE;
+  FMdColors[fcPurple]:= MED_PURPLE;
+
+  //Dark versions of colors
+  FDkColors[fcNeutral]:= DARK_NEUTRAL;
+  FDkColors[fcGray]:= DARK_GRAY;
+  FDkColors[fcBlue]:= DARK_BLUE;
+  FDkColors[fcGreen]:= DARK_GREEN;
+  FDkColors[fcRed]:= DARK_RED;
+  FDkColors[fcYellow]:= DARK_YELLOW;
+  FDkColors[fcOrange]:= DARK_ORANGE;
+  FDkColors[fcPurple]:= DARK_PURPLE;
+
+end;
+
+procedure TJDColorManager.SetBaseColor(const Value: TColor);
+begin
+  FBaseColor:= TColor(Value);
+  Invalidate;
+end;
+
+function TJDColorManager.GetColor(Clr: TJDStandardColor): TColor;
+begin
+  case FColorMode of
+    cmLight:  Result:= GetColorNew(cmDark, Clr);
+    cmMedium: Result:= GetColorNew(cmMedium, Clr);
+    cmDark:   Result:= GetColorNew(cmLight, Clr);
+    else      Result:= GetColorNew(cmDark, Clr);
+  end;
+end;
+
+function TJDColorManager.GetColorNew(Mode: TJDColorMode;
+  Clr: TJDStandardColor): TColor;
+begin
+  case Mode of
+    cmLight:  Result:= FLtColors[Clr];
+    cmMedium: Result:= FMdColors[Clr];
+    cmDark:   Result:= FDkColors[Clr];
+    else      Result:= FDkColors[Clr];
+  end;
+end;
+
+procedure TJDColorManager.SetColorNew(Mode: TJDColorMode; Clr: TJDStandardColor;
+  const Value: TColor);
+begin
+  case Mode of
+    cmLight:  FLtColors[Clr]:= Value;
+    cmMedium: FMdColors[Clr]:= Value;
+    cmDark:   FDkColors[Clr]:= Value;
+  end;
+end;
+
+procedure TJDColorManager.RegisterComponent(AComponent: TJDMessageComponent);
+begin
+  FComponents.Add(AComponent);
+end;
+
+procedure TJDColorManager.UnregisterComponent(AComponent: TJDMessageComponent);
+begin
+  FComponents.Delete(FComponents.IndexOf(AComponent));
+end;
+
+procedure TJDColorManager.RegisterControl(AControl: TWinControl);
+begin
+  FControls.Add(AControl)
+end;
+
+procedure TJDColorManager.UnregisterControl(AControl: TWinControl);
+begin
+  FControls.Delete(FControls.IndexOf(AControl));
+end;
+
+{ TJDCanvas }
+
+function TJDCanvas.ClipRect: TJDRect;
+begin
+  Result:= FCanvas.ClipRect;
+end;
+
+constructor TJDCanvas.Create(ACanvas: TCanvas);
+begin
+  if Assigned(ACanvas) then begin
+    FCanvas:= ACanvas;
+    FCreatedCanvas:= False;
+  end else begin
+    FCanvas:= TCanvas.Create;
+    //TODO
+    FCreatedCanvas:= True;
+  end;
+  FGPPen:= TGPPen.Create;
+  FGPSolidBrush:= TGPSolidBrush.Create;
+end;
+
+destructor TJDCanvas.Destroy;
+begin
+  FreeAndNil(FGPSolidBrush);
+  FreeAndNil(FGPPen);
+  if FCreatedCanvas then
+    FreeAndNil(FCanvas);
+  inherited;
+end;
+
+procedure TJDCanvas.BeginPaint;
+begin
+  FPainting:= True;
+  FGPCanvas:= TGPGraphics.Create(FCanvas.Handle);
+end;
+
+procedure TJDCanvas.EndPaint;
+begin
+  FPainting:= False;
+  FreeAndNil(FGPCanvas);
+end;
+
+function TJDCanvas.GetPenWidth: Single;
+begin
+  Result:= FGPPen.GetWidth;
+end;
+
+procedure TJDCanvas.SetBrushColor(const Value: TJDColor);
+begin
+  FBrushColor:= Value;
+  FGPSolidBrush.SetColor(ColorToGPColor(Value));
+end;
+
+procedure TJDCanvas.SetPenColor(const Value: TJDColor);
+begin
+  FPenColor:= Value;
+  FGPPen.SetColor(ColorToGPColor(Value));
+end;
+
+procedure TJDCanvas.SetPenWidth(const Value: Single);
+begin
+  FGPPen.SetWidth(Value);
+end;
+
+{ TJDColorRGBRef }
+
+constructor TJDColorRGBRef.Create(AOwner: TJDColorRef);
+begin
+  FOwner:= AOwner;
+
+end;
+
+destructor TJDColorRGBRef.Destroy;
+begin
+
+  inherited;
+end;
+
+function TJDColorRGBRef.GetB: Byte;
+begin
+  Result:= FOwner.GetColor.Blue;
+end;
+
+function TJDColorRGBRef.GetG: Byte;
+begin
+  Result:= FOwner.GetColor.Green;
+end;
+
+function TJDColorRGBRef.GetR: Byte;
+begin
+  Result:= FOwner.GetColor.Red;
+end;
+
+procedure TJDColorRGBRef.Invalidate;
+begin
+  FOwner.Invalidate;
+end;
+
+procedure TJDColorRGBRef.SetB(const Value: Byte);
+var
+  C: TJDColor;
+begin
+  C:= FOwner.Color;
+  C.Blue:= Value;
+  FOwner.Color:= C;
+  Invalidate;
+end;
+
+procedure TJDColorRGBRef.SetG(const Value: Byte);
+var
+  C: TJDColor;
+begin
+  C:= FOwner.Color;
+  C.Green:= Value;
+  FOwner.Color:= C;
+  Invalidate;
+end;
+
+procedure TJDColorRGBRef.SetR(const Value: Byte);
+var
+  C: TJDColor;
+begin
+  C:= FOwner.Color;
+  C.Red:= Value;
+  FOwner.Color:= C;
+  Invalidate;
+end;
+
+{ TJDColorHSVRef }
+
+constructor TJDColorHSVRef.Create(AOwner: TJDColorRef);
+begin
+  FOwner:= AOwner;
+
+end;
+
+destructor TJDColorHSVRef.Destroy;
+begin
+
+  inherited;
+end;
+
+function TJDColorHSVRef.GetH: TJDCHue;
+begin
+  Result:= FOwner.GetColor.Hue;
+end;
+
+function TJDColorHSVRef.GetS: TJDCSaturation;
+begin
+  Result:= FOwner.GetColor.Saturation;
+end;
+
+function TJDColorHSVRef.GetV: TJDCBrightness;
+begin
+  Result:= FOwner.GetColor.Brightness;
+end;
+
+procedure TJDColorHSVRef.Invalidate;
+begin
+  FOwner.Invalidate;
+end;
+
+procedure TJDColorHSVRef.SetH(const Value: TJDCHue);
+var
+  C: TJDColor;
+begin
+  C:= FOwner.Color;
+  C.Hue:= Value;
+  FOwner.Color:= C;
+  Invalidate;
+end;
+
+procedure TJDColorHSVRef.SetS(const Value: TJDCSaturation);
+var
+  C: TJDColor;
+begin
+  C:= FOwner.Color;
+  C.Saturation:= Value;
+  FOwner.Color:= C;
+  Invalidate;
+end;
+
+procedure TJDColorHSVRef.SetV(const Value: TJDCBrightness);
+var
+  C: TJDColor;
+begin
+  C:= FOwner.Color;
+  C.Brightness:= Value;
+  FOwner.Color:= C;
+  Invalidate;
+end;
+
+{ TJDColorCMYKRef }
+
+constructor TJDColorCMYKRef.Create(AOwner: TJDColorRef);
+begin
+  FOwner:= AOwner;
+
+end;
+
+destructor TJDColorCMYKRef.Destroy;
+begin
+
+  inherited;
+end;
+
+function TJDColorCMYKRef.GetC: Byte;
+begin
+  Result:= FOwner.GetColor.Cyan;
+end;
+
+function TJDColorCMYKRef.GetK: Byte;
+begin
+  Result:= FOwner.GetColor.Black;
+end;
+
+function TJDColorCMYKRef.GetM: Byte;
+begin
+  Result:= FOwner.GetColor.Magenta;
+end;
+
+function TJDColorCMYKRef.GetY: Byte;
+begin
+  Result:= FOwner.GetColor.Yellow;
+end;
+
+procedure TJDColorCMYKRef.Invalidate;
+begin
+  FOwner.Invalidate;
+end;
+
+procedure TJDColorCMYKRef.SetC(const Value: Byte);
+var
+  C: TJDColor;
+begin
+  C:= FOwner.Color;
+  C.Cyan:= Value;
+  FOwner.Color:= C;
+  Invalidate;
+end;
+
+procedure TJDColorCMYKRef.SetK(const Value: Byte);
+var
+  C: TJDColor;
+begin
+  C:= FOwner.Color;
+  C.Black:= Value;
+  FOwner.Color:= C;
+  Invalidate;
+end;
+
+procedure TJDColorCMYKRef.SetM(const Value: Byte);
+var
+  C: TJDColor;
+begin
+  C:= FOwner.Color;
+  C.Magenta:= Value;
+  FOwner.Color:= C;
+  Invalidate;
+end;
+
+procedure TJDColorCMYKRef.SetY(const Value: Byte);
+var
+  C: TJDColor;
+begin
+  C:= FOwner.Color;
+  C.Yellow:= Value;
+  FOwner.Color:= C;
+  Invalidate;
+end;
+
+initialization
+  _ColorManager:= TJDColorManager.Create;
+finalization
+  _ColorManager.Free;
 end.

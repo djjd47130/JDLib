@@ -24,7 +24,9 @@ package DclJDLibComponents;
 {$MINENUMSIZE 1}
 {$IMAGEBASE $400000}
 {$DEFINE DEBUG}
+{$DEFINE USE_GDIP}
 {$ENDIF IMPLICITBUILDING}
+{$DESIGNONLY}
 {$IMPLICITBUILD ON}
 
 requires
@@ -36,6 +38,10 @@ contains
   JD.Ctrls.FontButtonEdit in 'Source\JD.Ctrls.FontButtonEdit.pas' {frmFontButtonEditor},
   JD.Ctrls.FontButtonEditCtrl in 'Source\JD.Ctrls.FontButtonEditCtrl.pas' {frmSelectControl},
   JDLib.InstallComps in 'Source\JDLib.InstallComps.pas',
-  JD.Ctrls.WinControlHelper in 'Source\JD.Ctrls.WinControlHelper.pas';
+  JD.Ctrls.WinControlHelper in 'Source\JD.Ctrls.WinControlHelper.pas',
+  JD.Ctrls.CharPicker in 'Source\JD.Ctrls.CharPicker.pas' {JDGlyphPicker},
+  JD.Ctrls.PageMenuEditor in 'Source\JD.Ctrls.PageMenuEditor.pas',
+  JD.Ctrls.JDGaugeEditors in 'Source\JD.Ctrls.JDGaugeEditors.pas',
+  JD.ColorPropEdit in 'Source\JD.ColorPropEdit.pas' {frmJDColorPropEdit};
 
 end.

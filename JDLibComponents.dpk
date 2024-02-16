@@ -9,22 +9,24 @@ package JDLibComponents;
 {$EXTENDEDSYNTAX ON}
 {$IMPORTEDDATA ON}
 {$IOCHECKS ON}
-{$LOCALSYMBOLS OFF}
+{$LOCALSYMBOLS ON}
 {$LONGSTRINGS ON}
 {$OPENSTRINGS ON}
-{$OPTIMIZATION ON}
+{$OPTIMIZATION OFF}
 {$OVERFLOWCHECKS OFF}
 {$RANGECHECKS OFF}
-{$REFERENCEINFO OFF}
+{$REFERENCEINFO ON}
 {$SAFEDIVIDE OFF}
-{$STACKFRAMES OFF}
+{$STACKFRAMES ON}
 {$TYPEDADDRESS OFF}
 {$VARSTRINGCHECKS ON}
 {$WRITEABLECONST OFF}
 {$MINENUMSIZE 1}
 {$IMAGEBASE $400000}
-{$DEFINE RELEASE}
+{$DEFINE DEBUG}
+{$DEFINE USE_GDIP}
 {$ENDIF IMPLICITBUILDING}
+{$RUNONLY}
 {$IMPLICITBUILD ON}
 
 requires
@@ -36,13 +38,25 @@ requires
   vclimg;
 
 contains
-  JD.Ctrls.FontButton in 'Source\JD.Ctrls.FontButton.pas',
+  JD.Common in 'Source\JD.Common.pas',
   JD.Graphics in 'Source\JD.Graphics.pas',
+  JD.Ctrls in 'Source\JD.Ctrls.pas',
   JD.SmoothMove in 'Source\JD.SmoothMove.pas',
-  JD.PageMenu in 'Source\JD.PageMenu.pas',
-  JD.ImageGrid in 'Source\JD.ImageGrid.pas',
+  JD.FontGlyphs in 'Source\JD.FontGlyphs.pas',
+  JD.Ctrls.Gauges in 'Source\JD.Ctrls.Gauges.pas',
+  JD.Ctrls.Gauges.Objects in 'Source\JD.Ctrls.Gauges.Objects.pas',
+  JD.Ctrls.FontButton in 'Source\JD.Ctrls.FontButton.pas',
+  JD.Ctrls.PageMenu in 'Source\JD.Ctrls.PageMenu.pas',
   JD.Ctrls.SideMenu in 'Source\JD.Ctrls.SideMenu.pas',
+  JD.Ctrls.ControlList in 'Source\JD.Ctrls.ControlList.pas',
+  JD.Ctrls.BtnList in 'Source\JD.Ctrls.BtnList.pas',
+  JD.Ctrls.ImageGrid in 'Source\JD.Ctrls.ImageGrid.pas',
+  JD.VolumeControls in 'Source\JD.VolumeControls.pas',
+  JD.SysMon in 'Source\JD.SysMon.pas',
+  JD.SuperObject in 'Source\JD.SuperObject.pas',
+  JD.AppBar in 'Source\JD.AppBar.pas',
+  JD.Vector in 'Source\JD.Vector.pas',
   JD.Sockets in 'Source\JD.Sockets.pas',
-  superobject in 'Source\superobject.pas';
+  JD.SysMon.Utils in 'Source\JD.SysMon.Utils.pas';
 
 end.

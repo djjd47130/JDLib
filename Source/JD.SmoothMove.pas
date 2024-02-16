@@ -1,27 +1,22 @@
 unit JD.SmoothMove;
 
-(*
-  JD Smooth Move Component (TSmoothMove)
-
-  Designed for animation of values to provide a sliding effect of UI controls.
-  Can be used for other purposes. Used as a VCL alternative for the
-  Float Animations as found in the Firemonkey framework.
-
-  This component is event driven. Be sure to assign a handler for the
-  OnValue event. This will be triggered for every change of the value.
-  Use this handler to update the position or otherwise value of whatever
-  this component is supposed to control.
-*)
-
 interface
 
 uses
-  System.SysUtils, System.Classes;
+  System.SysUtils, System.Classes,
+  Vcl.Controls,
+  JD.Common;
 
 type
-  TSmoothMoveEffect = (seNone, seNormal, seSmooth);
+  ///  <summary>
+  ///  Defines the effect of the animation.
+  ///  </summary>
+  TJDSmoothMoveEffect = (seNone, seNormal, seSmooth);
 
-  TSmoothMoveEvent = procedure(Sender: TObject; const Position: Double) of object;
+  ///  <summary>
+  ///  Event triggered upon value changes depending on effect type.
+  ///  </summary>
+  TJDSmoothMoveEvent = procedure(Sender: TObject; const Position: Double) of object;
 
 const
   SM_DEF_DELAY = 15;
@@ -31,10 +26,13 @@ const
   SM_DEF_ENABLED = True;
 
 type
-  TSmoothMoveThread = class;
-  TSmoothMove = class;
+  TJDSmoothMoveThread = class;
+  TJDSmoothMove = class;
 
-  TSmoothMoveThread = class(TThread)
+  ///  <summary>
+  ///  Dedicated thread for the TJDSmoothMove component.
+  ///  </summary>
+  TJDSmoothMoveThread = class(TThread)
   private
     FDelay: Integer;
     FOnValue: TNotifyEvent;
@@ -51,16 +49,27 @@ type
     property OnValue: TNotifyEvent read FOnValue write FOnValue;
   end;
 
-  TSmoothMove = class(TComponent)
+  ///  <summary>
+  ///  Designed for animation of values to provide a sliding effect of UI controls.
+  ///  Can be used for other purposes. Used as a VCL alternative for the
+  ///  Float Animations as found in the Firemonkey framework.
+  ///  </summary>
+  ///  <remarks>
+  ///  This component is event driven. Be sure to assign a handler for the
+  ///  OnValue event. This will be triggered for every change of the value.
+  ///  Use this handler to update the position or otherwise value of whatever
+  ///  this component is supposed to control.
+  ///  </remarks>
+  TJDSmoothMove = class(TComponent)
   private
-    FThread: TSmoothMoveThread;
+    FThread: TJDSmoothMoveThread;
     FInvalidated: Boolean;
     FEnabled: Boolean;
     FValue: Double;
     FPosition: Double;
-    FOnValue: TSmoothMoveEvent;
+    FOnValue: TJDSmoothMoveEvent;
     FStep: Double;
-    FEffect: TSmoothMoveEffect;
+    FEffect: TJDSmoothMoveEffect;
     procedure TimerExec(Sender: TObject);
     procedure SetValue(const Value: Double);
     function GetDelay: Integer;
@@ -68,7 +77,7 @@ type
     procedure SetStep(const Value: Double);
     function GetEnabled: Boolean;
     procedure SetEnabled(const Value: Boolean);
-    procedure SetEffect(const Value: TSmoothMoveEffect);
+    procedure SetEffect(const Value: TJDSmoothMoveEffect);
   protected
     procedure DoOnValue; virtual;
   public
@@ -96,7 +105,7 @@ type
     ///<summary>
     ///  Controls the type of animation effect.
     ///</summary>
-    property Effect: TSmoothMoveEffect read FEffect write SetEffect default SM_DEF_EFFECT;
+    property Effect: TJDSmoothMoveEffect read FEffect write SetEffect default SM_DEF_EFFECT;
 
     ///<summary>
     ///  Controls whether to enable the animation.
@@ -118,7 +127,7 @@ type
     ///<summary>
     ///  Triggered upon each modification of the current position.
     ///</summary>
-    property OnValue: TSmoothMoveEvent read FOnValue write FOnValue;
+    property OnValue: TJDSmoothMoveEvent read FOnValue write FOnValue;
 
   end;
 
@@ -126,25 +135,25 @@ implementation
 
 { TSmoothMoveThread }
 
-constructor TSmoothMoveThread.Create;
+constructor TJDSmoothMoveThread.Create;
 begin
   inherited Create(False);
   FDelay:= 100;
 end;
 
-destructor TSmoothMoveThread.Destroy;
+destructor TJDSmoothMoveThread.Destroy;
 begin
 
   inherited;
 end;
 
-procedure TSmoothMoveThread.DoOnValue;
+procedure TJDSmoothMoveThread.DoOnValue;
 begin
   if Assigned(FOnValue) then
     FOnValue(Self);
 end;
 
-procedure TSmoothMoveThread.Execute;
+procedure TJDSmoothMoveThread.Execute;
 begin
   while not Terminated do begin
     try
@@ -155,7 +164,7 @@ begin
   end;
 end;
 
-procedure TSmoothMoveThread.SetDelay(const Value: Integer);
+procedure TJDSmoothMoveThread.SetDelay(const Value: Integer);
 begin
   if Value < 1 then
     FDelay:= 1
@@ -163,12 +172,12 @@ begin
     FDelay := Value;
 end;
 
-{ TSmoothMove }
+{ TJDSmoothMove }
 
-constructor TSmoothMove.Create(AOwner: TComponent);
+constructor TJDSmoothMove.Create(AOwner: TComponent);
 begin
   inherited;
-  FThread:= TSmoothMoveThread.Create;
+  FThread:= TJDSmoothMoveThread.Create;
   FThread.OnValue:= TimerExec;
   FThread.Delay:= SM_DEF_DELAY;
   FStep:= SM_DEF_STEP;
@@ -179,7 +188,7 @@ begin
   FInvalidated:= True;
 end;
 
-destructor TSmoothMove.Destroy;
+destructor TJDSmoothMove.Destroy;
 begin
   FThread.Terminate;
   FThread.WaitFor;
@@ -187,59 +196,59 @@ begin
   inherited;
 end;
 
-procedure TSmoothMove.DoOnValue;
+procedure TJDSmoothMove.DoOnValue;
 begin
   if Assigned(FOnValue) then
     FOnValue(Self, FPosition);
 end;
 
-function TSmoothMove.GetDelay: Integer;
+function TJDSmoothMove.GetDelay: Integer;
 begin
   Result:= FThread.Delay;
 end;
 
-function TSmoothMove.GetEnabled: Boolean;
+function TJDSmoothMove.GetEnabled: Boolean;
 begin
   Result:= FEnabled;
 end;
 
-procedure TSmoothMove.Reset;
+procedure TJDSmoothMove.Reset;
 begin
   FPosition:= FValue;
   FInvalidated:= False;
   DoOnValue;
 end;
 
-procedure TSmoothMove.SetDelay(const Value: Integer);
+procedure TJDSmoothMove.SetDelay(const Value: Integer);
 begin
   FThread.Delay:= Value;
   FInvalidated:= True;
 end;
 
-procedure TSmoothMove.SetEffect(const Value: TSmoothMoveEffect);
+procedure TJDSmoothMove.SetEffect(const Value: TJDSmoothMoveEffect);
 begin
   FEffect := Value;
 end;
 
-procedure TSmoothMove.SetEnabled(const Value: Boolean);
+procedure TJDSmoothMove.SetEnabled(const Value: Boolean);
 begin
   FEnabled:= Value;
   FInvalidated:= True;
 end;
 
-procedure TSmoothMove.SetStep(const Value: Double);
+procedure TJDSmoothMove.SetStep(const Value: Double);
 begin
   FStep := Value;
   FInvalidated:= True;
 end;
 
-procedure TSmoothMove.SetValue(const Value: Double);
+procedure TJDSmoothMove.SetValue(const Value: Double);
 begin
   FValue := Value;
   FInvalidated:= True;
 end;
 
-procedure TSmoothMove.TimerExec(Sender: TObject);
+procedure TJDSmoothMove.TimerExec(Sender: TObject);
 var
   TempStep: Double;
   Dist: Double;
