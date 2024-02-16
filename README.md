@@ -4,7 +4,7 @@ JD Library of Custom Components and Controls
 ### NOTE:
 This library is under active development, and is in no way complete, until further notice.
 
-###Information
+### Information:
 JDLib is optimized for Delphi 10 Seattle. It consists of the following components on the "JD Components" page:
 
 1. **[TFontButton](TFontButton.md)** Control - A button which supports a font glyph instead of a graphic image.
