@@ -11,7 +11,7 @@ type
     JDGauge1: TJDGauge;
     procedure FormCreate(Sender: TObject);
   private
-    FGauge: TJDGauge;
+    //FGauge: TJDGauge;
   public
     { Public declarations }
   end;
