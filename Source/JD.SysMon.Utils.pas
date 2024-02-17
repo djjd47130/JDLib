@@ -26,27 +26,6 @@ uses
   JD.Common;
 
 type
-  TProcessID = DWORD;
-
-  TSystemTimesRec = record
-    KernelTime: TFileTIme;
-    UserTime: TFileTIme;
-  end;
-
-  TProcessTimesRec = record
-    KernelTime: TFileTIme;
-    UserTime: TFileTIme;
-  end;
-
-  TProcessCpuUsage = class
-    LastSystemTimes: TSystemTimesRec;
-    LastProcessTimes: TProcessTimesRec;
-    ProcessCPUusagePercentage: Double;
-  end;
-
-  TProcessCpuUsageList = TObjectDictionary<TProcessID, TProcessCpuUsage>;
-
-type
   TJDSystemMonitorCPUInfo = record
     ProcessCount: Integer;
     ThreadCount: Integer;
@@ -92,13 +71,41 @@ type
     //TODO
   end;
 
+  TJDSystemMonitorInfoPart = (ipCPU, ipRAM, ipDrives, ipOS, ipTemps);
+  TJDSystemMonitorInfoParts = set of TJDSystemMonitorInfoPart;
+
   TJDSystemMonitorInfo = record
+    Available: TJDSystemMonitorInfoParts;
     CPU: TJDSystemMonitorCPUInfo;
     RAM: TJDSystemMonitorRAMInfo;
     Drives: TJDSystemMonitorDriveInfoArray;
     OS: TJDSystemMonitorOSInfo;
     Temps: TJDSystemMonitorTempInfo;
   end;
+
+const
+  ALL_INFO_PARTS = [ipCPU, ipRAM, ipDrives, ipOS, ipTemps];
+
+type
+  TProcessID = DWORD;
+
+  TSystemTimesRec = record
+    KernelTime: TFileTime;
+    UserTime: TFileTime;
+  end;
+
+  TProcessTimesRec = record
+    KernelTime: TFileTime;
+    UserTime: TFileTime;
+  end;
+
+  TProcessCpuUsage = class
+    LastSystemTimes: TSystemTimesRec;
+    LastProcessTimes: TProcessTimesRec;
+    ProcessCPUusagePercentage: Double;
+  end;
+
+  TProcessCpuUsageList = TObjectDictionary<TProcessID, TProcessCpuUsage>;
 
 
 type
@@ -167,7 +174,7 @@ function GetTempInfo: TJDSystemMonitorTempInfo;
 ///  <summary>
 ///
 ///  </summary>
-function GetSysInfo: TJDSystemMonitorInfo;
+function GetSysInfo(const AParts: TJDSystemMonitorInfoParts = ALL_INFO_PARTS): TJDSystemMonitorInfo;
 
 
 implementation
@@ -371,7 +378,7 @@ begin
   ProcessHandle := OpenProcess(PROCESS_QUERY_INFORMATION or PROCESS_VM_READ, False, ProcessID);
   if ProcessHandle <> 0 then begin
     try
-      if GetSystemTimes(SystemTimesIdleTime, SystemTimes.KernelTime, SystemTimes.UserTime) then
+      if Winapi.Windows.GetSystemTimes(SystemTimesIdleTime, SystemTimes.KernelTime, SystemTimes.UserTime) then
       begin
         SystemDiffTimes.KernelTime := SubtractFileTime(SystemTimes.KernelTime,
           ProcessCpuUsage.LastSystemTimes.KernelTime);
@@ -533,13 +540,19 @@ end;
 
 //All System Info
 
-function GetSysInfo: TJDSystemMonitorInfo;
+function GetSysInfo(const AParts: TJDSystemMonitorInfoParts = ALL_INFO_PARTS): TJDSystemMonitorInfo;
 begin
-  Result.CPU:= GetCPUInfo;
-  Result.RAM:= GetRAMInfo;
-  Result.Drives:= GetAllDriveInfo;
-  Result.OS:= GetOSInfo;
-  Result.Temps:= GetTempInfo;
+  Result.Available:= AParts;
+  if ipCPU in AParts then
+    Result.CPU:= GetCPUInfo;
+  if ipRAM in AParts then
+    Result.RAM:= GetRAMInfo;
+  if ipDrives in AParts then
+    Result.Drives:= GetAllDriveInfo;
+  if ipOS in AParts then
+    Result.OS:= GetOSInfo;
+  if ipTemps in AParts then
+    Result.Temps:= GetTempInfo;
 end;
 
 

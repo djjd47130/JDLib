@@ -5,7 +5,8 @@ interface
 uses
   System.Classes, System.SysUtils, System.DateUtils, System.IOUtils,
   System.Variants, System.Generics.Collections, System.Types, System.SyncObjs,
-  Winapi.Windows, Winapi.ActiveX,
+  Winapi.PsAPI, Winapi.TlHelp32, Winapi.ShellAPI,
+  Winapi.Windows, Winapi.ActiveX, ComObj,
   JD.Common, JD.SysMon.Utils;
 
 type
@@ -37,18 +38,30 @@ type
     FOnDriveInfo: TJDSystemMonitorDriveEvent;
     FOnDriveAdded: TJDSystemMonitorDriveEvent;
     FOnDriveRemoved: TJDSystemMonitorDriveEvent;
+    //Synchronized Event Triggers
     procedure SYNC_OnCPUInfo;
     procedure SYNC_OnRAMInfo;
     procedure SYNC_OnDriveInfo;
     procedure SYNC_OnDriveAdded;
     procedure SYNC_OnDriveRemoved;
+    //Main Triggers
     procedure ReportCPU;
     procedure ReportRAM;
     procedure ReportDrives;
+    //Property Setters
     procedure SetCPUInterval(const Value: Integer);
     procedure SetDriveInterval(const Value: Integer);
     procedure SetRAMInterval(const Value: Integer);
+    //Drive Related
     procedure RemoveAllDrives;
+    //CPU Related
+    procedure DeleteNonExistingProcessIDsFromCache(
+      const RunningProcessIDs: TArray<TProcessID>);
+    function GetProcessCpuUsagePct(ProcessID: TProcessID): Double;
+    function GetRunningProcessIDs: TArray<TProcessID>;
+    function GetTotalCpuUsagePct: Double;
+    function ShouldReport(var Int: Integer; var Last: TDateTime;
+      Cond: Boolean = True): Boolean;
   protected
     procedure Execute; override;
   public
@@ -120,12 +133,36 @@ begin
   inherited;
 end;
 
-procedure TJDSystemMonitorThread.ReportCPU;
+function TJDSystemMonitorThread.ShouldReport(var Int: Integer; var Last: TDateTime;
+  Cond: Boolean = True): Boolean;
 var
-  Interval: Integer;
+  I: Integer;
+begin
+  Result:= False;
+  LockProps;
+  try
+    I:= Int;
+  finally
+    UnlockProps
+  end;
+  if MilliSecondsBetween(Now, Last) >= I then begin
+    Last:= Now;
+    Result:= Cond;
+  end;
+end;
+
+procedure TJDSystemMonitorThread.ReportCPU;
+//var
+  //Interval: Integer;
 begin
   try
-    if Assigned(FOnCPUInfo) then begin
+    //if Assigned(FOnCPUInfo) then begin
+      if ShouldReport(FCPUInterval, FLastCPU, Assigned(FOnCPUInfo)) then begin
+        FSYNC_CPU:= GetCPUInfo;
+        Synchronize(SYNC_OnCPUInfo);
+      end;
+
+      {
       LockProps;
       try
         Interval:= FCPUInterval;
@@ -137,7 +174,8 @@ begin
         FLastCPU:= Now;
         Synchronize(SYNC_OnCPUInfo);
       end;
-    end;
+      }
+    //end;
   except
     on E: Exception do begin
       //TODO
@@ -146,10 +184,15 @@ begin
 end;
 
 procedure TJDSystemMonitorThread.ReportRAM;
-var
-  Interval: Integer;
+//var
+  //Interval: Integer;
 begin
   try
+    if ShouldReport(FRAMInterval, FLastRAM, Assigned(FOnRAMInfo)) then begin
+      FSYNC_RAM:= GetRAMInfo;
+      Synchronize(SYNC_OnRAMInfo);
+    end;
+    {
     if Assigned(FOnRAMInfo) then begin
       LockProps;
       try
@@ -163,6 +206,7 @@ begin
         Synchronize(SYNC_OnRAMInfo);
       end;
     end;
+    }
   except
     on E: Exception do begin
       //TODO
@@ -172,12 +216,69 @@ end;
 
 procedure TJDSystemMonitorThread.ReportDrives;
 var
-  Interval: Integer;
+  //Interval: Integer;
   DA: TJDSystemMonitorDriveInfoArray;
   X, Y: Integer;
   E: Boolean;
 begin
   try
+    if ShouldReport(FDriveInterval, FLastDrive, (Assigned(FOnDriveInfo) or
+      Assigned(FOnDriveAdded) or Assigned(FOnDriveRemoved))) then
+    begin
+      DA:= GetAllDriveInfo;
+      FLastDrive:= Now;
+
+      //Scan for removed drives...
+      if Assigned(FOnDriveRemoved) then begin
+        for X := 0 to Length(FLastDriveInfo)-1 do begin
+          FSYNC_Drive:= FLastDriveInfo[X];
+          E:= False;
+          for Y := 0 to Length(DA)-1 do begin
+            if FSYNC_Drive.DriveLetter = DA[Y].DriveLetter then begin
+              E:= True;
+              Break;
+            end;
+          end;
+          if not E then begin
+            //Does not exist in new list, has been removed...
+            Synchronize(SYNC_OnDriveRemoved);
+          end;
+        end;
+      end;
+
+      //Scan for new drives...
+      if Assigned(FOnDriveAdded) then begin
+        for X := 0 to Length(DA)-1 do begin
+          FSYNC_Drive:= DA[X];
+          E:= False;
+          for Y := 0 to Length(FLastDriveInfo)-1 do begin
+            if FSYNC_Drive.DriveLetter = FLastDriveInfo[Y].DriveLetter then begin
+              E:= True;
+              Break;
+            end;
+          end;
+          if not E then begin
+            //Does not exist in the old list, has been added...
+            Synchronize(SYNC_OnDriveAdded);
+          end;
+        end;
+      end;
+
+      //Trigger events...
+      if Assigned(FOnDriveInfo) then begin
+        for X := 0 to Length(DA)-1 do begin
+          FSYNC_Drive:= DA[X];
+          Synchronize(SYNC_OnDriveInfo);
+        end;
+      end;
+
+      //Save last drive info array...
+      FLastDriveInfo:= DA;
+
+    end;
+
+
+    {
     LockProps;
     try
       Interval:= FDriveInterval;
@@ -236,6 +337,7 @@ begin
       FLastDriveInfo:= DA;
 
     end;
+    }
   except
     on E: Exception do begin
       //TODO
@@ -338,6 +440,110 @@ end;
 procedure TJDSystemMonitorThread.LockProps;
 begin
   FPropLock.Enter;
+end;
+
+function TJDSystemMonitorThread.GetRunningProcessIDs: TArray<TProcessID>;
+var
+  SnapProcHandle: THandle;
+  ProcEntry: TProcessEntry32;
+  NextProc: Boolean;
+begin
+  SnapProcHandle := CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  if SnapProcHandle <> INVALID_HANDLE_VALUE then
+  begin
+    try
+      ProcEntry.dwSize := SizeOf(ProcEntry);
+      NextProc := Process32First(SnapProcHandle, ProcEntry);
+      while NextProc do
+      begin
+        SetLength(Result, Length(Result) + 1);
+        Result[Length(Result) - 1] := ProcEntry.th32ProcessID;
+        NextProc := Process32Next(SnapProcHandle, ProcEntry);
+      end;
+    finally
+      CloseHandle(SnapProcHandle);
+    end;
+    TArray.Sort<TProcessID>(Result);
+  end;
+end;
+
+function TJDSystemMonitorThread.GetProcessCpuUsagePct(ProcessID: TProcessID): Double;
+  function SubtractFileTime(FileTime1: TFileTIme; FileTime2: TFileTIme): TFileTIme;
+  begin
+    Result := TFileTIme(Int64(FileTime1) - Int64(FileTime2));
+  end;
+var
+  ProcessCpuUsage: TProcessCpuUsage;
+  ProcessHandle: THandle;
+  SystemTimes: TSystemTimesRec;
+  SystemDiffTimes: TSystemTimesRec;
+  ProcessDiffTimes: TProcessTimesRec;
+  ProcessTimes: TProcessTimesRec;
+  SystemTimesIdleTime: TFileTime;
+  ProcessTimesCreationTime: TFileTime;
+  ProcessTimesExitTime: TFileTime;
+begin
+  Result := 0.0;
+  FLatestProcessCpuUsageCache.TryGetValue(ProcessID, ProcessCpuUsage);
+  if ProcessCpuUsage = nil then begin
+    ProcessCpuUsage := TProcessCpuUsage.Create;
+    FLatestProcessCpuUsageCache.Add(ProcessID, ProcessCpuUsage);
+  end;
+  // method from:
+  // http://www.philosophicalgeek.com/2009/01/03/determine-cpu-usage-of-current-process-c-and-c/
+  ProcessHandle := OpenProcess(PROCESS_QUERY_INFORMATION or PROCESS_VM_READ, False, ProcessID);
+  if ProcessHandle <> 0 then begin
+    try
+      if Winapi.Windows.GetSystemTimes(SystemTimesIdleTime, SystemTimes.KernelTime, SystemTimes.UserTime) then
+      begin
+        SystemDiffTimes.KernelTime := SubtractFileTime(SystemTimes.KernelTime,
+          ProcessCpuUsage.LastSystemTimes.KernelTime);
+        SystemDiffTimes.UserTime := SubtractFileTime(SystemTimes.UserTime,
+          ProcessCpuUsage.LastSystemTimes.UserTime);
+        ProcessCpuUsage.LastSystemTimes := SystemTimes;
+        if GetProcessTimes(ProcessHandle, ProcessTimesCreationTime,
+          ProcessTimesExitTime, ProcessTimes.KernelTime, ProcessTimes.UserTime) then
+        begin
+          ProcessDiffTimes.KernelTime := SubtractFileTime(ProcessTimes.KernelTime,
+            ProcessCpuUsage.LastProcessTimes.KernelTime);
+          ProcessDiffTimes.UserTime := SubtractFileTime(ProcessTimes.UserTime,
+            ProcessCpuUsage.LastProcessTimes.UserTime);
+          ProcessCpuUsage.LastProcessTimes := ProcessTimes;
+          if (Int64(SystemDiffTimes.KernelTime) + Int64(SystemDiffTimes.UserTime)) > 0 then
+            Result := (Int64(ProcessDiffTimes.KernelTime) +
+              Int64(ProcessDiffTimes.UserTime)) / (Int64(SystemDiffTimes.KernelTime) +
+              Int64(SystemDiffTimes.UserTime)) * 100;
+        end;
+      end;
+    finally
+      CloseHandle(ProcessHandle);
+    end;
+  end;
+end;
+
+procedure TJDSystemMonitorThread.DeleteNonExistingProcessIDsFromCache(const RunningProcessIDs : TArray<TProcessID>);
+var
+  FoundKeyIdx: Integer;
+  Keys: TArray<TProcessID>;
+  n: Integer;
+begin
+  Keys := FLatestProcessCpuUsageCache.Keys.ToArray;
+  for n := Low(Keys) to High(Keys) do begin
+    if not TArray.BinarySearch<TProcessID>(RunningProcessIDs, Keys[n], FoundKeyIdx) then
+      FLatestProcessCpuUsageCache.Remove(Keys[n]);
+  end;
+end;
+
+function TJDSystemMonitorThread.GetTotalCpuUsagePct: Double;
+var
+  ProcessID: TProcessID;
+  RunningProcessIDs : TArray<TProcessID>;
+begin
+  Result := 0.0;
+  RunningProcessIDs := GetRunningProcessIDs;
+  DeleteNonExistingProcessIDsFromCache(RunningProcessIDs);
+  for ProcessID in RunningProcessIDs do
+    Result := Result + GetProcessCpuUsagePct( ProcessID );
 end;
 
 { TJDSystemMonitor }

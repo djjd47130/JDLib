@@ -124,7 +124,6 @@ object frmJDSSysMonGaugesTest: TfrmJDSSysMonGaugesTest
       end>
     ValueFormat = '##0.0%'
     ValueMargin = 10.000000000000000000
-    ExplicitTop = 36
   end
   object gRAM: TJDGauge
     Left = 0
@@ -342,7 +341,7 @@ object frmJDSSysMonGaugesTest: TfrmJDSSysMonGaugesTest
     ValueMargin = 10.000000000000000000
   end
   object Mon: TJDSystemMonitor
-    CPUInterval = 300
+    CPUInterval = 500
     RAMInterval = 500
     DriveInterval = 1000
     OnCPUInfo = MonCPUInfo
@@ -354,7 +353,7 @@ object frmJDSSysMonGaugesTest: TfrmJDSSysMonGaugesTest
     Top = 96
   end
   object Vol: TJDVolumeControls
-    Volume = 32
+    Volume = 4
     Muted = False
     OnVolumeChanged = VolVolumeChanged
     OnMuteChanged = VolMuteChanged
