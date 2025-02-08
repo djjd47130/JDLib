@@ -340,7 +340,7 @@ end;
 
 function TJDFontGlyphRef.GetStandardColor: TJDStandardColor;
 begin
-  Result:= Fowner.Color;
+  Result:= FOwner.Color;
 end;
 
 procedure TJDFontGlyphRef.SetColor(const Value: TColor);
@@ -693,3 +693,4 @@ begin
 end;
 
 end.
+

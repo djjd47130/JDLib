@@ -202,7 +202,7 @@ begin
   //Radius - TODO: Find out why this is not accurate...
   Rad:= Radius;
   //GDI+ pen
-  Pen.SetColor(ColorToGPColor(ATicks.Color.GetColor));
+  Pen.SetColor(ColorToGPColor(ATicks.Color.GetJDColor));
   Pen.SetWidth(ATicks.Thickness);
   //Tick position
   case ATicks.Position of
@@ -271,7 +271,7 @@ var
   R: TJDRect;
 begin
   R:= GetValueRect(AValue);
-  Pen.SetColor(ColorToGPColor(Owner.ColorMain.GetColor));
+  Pen.SetColor(ColorToGPColor(Owner.ColorMain.GetJDColor));
   Pen.SetWidth(Owner.Thickness);
   GPCanvas.DrawArc(Pen, R, -90, 360);
 end;
@@ -357,7 +357,7 @@ var
 begin
   R:= GetBaseRect;
   Perc:= (AVal / AMax);
-  Pen.SetColor(ColorToGPColor(ATicks.Color.GetColor));
+  Pen.SetColor(ColorToGPColor(ATicks.Color.GetJDColor));
   Pen.SetWidth(ATicks.Thickness);
   case ATicks.Position of
     tpOutside: begin
@@ -419,8 +419,10 @@ begin
     Canvas.Pen.Style:= psSolid;
     Pen.SetWidth(1);
     Pen.SetColor(ColorToGPColor(clSilver));
-    R.Deflate(1, 1);
-    GPCanvas.DrawRectangle(Pen, R);
+    if Owner.ShowRect then begin
+      R.Deflate(1, 1);
+      GPCanvas.DrawRectangle(Pen, R);
+    end;
   end;
 end;
 
@@ -502,7 +504,7 @@ var
 begin
   R:= GetValueRect(AValue);
   Perc:= (AVal / AMax);
-  Pen.SetColor(ColorToGPColor(ATicks.Color.GetColor));
+  Pen.SetColor(ColorToGPColor(ATicks.Color.GetJDColor));
   Pen.SetWidth(ATicks.Thickness);
   case ATicks.Position of
     tpOutside: begin
@@ -619,9 +621,9 @@ begin
   A:= Round(360 * (AValue.Peak.PeakVal / AValue.Max));
   if AValue.Reverse then
     A:= -A;
-  Pen.SetColor(ColorToGPColor(AValue.Peak.Color.GetColor));
+  Pen.SetColor(ColorToGPColor(AValue.Peak.Color.GetJDColor));
   Pen.SetWidth(AValue.Peak.Thickness);
-  Brush.SetColor(ColorToGPColor(AValue.Peak.Color.GetColor));
+  Brush.SetColor(ColorToGPColor(AValue.Peak.Color.GetJDColor));
   GPCanvas.FillPie(Brush, R, -90, A);
   //GPCanvas.DrawPie(Pen, R, -90, A);
   //TODO: Fix this to work around center point...
@@ -641,9 +643,9 @@ begin
   A:= Round(360 * (AValue.Value / AValue.Max));
   if AValue.Reverse then
     A:= -A;
-  Pen.SetColor(ColorToGPColor(AValue.Color.GetColor));
+  Pen.SetColor(ColorToGPColor(AValue.Color.GetJDColor));
   Pen.SetWidth(AValue.Thickness);
-  Brush.SetColor(ColorToGPColor(AValue.Color.GetColor));
+  Brush.SetColor(ColorToGPColor(AValue.Color.GetJDColor));
 
   //TODO: Check for gradient...
 
@@ -656,9 +658,9 @@ procedure TJDGaugePie.PaintValueBase(AValue: TJDGaugeValue);
 var
   R: TJDRect;
 begin
-  Pen.SetColor(ColorToGPColor(Owner.ColorMain.GetColor));
+  Pen.SetColor(ColorToGPColor(Owner.ColorMain.GetJDColor));
   Pen.SetWidth(Owner.Thickness);
-  Brush.SetColor(ColorToGPColor(Owner.ColorMain.GetColor));
+  Brush.SetColor(ColorToGPColor(Owner.ColorMain.GetJDColor));
   R:= GetValueRect(AValue);
   GPCanvas.FillPie(Brush, R, -90, 360);
   //GPCanvas.DrawPie(Pen, R, -90, 360);

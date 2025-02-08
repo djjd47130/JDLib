@@ -35,7 +35,8 @@ requires
   IndyCore,
   IndySystem,
   IndyProtocols,
-  vclimg;
+  vclimg,
+  dbrtl;
 
 contains
   JD.Common in 'Source\JD.Common.pas',
@@ -56,6 +57,7 @@ contains
   JD.AppBar in 'Source\JD.AppBar.pas',
   JD.Vector in 'Source\JD.Vector.pas',
   JD.Sockets in 'Source\JD.Sockets.pas',
-  JD.SysMon.Utils in 'Source\JD.SysMon.Utils.pas';
+  JD.SysMon.Utils in 'Source\JD.SysMon.Utils.pas',
+  JD.Ctrls.PlotChart in 'Source\JD.Ctrls.PlotChart.pas';
 
 end.

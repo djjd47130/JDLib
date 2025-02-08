@@ -1529,7 +1529,7 @@ var
   begin
     Canvas.Font.Assign(Font);
     DrawTextJD(Canvas.Handle, S, R, TextFlags);
-    if E = Owner.HoverElement then begin
+    if (E = Owner.HoverElement) and Owner.ShowRect then begin
       Pen.SetWidth(1);
       Pen.SetColor(ColorToGPColor(clSilver));
       GPCanvas.DrawRectangle(Pen, R);
@@ -1614,7 +1614,7 @@ begin
   R:= Owner.ClientRect;
   if Owner.Crosshairs.VertVisible then begin
     Pen.SetWidth(Owner.Crosshairs.VertThickness);
-    Pen.SetColor(ColorToGPColor(Owner.Crosshairs.VertColor.GetColor));
+    Pen.SetColor(ColorToGPColor(Owner.Crosshairs.VertColor.GetJDColor));
     P1.X:= P.X;
     P1.Y:= R.Top;
     P2.X:= P.X;
@@ -1623,7 +1623,7 @@ begin
   end;
   if Owner.Crosshairs.HorzVisible then begin
     Pen.SetWidth(Owner.Crosshairs.HorzThickness);
-    Pen.SetColor(ColorToGPColor(Owner.Crosshairs.HorzColor.GetColor));
+    Pen.SetColor(ColorToGPColor(Owner.Crosshairs.HorzColor.GetJDColor));
     P1.X:= R.Left;
     P1.Y:= P.Y;
     P2.X:= R.Right;
@@ -1650,7 +1650,8 @@ begin
     Pen.SetWidth(1);
     Pen.SetColor(ColorToGPColor(clSilver));
     R.Deflate(1, 1);
-    GPCanvas.DrawRectangle(Pen, R);
+    if Owner.ShowRect then
+      GPCanvas.DrawRectangle(Pen, R);
   end;
 end;
 
@@ -1661,7 +1662,8 @@ begin
   R:= GetBaseRect;
   Pen.SetWidth(1);
   Pen.SetColor(ColorToGPColor(clBlack));
-  GPCanvas.DrawRectangle(Pen, R);
+  if Owner.ShowRect then
+    GPCanvas.DrawRectangle(Pen, R);
 end;
 
 procedure TJDGaugeBase.PaintStart;
@@ -1669,11 +1671,11 @@ begin
   FGPCanvas:= TGPGraphics.Create(Canvas.Handle);
   FGPCanvas.SetSmoothingMode(SmoothingModeAntiAlias);
 
-  FPen:= TGPPen.Create(ColorToGPColor(Owner.ColorMain.GetColor), Owner.Thickness);
+  FPen:= TGPPen.Create(ColorToGPColor(Owner.ColorMain.GetJDColor), Owner.Thickness);
   FPen.SetStartCap(LineCapFlat);
   FPen.SetEndCap(LineCapFlat);
 
-  FBrush:= TGPSolidBrush.Create(ColorToGPColor(Owner.ColorMain.GetColor));
+  FBrush:= TGPSolidBrush.Create(ColorToGPColor(Owner.ColorMain.GetJDColor));
 
   FGradBrush:= TGPLinearGradientBrush.Create;
 end;
@@ -1690,7 +1692,7 @@ procedure TJDGaugeBase.PaintValueTicks(ATicks: TJDGaugeTicks; AValue: TJDGaugeVa
 var
   Val: Double;
 begin
-  Pen.SetColor(ColorToGPColor(ATicks.Color.GetColor));
+  Pen.SetColor(ColorToGPColor(ATicks.Color.GetJDColor));
   Pen.SetWidth(ATicks.Thickness);
   Val:= 0;
   while (Val <= AValue.Max) do begin
@@ -1845,7 +1847,7 @@ var
     if FShowBase then begin
       //TODO: Add properties to base for line caps...
       O.Pen.SetLineCap(LineCap(V.CapStart), LineCap(V.CapStop), DashCapFlat);
-      O.Pen.SetColor(ColorToGPColor(FColorMain.GetColor));
+      O.Pen.SetColor(ColorToGPColor(FColorMain.GetJDColor));
       O.Pen.SetWidth(FThickness);
       O.PaintValueBase(V);
     end;
@@ -1855,7 +1857,7 @@ var
     if V.Peak.Enabled then begin
       //TODO: Add properties to peak for line caps...
       O.Pen.SetLineCap(LineCap(V.CapStart), LineCap(V.CapStop), DashCapFlat);
-      O.Pen.SetColor(ColorToGPColor(V.Peak.Color.GetColor));
+      O.Pen.SetColor(ColorToGPColor(V.Peak.Color.GetJDColor));
       O.Pen.SetWidth(V.Peak.Thickness);
       O.PaintPeak(V);
     end;
@@ -1863,7 +1865,7 @@ var
   procedure DoValue;
   begin
     O.Pen.SetLineCap(LineCap(V.CapStart), LineCap(V.CapStop), DashCapFlat);
-    O.Pen.SetColor(ColorToGPColor(V.Color.GetColor));
+    O.Pen.SetColor(ColorToGPColor(V.Color.GetJDColor));
     O.Pen.SetWidth(V.Thickness);
     O.PaintValue(V);
   end;
@@ -1995,7 +1997,7 @@ begin
       Screen.Cursor:= crHandPoint
     else begin
       if (E = TJDGaugeElement.geBase) then
-        Screen.Cursor:= crCross
+        //Screen.Cursor:= crCross
       else
         Screen.Cursor:= crDefault;
     end;

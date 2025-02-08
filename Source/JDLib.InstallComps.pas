@@ -14,7 +14,8 @@ uses
   JD.Ctrls.PageMenu,
   JD.Ctrls.ControlList,
   JD.Ctrls.ImageGrid,
-  JD.Ctrls.Gauges;
+  JD.Ctrls.Gauges,
+  JD.Ctrls.PlotChart;
 
 const
   JD_TAB_CAPTION = 'JD Components';
@@ -27,7 +28,7 @@ procedure Register;
 begin
   RegisterComponents(JD_TAB_CAPTION,
     [TJDFontButton, TJDFontGlyphs, TJDSmoothMove, TJDPageMenu, TJDSideMenu,
-    TJDGauge, TJDVolumeControls, TJDSystemMonitor]);
+    TJDGauge, TJDVolumeControls, TJDSystemMonitor, TJDPlotChart]);
 end;
 
 end.

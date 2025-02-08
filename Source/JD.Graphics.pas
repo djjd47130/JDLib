@@ -144,7 +144,7 @@ type
   end;
 
   ///  <summary>
-  ///  Brightness of an HSB color value.
+  ///  Brightness (Value) of an HSB color value.
   ///  <br/>Min: 0.0
   ///  <br/>Max: 100.0
   ///  </summary>
@@ -177,15 +177,21 @@ type
   ///  </summary>
   TJDColor = record
   private
-    //FAlpha: Byte;
-
+    //Fundamentally behind the scenes, we use RGB here...
     FRed: Byte;
     FGreen: Byte;
     FBlue: Byte;
 
+    //We have a wish to also implement an alpha channel...
+    //TODO: Is it possible to inherit such a record into one like TJDAlphaColor?
+    //FAlpha: Byte;
+
     //TODO: Support JD Standard colors
     //TODO: Support Alpha channel
     //TODO: Support GDI+ colors
+    //TODO: Support central user-defined color list where dev can
+    //  predefine as many color references as their heart desires,
+    //  give each one a unique name, and reference them here...
 
     //function GetAlpha: Byte;
     //procedure SetAlpha(const Value: Byte);
@@ -307,6 +313,7 @@ type
     FHSV: TJDColorHSVRef;
     FCMYK: TJDColorCMYKRef;
     FOnChange: TNotifyEvent;
+    function GetColor: TColor;
     procedure SetColor(const Value: TColor);
     procedure SetStandardColor(const Value: TJDStandardColor);
     procedure SetUseStandardColor(const Value: Boolean);
@@ -318,15 +325,15 @@ type
     destructor Destroy; override;
     procedure Assign(Source: TPersistent); override;
     procedure Invalidate;
-    function GetColor: TJDColor;
+    function GetJDColor: TJDColor;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
   published
-    property Color: TColor read FColor write SetColor;
+    property Color: TColor read GetColor write SetColor;
     property StandardColor: TJDStandardColor read FStandardColor write SetStandardColor;
-    property UseStandardColor: Boolean read FUseStandardColor write SetUseStandardColor;
     property RGB: TJDColorRGBRef read FRGB write SetRGB stored False;
     property HSV: TJDColorHSVRef read FHSV write SetHSV stored False;
     property CMYK: TJDColorCMYKRef read FCMYK write SetCMYK stored False;
+    property UseStandardColor: Boolean read FUseStandardColor write SetUseStandardColor;
   end;
 
   ///  <summary>
@@ -1041,7 +1048,12 @@ begin
   inherited;
 end;
 
-function TJDColorRef.GetColor: TJDColor;
+function TJDColorRef.GetColor: TColor;
+begin
+  Result:= GetJDColor;
+end;
+
+function TJDColorRef.GetJDColor: TJDColor;
 begin
   if FUseStandardColor then
     Result:= ColorManager.Color[FStandardColor]
@@ -1306,17 +1318,17 @@ end;
 
 function TJDColorRGBRef.GetB: Byte;
 begin
-  Result:= FOwner.GetColor.Blue;
+  Result:= FOwner.GetJDColor.Blue;
 end;
 
 function TJDColorRGBRef.GetG: Byte;
 begin
-  Result:= FOwner.GetColor.Green;
+  Result:= FOwner.GetJDColor.Green;
 end;
 
 function TJDColorRGBRef.GetR: Byte;
 begin
-  Result:= FOwner.GetColor.Red;
+  Result:= FOwner.GetJDColor.Red;
 end;
 
 procedure TJDColorRGBRef.Invalidate;
@@ -1370,17 +1382,17 @@ end;
 
 function TJDColorHSVRef.GetH: TJDCHue;
 begin
-  Result:= FOwner.GetColor.Hue;
+  Result:= FOwner.GetJDColor.Hue;
 end;
 
 function TJDColorHSVRef.GetS: TJDCSaturation;
 begin
-  Result:= FOwner.GetColor.Saturation;
+  Result:= FOwner.GetJDColor.Saturation;
 end;
 
 function TJDColorHSVRef.GetV: TJDCBrightness;
 begin
-  Result:= FOwner.GetColor.Brightness;
+  Result:= FOwner.GetJDColor.Brightness;
 end;
 
 procedure TJDColorHSVRef.Invalidate;
@@ -1434,22 +1446,22 @@ end;
 
 function TJDColorCMYKRef.GetC: Byte;
 begin
-  Result:= FOwner.GetColor.Cyan;
+  Result:= FOwner.GetJDColor.Cyan;
 end;
 
 function TJDColorCMYKRef.GetK: Byte;
 begin
-  Result:= FOwner.GetColor.Black;
+  Result:= FOwner.GetJDColor.Black;
 end;
 
 function TJDColorCMYKRef.GetM: Byte;
 begin
-  Result:= FOwner.GetColor.Magenta;
+  Result:= FOwner.GetJDColor.Magenta;
 end;
 
 function TJDColorCMYKRef.GetY: Byte;
 begin
-  Result:= FOwner.GetColor.Yellow;
+  Result:= FOwner.GetJDColor.Yellow;
 end;
 
 procedure TJDColorCMYKRef.Invalidate;
@@ -1502,3 +1514,4 @@ initialization
 finalization
   _ColorManager.Free;
 end.
+
