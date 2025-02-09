@@ -14,7 +14,9 @@ uses
   System.Classes, System.SysUtils, System.Generics.Collections,
   Winapi.Windows, Winapi.Messages,
   Vcl.Graphics, Vcl.Controls, Vcl.ImgList, Vcl.Dialogs
+  {$IFDEF USE_GDIP}
   , GDIPAPI, GDIPOBJ, GDIPUTIL
+  {$ENDIF}
   , JD.Common //This unit should NOT use any other JD related units!
   ;
 
@@ -181,12 +183,10 @@ type
     FRed: Byte;
     FGreen: Byte;
     FBlue: Byte;
-
-    //We have a wish to also implement an alpha channel...
-    //TODO: Is it possible to inherit such a record into one like TJDAlphaColor?
     //FAlpha: Byte;
 
     //TODO: Support JD Standard colors
+    //  At this point, may not be necessary since it's in TJDColorRef.
     //TODO: Support Alpha channel
     //TODO: Support GDI+ colors
     //TODO: Support central user-defined color list where dev can
@@ -214,6 +214,7 @@ type
 
     function GetHTML: String;
     procedure SetHTML(const Value: String);
+    function GetGDIPColor: Cardinal;
   public
     class operator Implicit(Value: TJDColor): TColor;
     class operator Implicit(Value: TColor): TJDColor;
@@ -235,6 +236,9 @@ type
     property Yellow: Byte read GetYellow write SetYellow;
     property Black: Byte read GetBlack write SetBlack;
 
+    {$IFDEF USE_GDIP}
+    property GDIPColor: Cardinal read GetGDIPColor;
+    {$ENDIF}
     property HTML: String read GetHTML write SetHTML;
   end;
 
@@ -939,6 +943,13 @@ end;
 function TJDColor.GetCyan: Byte;
 begin
   Result:= GetCValue(RGB(FRed, FGreen, FBlue));
+end;
+
+function TJDColor.GetGDIPColor: Cardinal;
+begin
+  //TODO: Alpha...
+  Result:= GDIPAPI.MakeColor(255, FRed, FGreen, FBlue);
+  //Result:= GDIPAPI.MakeColor(FAlpha, FRed, FGreen, FBlue);
 end;
 
 function TJDColor.GetMagenta: Byte;

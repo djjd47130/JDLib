@@ -56,10 +56,12 @@ type
   PJDRect = ^TJDRect;
   ///  <summary>
   ///  Defines a standardized rectangle with floating point values at its root.
+  ///  Allows implicitly casting to and from TRect, TRectF, and TGPRect.
   ///  </summary>
   TJDRect = record
   private
     FRect: TRectF;
+    FOnChange: TNotifyEvent;
     function GetBottom: Single;
     function GetRight: Single;
     procedure SetHeight(const Value: Single);
@@ -68,14 +70,14 @@ type
     procedure SetY(const Value: Single);
     procedure SetBottom(const Value: Single);
     procedure SetRight(const Value: Single);
+    procedure SetLeft(const Value: Single);
+    procedure SetTop(const Value: Single);
     function GetHeight: Single;
     function GetWidth: Single;
     function GetX: Single;
     function GetY: Single;
     function GetLeft: Single;
     function GetTop: Single;
-    procedure SetLeft(const Value: Single);
-    procedure SetTop(const Value: Single);
   public
     class operator Implicit(Value: TRect): TJDRect;
     class operator Implicit(Value: TJDRect): TRect;
@@ -96,6 +98,8 @@ type
     procedure Deflate(const AmtX, AmtY: Single);
     procedure Move(const AmtX, AmtY: Single);
 
+    //TODO: Turn these into read/write properties?
+    //  Setters would be challenging...
     function TopLeft: TJDPoint;
     function TopRight: TJDPoint;
     function BottomLeft: TJDPoint;
@@ -107,6 +111,10 @@ type
     function RightCenter: TJDPoint;
 
     function ContainsPoint(const P: TJDPoint): Boolean;
+
+    procedure Invalidate;
+
+    property OnChange: TNotifyEvent read FOnChange write FOnChange;
   end;
 
   ///  <summary>
@@ -315,12 +323,20 @@ end;
 procedure TJDRect.Inflate(const AmtX, AmtY: Single);
 begin
   FRect.Inflate(AmtX, AmtY);
+  Invalidate;
+end;
+
+procedure TJDRect.Invalidate;
+begin
+  //if Assigned(FOnChange) then
+    //FOnChange(nil);
 end;
 
 procedure TJDRect.Move(const AmtX, AmtY: Single);
 begin
   X:= X + AmtX;
   Y:= Y + AmtY;
+  Invalidate;
 end;
 
 function TJDRect.GetBottom: Single;
@@ -356,51 +372,61 @@ end;
 procedure TJDRect.SetRight(const Value: Single);
 begin
   FRect.Right:= Value;
+  Invalidate;
 end;
 
 procedure TJDRect.SetBottom(const Value: Single);
 begin
   FRect.Bottom:= Value;
+  Invalidate;
 end;
 
 procedure TJDRect.SetHeight(const Value: Single);
 begin
   FRect.Height := Value;
+  Invalidate;
 end;
 
 function TJDRect.GetTop: Single;
 begin
   Result:= Y;
+  Invalidate;
 end;
 
 function TJDRect.GetLeft: Single;
 begin
   Result:= X;
+  Invalidate;
 end;
 
 procedure TJDRect.SetTop(const Value: Single);
 begin
   Y:= Value;
+  Invalidate;
 end;
 
 procedure TJDRect.SetLeft(const Value: Single);
 begin
   X:= Value;
+  Invalidate;
 end;
 
 procedure TJDRect.SetWidth(const Value: Single);
 begin
   FRect.Width := Value;
+  Invalidate;
 end;
 
 procedure TJDRect.SetX(const Value: Single);
 begin
   FRect.Left := Value;
+  Invalidate;
 end;
 
 procedure TJDRect.SetY(const Value: Single);
 begin
   FRect.Top := Value;
+  Invalidate;
 end;
 
 function TJDRect.BottomLeft: TJDPoint;
