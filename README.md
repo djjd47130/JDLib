@@ -18,3 +18,4 @@ JDLib is optimized for Delphi 10.4. It consists of the following components on t
 7. **TJDFontGlyph**
 8. **TJDFontGlyphs**
 9. **TJDSystemMonitor**
+10. **TJDPlotChart** Control - A custom control allowing users to create and manage plot points to generate data.
