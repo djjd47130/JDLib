@@ -15,7 +15,8 @@ JDLib is optimized for Delphi 10.4. It consists of the following components on t
 - **TJDImageGrid** Control - A custom control to display a list of custom-drawn images.
 - **TJDSideMenu** Control - A custom control to display a main menu on the left side.
 - **[TJDGauge](Docs/TJDGauge.md)** Control - A dynamic and customizable gauge control.
-- **TJDFontGlyph**
-- **TJDFontGlyphs**
-- **TJDSystemMonitor**
+- **TJDFontGlyph** Property - A character representing a glyph in a specific font.
+- **TJDFontGlyphs** Component - Collection of glyphs to be rendered into a collection of image lists.
+- **TJDSystemMonitor** Component - Detects and reports system information such as CPU, RAM, and Storage.
+- **TJDVolumeControls** Component - Provides direct access to system Volume and Mute controls.
 - **TJDPlotChart** Control - A custom control allowing users to create and manage plot points to generate data.
