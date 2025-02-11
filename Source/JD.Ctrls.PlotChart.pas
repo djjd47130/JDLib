@@ -169,6 +169,7 @@ type
     procedure SetUX(const Value: TJDPlotChartUX);
     procedure ClampPoint(Point: TJDPlotPoint);
     procedure EnforceLinkLeftAndRight(Point: TJDPlotPoint);
+    procedure AdjustRightMostPoint;
   protected
     procedure InvalidateOptionGroup(AGroup: TJDPlotChartOptionGroup);
 
@@ -458,12 +459,12 @@ type
     FMax: Single;
     FMin: Single;
     FFormat: String;
-    FSpacing: Single;
+    FFrequency: Single;
     FAxisType: TJDPlotChartAxisType;
     procedure SetFormat(const Value: String);
     procedure SetMax(const Value: Single);
     procedure SetMin(const Value: Single);
-    procedure SetSpacing(const Value: Single);
+    procedure SetFrequency(const Value: Single);
     procedure SetAxisType(const Value: TJDPlotChartAxisType);
   public
     constructor Create(AOwner: TJDPlotChart); override;
@@ -484,7 +485,7 @@ type
     /// <summary>
     /// Desired spacing between values shown on axis.
     /// </summary>
-    property Spacing: Single read FSpacing write SetSpacing;
+    property Frequency: Single read FFrequency write SetFrequency;
     /// <summary>
     /// The format used on a given value on axis values.
     /// </summary>
@@ -701,7 +702,7 @@ procedure TJDPlotChart.DblClick;
 var
   MousePos: TPoint;
   ClickPoint: TPointF;
-  MinDist, Dist: Single;
+  Dist: Single;
   DeleteIndex, InsertIndex: Integer;
   NearestP1, NearestP2: TJDPlotPoint;
   T: Single;
@@ -710,14 +711,13 @@ begin
 
   MousePos := ScreenToClient(Mouse.CursorPos);
   ClickPoint := PointToPlotPoint(MousePos);
-  MinDist := 10; // Threshold distance to detect proximity to a point or line
   DeleteIndex := -1;
 
   // Check if the double-click is near an existing point
   for var I := 0 to FPoints.Count - 1 do begin
     var P := PlotPointToPoint(FPoints[I] as TJDPlotPoint);
     Dist := Sqrt(Sqr(P.X - MousePos.X) + Sqr(P.Y - MousePos.Y));
-    if Dist < MinDist then begin
+    if Dist < FUX.ChartArea.SnapTolerance then begin
       DeleteIndex := I;
       Break;
     end;
@@ -737,7 +737,7 @@ begin
 
     // Check the proximity to the line segment P1-P2
     Dist := PointLineDistance(MousePos, P1, P2);
-    if Dist < MinDist then begin
+    if Dist < FUX.ChartArea.SnapTolerance then begin
       NearestP1 := FPoints[I] as TJDPlotPoint;
       NearestP2 := FPoints[I + 1] as TJDPlotPoint;
 
@@ -957,8 +957,8 @@ procedure TJDPlotChart.ClampPoint(Point: TJDPlotPoint);
 var
   ClampedX, ClampedY: Single;
 begin
-  ClampedX := Max(0, Min(Point.X, 24));
-  ClampedY := Max(0, Min(Point.Y, 100));
+  ClampedX := Max(FUX.ChartArea.AxisBottom.FMin, Min(Point.X, FUX.ChartArea.AxisBottom.FMax));
+  ClampedY := Max(FUX.ChartArea.AxisLeft.FMin, Min(Point.Y, FUX.ChartArea.AxisLeft.FMax));
 
   if Point.FX <> ClampedX then
     Point.FX := ClampedX;
@@ -1017,6 +1017,17 @@ begin
         end;
       end;
   end;
+end;
+
+procedure TJDPlotChart.AdjustRightMostPoint;
+var
+  RightMostPoint: TJDPlotPoint;
+begin
+  if FPoints.Count > 0 then begin
+    RightMostPoint := FPoints[FPoints.Count - 1];
+    RightMostPoint.X := FUX.ChartArea.AxisBottom.Max; // Pin to the right edge
+  end;
+  Invalidate; // Redraw the chart
 end;
 
 procedure TJDPlotChart.Paint;
@@ -1079,106 +1090,6 @@ var
       SolidBrush.Free;
       GdiFont.Free;
       FontFamily.Free;
-    end;
-  end;
-
-  procedure DrawLabels(Axis: TJDPlotChartAxis; const ChartRect: TRect; LabelFreq: Integer; LabelPosition: TJDPlotChartLabelPosition);
-  var
-    LabelValue: Integer;
-    LabelText: string;
-    PositionX, PositionY: Single;
-  begin
-    if LabelPosition = lpNone then Exit;
-
-    for var I: Integer := 0 to LabelFreq do begin
-      if Axis = caBottom then begin
-        LabelValue := IfThen(I > 12, I - 12, I);
-        LabelText := Format('%d %s', [LabelValue, IfThen(I < 12, 'AM', 'PM')]);
-
-        PositionX := ChartRect.Left + I * (ChartRect.Right - ChartRect.Left) / LabelFreq - 10;
-        if LabelPosition = lpInside then
-          PositionY := ChartRect.Bottom - 20
-        else
-          PositionY := ChartRect.Bottom + 5; // Outside
-      end else begin
-        LabelValue := I * 10;
-        LabelText := Format('%d%%', [LabelValue]);
-
-        if LabelPosition = lpInside then begin
-          PositionX := ChartRect.Left + 5;
-          PositionY := ChartRect.Bottom - I * (ChartRect.Bottom - ChartRect.Top) / LabelFreq - 10;
-        end else begin
-          PositionX := ChartRect.Left - 30; // Outside
-          PositionY := ChartRect.Bottom - I * (ChartRect.Bottom - ChartRect.Top) / LabelFreq - 10;
-        end;
-      end;
-
-      RenderText(PositionX, PositionY, LabelText);
-    end;
-  end;
-
-  procedure DrawGridLines(Axis: TJDPlotChartAxis; const ChartRect: TRect; const Pen: TGPPen; LabelPosition: TJDPlotChartLabelPosition);
-  var
-    Position1, Position2: TPointF;
-  begin
-    var LineCount: Integer:= 0;
-    var LabelFreq: Integer:= 10;
-    case Axis of
-      caBottom:
-        begin
-          LineCount := 24;
-          LabelFreq := 24;
-          if ((ChartRect.Right - ChartRect.Left) / LineCount) < 20 then
-            LabelFreq := 6 // fewer labels
-          else if ((ChartRect.Right - ChartRect.Left) / LineCount) < 40 then
-            LabelFreq := 12; // moderate number of labels
-        end;
-      caLeft:
-        begin
-          LineCount := 10;
-          LabelFreq := 10;
-          if ((ChartRect.Bottom - ChartRect.Top) / LineCount) < 20 then
-            LabelFreq := 5; // fewer labels
-        end;
-    end;
-
-    for var I := 0 to LineCount do begin
-      if Axis = caBottom then begin
-        Position1 := PointF(ChartRect.Left + I * (ChartRect.Right - ChartRect.Left) / LineCount, ChartRect.Top);
-        Position2 := PointF(Position1.X, ChartRect.Bottom);
-      end else begin
-        Position1 := PointF(ChartRect.Left, ChartRect.Bottom - I * (ChartRect.Bottom - ChartRect.Top) / LineCount);
-        Position2 := PointF(ChartRect.Right, Position1.Y);
-      end;
-      G.DrawLine(Pen, Position1.X, Position1.Y, Position2.X, Position2.Y);
-    end;
-
-    DrawLabels(Axis, ChartRect, LabelFreq, LabelPosition);
-  end;
-
-  procedure DrawVerticalGridLines;
-  var
-    Pen: TGPPen;
-  begin
-    Pen:= FUI.ChartArea.Border.MakePen;
-    try
-      Pen.SetDashStyle(DashStyleSolid);
-      DrawGridLines(caLeft, ChartRect, Pen, FUI.ChartArea.AxisLeft.Labels);
-    finally
-      Pen.Free;
-    end;
-  end;
-
-  procedure DrawHorizontalGridLines;
-  var
-    Pen: TGPPen;
-  begin
-    Pen:= FUI.ChartArea.Border.MakePen;
-    try
-      Pen.SetDashStyle(DashStyleSolid);
-      DrawGridLines(caBottom, ChartRect, Pen, FUI.ChartArea.AxisBottom.Labels);
-    finally
-      Pen.Free;
     end;
   end;
 
@@ -1254,32 +1165,6 @@ var
     end;
   end;
 
-  procedure DrawAxis;
-  begin
-    var Pen: TGPPen;
-    {Pen:= MakePen(FUI.ChartArea.FAxisBottom.Line.Color,
-      FUI.ChartArea.FAxisBottom.Line.Width,
-      FUI.ChartArea.FAxisBottom.Line.Alpha);}
-    Pen := TGPPen.Create(Winapi.GDIPAPI.MakeColor(255, GetRValue(clGray), GetGValue(clGray), GetBValue(clGray)), 3);
-    try
-      Pen.SetLineCap(LineCapRound, LineCapRound, DashCapRound);
-      Pen.SetLineJoin(LineJoinRound);
-
-      // Draw Left Axis
-      var P1 := PointF(ChartRect.Left, ChartRect.Top);
-      var P2 := PointF(ChartRect.Left, ChartRect.Bottom);
-      G.DrawLine(Pen, P1.X, P1.Y, P2.X, P2.Y);
-
-      // Draw Bottom Axis
-      P1 := PointF(ChartRect.Left, ChartRect.Bottom);
-      P2 := PointF(ChartRect.Right, ChartRect.Bottom);
-      G.DrawLine(Pen, P1.X, P1.Y, P2.X, P2.Y);
-
-    finally
-      Pen.Free;
-    end;
-  end;
-
   procedure DrawGhostPoint;
   begin
     if FGhostPointVisible then begin
@@ -1293,6 +1178,93 @@ var
     end;
   end;
 
+
+
+
+//The New Shit from AI
+
+  procedure DrawBottomAxis;
+  var
+    Pen: TGPPen;
+    I: Integer;
+    Position: Single;
+    LabelText: string;
+  begin
+    // Draw Bottom Axis Baseline
+    Pen := MakePen(FUI.ChartArea.AxisBottom.FLine.Color, FUI.ChartArea.AxisBottom.FLine.Width, 255);
+    try
+      var P1 := PointF(ChartRect.Left, ChartRect.Bottom); // Adjust this based on where the baseline should be
+      var P2 := PointF(ChartRect.Right, ChartRect.Bottom);
+      G.DrawLine(Pen, P1.X, P1.Y, P2.X, P2.Y);
+    finally
+      Pen.Free;
+    end;
+
+    // Draw Vertical Grid Lines and Labels
+    Pen := MakePen(FUI.ChartArea.AxisBottom.FLine.Color, FUI.ChartArea.AxisBottom.FLine.Width, 255); // Use existing color for grid lines
+    try
+      for I := 0 to Round((FUX.ChartArea.AxisBottom.Max - FUX.ChartArea.AxisBottom.Min) / FUX.ChartArea.AxisBottom.Frequency) do begin
+        Position := ChartRect.Left + I * (ChartRect.Width / ((FUX.ChartArea.AxisBottom.Max - FUX.ChartArea.AxisBottom.Min) / FUX.ChartArea.AxisBottom.Frequency));
+        G.DrawLine(Pen, Position, ChartRect.Top, Position, ChartRect.Bottom);
+
+        if FUI.ChartArea.AxisBottom.Labels <> lpNone then begin
+          LabelText := FormatFloat(FUX.ChartArea.AxisBottom.Format, FUX.ChartArea.AxisBottom.Min + I * FUX.ChartArea.AxisBottom.Frequency);
+
+          // Check Label Position
+          if FUI.ChartArea.AxisBottom.Labels = lpInside then
+            RenderText(Position - 10, ChartRect.Bottom - 20, LabelText) // Inside
+          else
+            RenderText(Position - 10, ChartRect.Bottom + 5, LabelText); // Outside
+        end;
+      end;
+    finally
+      Pen.Free;
+    end;
+  end;
+
+  procedure DrawLeftAxis;
+  var
+    Pen: TGPPen;
+    I: Integer;
+    Position: Single;
+    LabelText: string;
+  begin
+    // Draw Left Axis Baseline
+    Pen := MakePen(FUI.ChartArea.AxisLeft.FLine.Color, FUI.ChartArea.AxisLeft.FLine.Width, 255);
+    try
+      var P1 := PointF(ChartRect.Left, ChartRect.Top); // Adjust this based on where the baseline should be
+      var P2 := PointF(ChartRect.Left, ChartRect.Bottom);
+      G.DrawLine(Pen, P1.X, P1.Y, P2.X, P2.Y);
+    finally
+      Pen.Free;
+    end;
+
+    // Draw Horizontal Grid Lines and Labels
+    Pen := MakePen(FUI.ChartArea.AxisLeft.FLine.Color, FUI.ChartArea.AxisLeft.FLine.Width, 255); // Use existing color for grid lines
+    try
+      for I := 0 to Round((FUX.ChartArea.AxisLeft.Max - FUX.ChartArea.AxisLeft.Min) / FUX.ChartArea.AxisLeft.Frequency) do begin
+        Position := ChartRect.Bottom - I * (ChartRect.Height / ((FUX.ChartArea.AxisLeft.Max - FUX.ChartArea.AxisLeft.Min) / FUX.ChartArea.AxisLeft.Frequency));
+        G.DrawLine(Pen, ChartRect.Left, Position, ChartRect.Right, Position);
+
+        if FUI.ChartArea.AxisLeft.Labels <> lpNone then begin
+          LabelText := FormatFloat(FUX.ChartArea.AxisLeft.Format, FUX.ChartArea.AxisLeft.Min + I * FUX.ChartArea.AxisLeft.Frequency);
+
+          // Check Label Position
+          if FUI.ChartArea.AxisLeft.Labels = lpInside then
+            RenderText(ChartRect.Left + 5, Position - 10, LabelText) // Inside
+          else
+            RenderText(ChartRect.Left - 30, Position - 10, LabelText); // Outside
+        end;
+      end;
+    finally
+      Pen.Free;
+    end;
+  end;
+
+
+
+
+
 begin
   inherited;
 
@@ -1305,9 +1277,11 @@ begin
         DrawBackground;
         DrawAccentColor(FUI.ChartArea.Fill.Color,
           FUI.ChartArea.Fill.Alpha);
-        DrawVerticalGridLines;
-        DrawHorizontalGridLines;
-        DrawAxis;
+        //DrawVerticalGridLines;
+        //DrawHorizontalGridLines;
+        //DrawAxis;
+        DrawBottomAxis;
+        DrawLeftAxis;
         if FUI.ChartArea.Line.Visible then
           DrawLines(FUI.ChartArea.Line.Color.GetJDColor, FUI.ChartArea.Line.Width);
         if FUI.ChartArea.Points.Visible then
@@ -1334,8 +1308,8 @@ begin
   R := ChartRect;
 
   // Calculate the ratios
-  XRatio := (R.Right - R.Left) / 24;  // 24 hours in a day
-  YRatio := (R.Bottom - R.Top) / 100; // Percentage from 0 to 100
+  XRatio := (R.Right - R.Left) / FUX.ChartArea.AxisBottom.FMax;
+  YRatio := (R.Bottom - R.Top) / FUX.ChartArea.AxisLeft.FMax;
 
   // Translate coordinates
   Result.X := R.Left + P.X * XRatio;
@@ -1373,8 +1347,8 @@ begin
   R := ChartRect;
 
   // Calculate the ratios
-  XRatio := (R.Right - R.Left) / 24; // 24 hours in a day
-  YRatio := (R.Bottom - R.Top) / 100; // Percentage from 0 to 100
+  XRatio := (R.Right - R.Left) / FUX.ChartArea.AxisBottom.FMax;
+  YRatio := (R.Bottom - R.Top) / FUX.ChartArea.AxisLeft.FMax;
 
   // Translate coordinates
   Result.X := (P.X - R.Left) / XRatio;
@@ -1847,7 +1821,11 @@ constructor TJDPlotChartUXChart.Create(AOwner: TJDPlotChart);
 begin
   inherited;
   FAxisBottom:= TJDPlotChartUXAxis.Create(FOwner);
+  FAxisBottom.Max:= 24;
+  FAxisBottom.Frequency:= 2;
   FAxisLeft:= TJDPlotChartUXAxis.Create(FOwner);
+  FAxisLeft.Max:= 100;
+  FAxisLeft.Frequency:= 10;
   FSnapTolerance:= 8;
 
 end;
@@ -1905,7 +1883,7 @@ begin
   Self.FMin:= 0;
   Self.FMax:= 100;
   Self.FFormat:= '';
-  Self.FSpacing:= 10;
+  Self.FFrequency:= 10;
 
 end;
 
@@ -1927,21 +1905,27 @@ begin
   Invalidate;
 end;
 
-procedure TJDPlotChartUXAxis.SetMax(const Value: Single);
-begin
-  FMax := Value;
-  Invalidate;
-end;
-
 procedure TJDPlotChartUXAxis.SetMin(const Value: Single);
 begin
-  FMin := Value;
-  Invalidate;
+  if FMin <> Value then begin
+    FMin := Value;
+    TJDPlotChart(FOwner).AdjustRightMostPoint; // Adjust right-most point
+    Invalidate;
+  end;
 end;
 
-procedure TJDPlotChartUXAxis.SetSpacing(const Value: Single);
+procedure TJDPlotChartUXAxis.SetMax(const Value: Single);
 begin
-  FSpacing := Value;
+  if FMax <> Value then begin
+    FMax := Value;
+    TJDPlotChart(FOwner).AdjustRightMostPoint; // Adjust right-most point
+    Invalidate;
+  end;
+end;
+
+procedure TJDPlotChartUXAxis.SetFrequency(const Value: Single);
+begin
+  FFrequency := Value;
   Invalidate;
 end;
 
