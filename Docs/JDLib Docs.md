@@ -1,5 +1,8 @@
+# JDLib Documentation
 
-JDLib is optimized for Delphi 10.4. It consists of the following components on the "JD Components" page:
+### Components
+
+The following components are available:
 
 - **[TJDFontButton](/Docs/TJDFontButton.md)** Control - A button which supports a font glyph instead of a graphic image.
 -  **[TJDSmoothMove](/Docs/TJDSmoothMove.md)** Component - Event-driven component to manage the movement of controls or values in general. 
