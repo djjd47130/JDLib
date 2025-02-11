@@ -16,4 +16,4 @@ The following components are available:
 - **TJDFontGlyphs** Component - Collection of glyphs to be rendered into a collection of image lists.
 - **TJDSystemMonitor** Component - Detects and reports system information such as CPU, RAM, and Storage.
 - **TJDVolumeControls** Component - Provides direct access to system Volume and Mute controls.
-- **TJDPlotChart** Control - A custom control allowing users to create and manage plot points to generate data.
+- **[TJDPlotChart](/Docs/TJDPlotChart.md)** Control - A custom control allowing users to create and manage plot points to generate data.
