@@ -4,12 +4,18 @@ JD Library of Custom Components and Controls, written by Jerry Dodge.
 ### NOTE:
 This library is under active development, and is in no way complete, until further notice.
 
+### Prerequisites
+
+JDLib is optimized for VCL in Delphi 10.4, and uses / requires the following:
+
+- GDI+
+- Indy
+
 ### Documentation:
 
 [Latest Documentation Markdown Content](/Docs/JDLib%20Docs.md)
 
-### Information:
-JDLib is optimized for Delphi 10.4. It consists of the following components on the "JD Components" page:
+### Components:
 
 - **[TJDFontButton](/Docs/TJDFontButton.md)** Control - A button which supports a font glyph instead of a graphic image.
 -  **[TJDSmoothMove](/Docs/TJDSmoothMove.md)** Component - Event-driven component to manage the movement of controls or values in general. 
