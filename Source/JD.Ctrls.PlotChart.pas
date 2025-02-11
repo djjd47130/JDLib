@@ -59,19 +59,10 @@ uses
 
 type
   TJDPlotChart = class;
-
   TJDPlotPoint = class;
   TJDPlotPoints = class;
-
   TJDPlotChartOptionGroup = class;
-
   TJDPlotChartUI = class;
-  TJDPlotChartUIBackground = class;
-  TJDPlotChartUILine = class;
-  TJDPlotChartUIPoint = class;
-  TJDPlotChartUIChart = class;
-  TJDPlotChartUIAxis = class;
-
   TJDPlotChartUX = class;
 
   TJDPlotChartOverlap = (drRestrict, drPushNeighbor, drPushAll);
@@ -151,40 +142,8 @@ type
   TJDPlotPointEvent = procedure(Sender: TObject; P: TJDPlotPoint) of object;
 
   /// <summary>
-  /// Represents a single plot point on the chart.
+  /// Main TJDPlotChart control encapsulating user customization of plot points.
   /// </summary>
-  TJDPlotPoint = class(TCollectionItem)
-  private
-    FX: Single;
-    FY: Single;
-    procedure SetX(const Value: Single);
-    procedure SetY(const Value: Single);
-  protected
-    function GetDisplayName: String; override;
-  public
-    procedure Invalidate;
-    procedure SetPoint(const X, Y: Single); overload;
-    procedure SetPoint(const P: TPointF); overload;
-  published
-    property X: Single read FX write SetX;
-    property Y: Single read FY write SetY;
-  end;
-
-  TJDPlotPoints = class(TOwnedCollection)
-  private
-    function GetItem(const Index: Integer): TJDPlotPoint;
-    procedure SetItem(const Index: Integer; const Value: TJDPlotPoint);
-  protected
-    procedure Notify(Item: TCollectionItem; Action: TCollectionNotification); override;
-    procedure Update(Item: TCollectionItem); override;
-  public
-    constructor Create(AOwner: TJDPlotChart); reintroduce;
-    procedure Invalidate;
-    function Add: TJDPlotPoint;
-    function Insert(const Index: Integer): TJDPlotPoint;
-    property Items[const Index: Integer]: TJDPlotPoint read GetItem write SetItem; default;
-  end;
-
   TJDPlotChart = class(TJDControl)
   private
     FGdiPlusStartupInput: GdiplusStartupInput;
@@ -263,6 +222,50 @@ type
 
   end;
 
+  /// <summary>
+  /// Represents a single plot point on the chart.
+  /// </summary>
+  TJDPlotPoint = class(TCollectionItem)
+  private
+    FX: Single;
+    FY: Single;
+    procedure SetX(const Value: Single);
+    procedure SetY(const Value: Single);
+  protected
+    function GetDisplayName: String; override;
+  public
+    procedure Invalidate;
+    procedure SetPoint(const X, Y: Single; TriggerEvent: Boolean = True); overload;
+    procedure SetPoint(const P: TPointF; TriggerEvent: Boolean = True); overload;
+  published
+    property X: Single read FX write SetX;
+    property Y: Single read FY write SetY;
+  end;
+
+  /// <summary>
+  /// Represents a list of plot points on the chart, forming the plot line.
+  /// </summary>
+  TJDPlotPoints = class(TOwnedCollection)
+  private
+    function GetItem(const Index: Integer): TJDPlotPoint;
+    procedure SetItem(const Index: Integer; const Value: TJDPlotPoint);
+  protected
+    procedure Notify(Item: TCollectionItem; Action: TCollectionNotification); override;
+    procedure Update(Item: TCollectionItem); override;
+  public
+    constructor Create(AOwner: TJDPlotChart); reintroduce;
+    procedure Invalidate;
+    function Add: TJDPlotPoint;
+    function Insert(const Index: Integer): TJDPlotPoint;
+    property Items[const Index: Integer]: TJDPlotPoint read GetItem write SetItem; default;
+  end;
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// TODO: Migrate common concepts to reusable unit for other custom controls.
+/// For example, TJDGauge or TJDFontButton could be enhanced with such concepts.
+////////////////////////////////////////////////////////////////////////////////
 
   /// <summary>
   /// Base for all other options in UI / UX properties.
@@ -316,10 +319,16 @@ type
     property Transparent: Boolean read FTransparent write SetTransparent;
   end;
 
+  /// <summary>
+  /// UI options for the in-fill beneath the plotted line.
+  /// </summary>
   TJDPlotChartUIFill = class(TJDPlotChartUISurface)
 
   end;
 
+  /// <summary>
+  /// UI options for the plotted line.
+  /// </summary>
   TJDPlotChartUILine = class(TJDPlotChartUISurface)
   private
     FWidth: Single;
@@ -335,6 +344,9 @@ type
     property Visible: Boolean read FVisible write SetVisible;
   end;
 
+  /// <summary>
+  /// UI options for the plotted points.
+  /// </summary>
   TJDPlotChartUIPoint = class(TJDPlotChartOptionGroup)
   private
     FColor: TJDColorRef;
@@ -356,23 +368,26 @@ type
     property Visible: Boolean read FVisible write SetVisible;
   end;
 
+  /// <summary>
+  /// UI options for a given axis.
+  /// </summary>
   TJDPlotChartUIAxis = class(TJDPlotChartOptionGroup)
   private
     FLabels: TJDPlotChartLabelPosition;
-    FAxisType: TJDPlotChartAxisType;
     FLine: TJDPlotChartUILine;
-    procedure SetAxisType(const Value: TJDPlotChartAxisType);
     procedure SetLabels(const Value: TJDPlotChartLabelPosition);
     procedure SetLine(const Value: TJDPlotChartUILine);
   public
     constructor Create(AOwner: TJDPlotChart); override;
     destructor Destroy; override;
   published
-    property AxisType: TJDPlotChartAxisType read FAxisType write SetAxisType;
     property Labels: TJDPlotChartLabelPosition read FLabels write SetLabels;
     property Line: TJDPlotChartUILine read FLine write SetLine;
   end;
 
+  /// <summary>
+  /// UI options for everything in the chart area.
+  /// </summary>
   TJDPlotChartUIChart = class(TJDPlotChartOptionGroup)
   private
     FBorder: TJDPlotChartUILine;
@@ -409,6 +424,9 @@ type
     property Padding: Single read FPadding write SetPadding;
   end;
 
+  /// <summary>
+  /// UI options for the entire control.
+  /// </summary>
   TJDPlotChartUI = class(TJDPlotChartOptionGroup)
   private
     FBackground: TJDPlotChartUIBackground;
@@ -428,25 +446,33 @@ type
 
 
 
-
 ////////////////////////////////////////////////////////////////////////////////
 /// UX
 ////////////////////////////////////////////////////////////////////////////////
 
+  /// <summary>
+  /// UX options for a given chart axis.
+  /// </summary>
   TJDPlotChartUXAxis = class(TJDPlotChartOptionGroup)
   private
     FMax: Single;
     FMin: Single;
     FFormat: String;
     FSpacing: Single;
+    FAxisType: TJDPlotChartAxisType;
     procedure SetFormat(const Value: String);
     procedure SetMax(const Value: Single);
     procedure SetMin(const Value: Single);
     procedure SetSpacing(const Value: Single);
+    procedure SetAxisType(const Value: TJDPlotChartAxisType);
   public
     constructor Create(AOwner: TJDPlotChart); override;
     destructor Destroy; override;
   published
+    /// <summary>
+    /// A preset type of axis data (Default = Custom)
+    /// </summary>
+    property AxisType: TJDPlotChartAxisType read FAxisType write SetAxisType;
     /// <summary>
     /// Minimum range value to show on axis.
     /// </summary>
@@ -465,6 +491,9 @@ type
     property Format: String read FFormat write SetFormat;
   end;
 
+  /// <summary>
+  /// UX options for the overall chart area.
+  /// </summary>
   TJDPlotChartUXChart = class(TJDPlotChartOptionGroup)
   private
     FOverlap: TJDPlotChartOverlap;
@@ -472,11 +501,13 @@ type
     FSnapTolerance: Single;
     FAxisBottom: TJDPlotChartUXAxis;
     FAxisLeft: TJDPlotChartUXAxis;
+    FAddPointAnywhere: Boolean;
     procedure SetOverlap(const Value: TJDPlotChartOverlap);
     procedure SetLinkLeftAndRight(const Value: Boolean);
     procedure SetSnapTolerance(const Value: Single);
     procedure SetAxisBottom(const Value: TJDPlotChartUXAxis);
     procedure SetAxisLeft(const Value: TJDPlotChartUXAxis);
+    procedure SetAddPointAnywhere(const Value: Boolean);
   public
     constructor Create(AOwner: TJDPlotChart); override;
     destructor Destroy; override;
@@ -502,9 +533,17 @@ type
     /// Distance from plot line before auto-snapping to the line.
     /// </summary>
     property SnapTolerance: Single read FSnapTolerance write SetSnapTolerance;
+    /// <summary>
+    /// Allows user to create a new point in the chart at X position
+    /// regardless of whether it's nearby an existing line.
+    /// </summary>
+    property AddPointAnywhere: Boolean read FAddPointAnywhere write SetAddPointAnywhere;
     // TODO: Grid snap...
   end;
 
+  /// <summary>
+  /// UX options for the entire control.
+  /// </summary>
   TJDPlotChartUX = class(TJDPlotChartOptionGroup)
   private
     FChartArea: TJDPlotChartUXChart;
@@ -515,7 +554,6 @@ type
   published
     property ChartArea: TJDPlotChartUXChart read FChartArea write SetChartArea;
   end;
-
 
 implementation
 
@@ -839,12 +877,13 @@ begin
   // Update plot point(s) based on rules
   if PtInRect(R, Point(X, Y)) or Dragging then begin
 
+
     if FDragging and (FDraggingIndex <> -1) then begin
       NewPoint := PointToPlotPoint(Point(X, Y));
-      FPoints[FDraggingIndex].SetPoint(NewPoint);
+      FPoints[FDraggingIndex].SetPoint(NewPoint, False);
 
       // Use the new point for status bar update
-      HoverPoint := PlotPointToPoint(FPoints[FDraggingIndex] as TJDPlotPoint);
+      HoverPoint := PlotPointToPoint(FPoints[FDraggingIndex]);
     end else begin
       HoverPoint := Point(X, Y);
     end;
@@ -889,18 +928,17 @@ begin
   Invalidate;
 end;
 
-procedure TJDPlotChart.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
-  Y: Integer);
+procedure TJDPlotChart.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
   inherited;
 
-  if FDragging then begin
+  if FDragging and (FDraggingIndex <> -1) then begin
+    PointMoved(FPoints[FDraggingIndex]); // Trigger event on release
     FDragging := False;
     FDraggingIndex := -1;
-    //TODO: Trigger event...
-
   end;
 
+  // Other existing logic...
   Invalidate;
 end;
 
@@ -1171,8 +1209,10 @@ var
     for var X := 0 to FPoints.Count - 1 do begin
       var P := PlotPointToPoint(FPoints[X]);
       if FHoveringIndex = X then
+        // Hover Point
         Brush := TGPSolidBrush.Create(Winapi.GDIPAPI.MakeColor(255, 255, 0, 0)) // Red color
       else
+        //Regular Point
         Brush := TGPSolidBrush.Create(Winapi.GDIPAPI.MakeColor(255, GetRValue(FUI.ChartArea.Points.Color.GetJDColor),
                                                 GetGValue(FUI.ChartArea.Points.Color.GetJDColor),
                                                 GetBValue(FUI.ChartArea.Points.Color.GetJDColor)));
@@ -1595,12 +1635,6 @@ begin
   inherited;
 end;
 
-procedure TJDPlotChartUIAxis.SetAxisType(const Value: TJDPlotChartAxisType);
-begin
-  FAxisType := Value;
-  Invalidate;
-end;
-
 procedure TJDPlotChartUIAxis.SetLabels(const Value: TJDPlotChartLabelPosition);
 begin
   FLabels := Value;
@@ -1625,20 +1659,22 @@ begin
   TJDPlotChart(Collection.Owner).Invalidate;
 end;
 
-procedure TJDPlotPoint.SetPoint(const P: TPointF);
+procedure TJDPlotPoint.SetPoint(const P: TPointF; TriggerEvent: Boolean = True);
 begin
-  SetPoint(P.X, P.Y);
+  SetPoint(P.X, P.Y, TriggerEvent);
 end;
 
-procedure TJDPlotPoint.SetPoint(const X, Y: Single);
+procedure TJDPlotPoint.SetPoint(const X, Y: Single; TriggerEvent: Boolean = True);
 begin
-  FX:= X;
-  FY:= Y;
+  FX := X;
+  FY := Y;
 
   TJDPlotChart(Collection.Owner).ClampPoint(Self);
   TJDPlotChart(Collection.Owner).CheckOverlapOnFly(Index);
   TJDPlotChart(Collection.Owner).EnforceLinkLeftAndRight(Self);
-  TJDPlotChart(Collection.Owner).PointMoved(Self);
+
+  if TriggerEvent then
+    TJDPlotChart(Collection.Owner).PointMoved(Self);
 
   Invalidate;
 end;
@@ -1662,7 +1698,6 @@ function TJDPlotPoints.Add: TJDPlotPoint;
 begin
   //TODO: Enforce rules...
   Result:= TJDPlotPoint(inherited Add);
-  TJDPlotChart(Owner).PointAdded(Result);
   Invalidate;
 end;
 
@@ -1694,7 +1729,7 @@ begin
   //TODO: Enforce rules...
   case Action of
     cnAdded: begin
-
+      TJDPlotChart(Owner).PointAdded(TJDPlotPoint(Item));
     end;
     cnExtracting, cnDeleting: begin
       TJDPlotChart(Owner).PointDeleted(TJDPlotPoint(Item));
@@ -1709,6 +1744,7 @@ procedure TJDPlotPoints.SetItem(const Index: Integer;
 begin
   //TODO: Enforce rules...
   inherited SetItem(Index, Value);
+  Invalidate;
 end;
 
 procedure TJDPlotPoints.Update(Item: TCollectionItem);
@@ -1824,6 +1860,12 @@ begin
   inherited;
 end;
 
+procedure TJDPlotChartUXChart.SetAddPointAnywhere(const Value: Boolean);
+begin
+  FAddPointAnywhere := Value;
+  Invalidate;
+end;
+
 procedure TJDPlotChartUXChart.SetAxisBottom(const Value: TJDPlotChartUXAxis);
 begin
   FAxisBottom.Assign(Value);
@@ -1859,6 +1901,11 @@ end;
 constructor TJDPlotChartUXAxis.Create(AOwner: TJDPlotChart);
 begin
   inherited;
+  Self.FAxisType:= TJDPlotChartAxisType.atCustom;
+  Self.FMin:= 0;
+  Self.FMax:= 100;
+  Self.FFormat:= '';
+  Self.FSpacing:= 10;
 
 end;
 
@@ -1866,6 +1913,12 @@ destructor TJDPlotChartUXAxis.Destroy;
 begin
 
   inherited;
+end;
+
+procedure TJDPlotChartUXAxis.SetAxisType(const Value: TJDPlotChartAxisType);
+begin
+  FAxisType := Value;
+  Invalidate;
 end;
 
 procedure TJDPlotChartUXAxis.SetFormat(const Value: String);

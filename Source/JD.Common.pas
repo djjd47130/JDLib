@@ -2,18 +2,20 @@ unit JD.Common;
 
 interface
 
+{$DEFINE USE_GDIP}
+
 uses
   System.Classes, System.SysUtils, System.Types,
   Winapi.Windows, Winapi.Messages,
   Vcl.Controls
+  {$IFDEF USE_GDIP}
   , GDIPAPI, GDIPOBJ, GDIPUTIL
+  {$ENDIF}
   ;
-
-{$DEFINE USE_GDIP}
 
 const
   ///  <summary>
-  ///  Windows message for when color themes change.
+  ///  Windows message for when style or color themes change.
   ///  </summary>
   WM_JD_COLORCHANGE = WM_USER + 42;
 
@@ -36,6 +38,7 @@ type
   PJDPoint = ^TJDPoint;
   ///  <summary>
   ///  Defines a standardized point with floating point values at its root.
+  ///  Allows for implicitly casting to and from TPoint and TGPPointF;
   ///  </summary>
   TJDPoint = record
   private
@@ -46,11 +49,16 @@ type
   public
     class operator Implicit(Value: TJDPoint): TPoint;
     class operator Implicit(Value: TPoint): TJDPoint;
+    class operator Implicit(Value: TJDPoint): TPointF;
+    class operator Implicit(Value: TPointF): TJDPoint;
+    {$IFDEF USE_GDIP}
     class operator Implicit(Value: TJDPoint): TGPPointF;
     class operator Implicit(Value: TGPPointF): TJDPoint;
+    {$ENDIF}
     property X: Single read FX write SetX;
     property Y: Single read FY write SetY;
     procedure Move(const AmtX, AmtY: Single);
+    //function InRect(const R: TJDRect): Boolean;
   end;
 
   PJDRect = ^TJDRect;
@@ -83,8 +91,10 @@ type
     class operator Implicit(Value: TJDRect): TRect;
     class operator Implicit(Value: TRectF): TJDRect;
     class operator Implicit(Value: TJDRect): TRectF;
+    {$IFDEF USE_GDIP}
     class operator Implicit(Value: TGPRectF): TJDRect;
     class operator Implicit(Value: TJDRect): TGPRectF;
+    {$ENDIF}
     property X: Single read GetX write SetX;
     property Y: Single read GetY write SetY;
     property Width: Single read GetWidth write SetWidth;
@@ -248,6 +258,19 @@ begin
   Result.Y:= Value.Y;
 end;
 
+class operator TJDPoint.Implicit(Value: TPointF): TJDPoint;
+begin
+  Result.X:= Value.X;
+  Result.Y:= Value.Y;
+end;
+
+class operator TJDPoint.Implicit(Value: TJDPoint): TPointF;
+begin
+  Result.X:= Value.X;
+  Result.Y:= Value.Y;
+end;
+
+{$IFDEF USE_GDIP}
 class operator TJDPoint.Implicit(Value: TJDPoint): TGPPointF;
 begin
   Result.X:= Value.X;
@@ -259,6 +282,7 @@ begin
   Result.X:= Value.X;
   Result.Y:= Value.Y;
 end;
+{$ENDIF}
 
 procedure TJDPoint.Move(const AmtX, AmtY: Single);
 begin
@@ -304,6 +328,7 @@ begin
   Result:= Value.FRect;
 end;
 
+{$IFDEF USE_GDIP}
 class operator TJDRect.Implicit(Value: TGPRectF): TJDRect;
 begin
   Result.X:= Value.X;
@@ -319,6 +344,7 @@ begin
   Result.Width:= Value.Width;
   Result.Height:= Value.Height;
 end;
+{$ENDIF}
 
 procedure TJDRect.Inflate(const AmtX, AmtY: Single);
 begin

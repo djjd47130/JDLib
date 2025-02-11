@@ -1,7 +1,12 @@
 unit JD.AppBar;
 
 (*
-  Downloaded from: https://github.com/kami-soft/ApplicationDesktopToolbar/tree/master
+JD App Bar
+
+Originally Downloaded from:
+https://github.com/kami-soft/ApplicationDesktopToolbar/tree/master
+
+
 *)
 
 interface

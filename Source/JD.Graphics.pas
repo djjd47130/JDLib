@@ -17,7 +17,7 @@ uses
   {$IFDEF USE_GDIP}
   , GDIPAPI, GDIPOBJ, GDIPUTIL
   {$ENDIF}
-  , JD.Common //This unit should NOT use any other JD related units!
+  , JD.Common //JD.Common should NOT use any other JD related units!
   ;
 
 const
@@ -81,7 +81,7 @@ type
     fcRed, fcYellow, fcOrange, fcPurple);
 
   ///  <summary>
-  ///  A set of TJDStandardColor enum values.
+  ///  An array of TColor values indexed by TJDStandardColor values.
   ///  </summary>
   TJDStandardColors = array[TJDStandardColor] of TColor;
 
@@ -90,6 +90,12 @@ type
   ///  Middle mode not yet supported.
   ///  </summary>
   TJDColorMode = (cmLight, cmMedium, cmDark);
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// TJDColor - Encapsulating various approaches to color management together
+////////////////////////////////////////////////////////////////////////////////
+
 
   ///  <summary>
   ///  Hue value of an HSB color value.
@@ -305,8 +311,8 @@ type
   end;
 
   ///  <summary>
-  ///  A selection of a color, interchangeable between
-  ///  a JD standard color or a custom color.
+  ///  A selection of a color with several customizable options.
+  ///  Meant to be used as a published property on custom controls.
   ///  </summary>
   TJDColorRef = class(TPersistent)
   private
@@ -342,6 +348,11 @@ type
 
   ///  <summary>
   ///  Global object to keep track of color themes throughout JDLib.
+  ///  - ColorMode: Controls whether in Light, Dark, or Medium light modes.
+  ///  - BaseColor: The main background color to be used to determine color mode
+  ///    and use for masks.
+  ///  - Color[TJDStandardColor]: Access to read/write internal standard color value.
+  ///  - ColorNew[TJDColorMode]: New version of Color.
   ///  </summary>
   TJDColorManager = class(TObject)
   private
@@ -374,6 +385,12 @@ type
       read GetColorNew write SetColorNew;
   end;
 
+  /// <summary>
+  /// Experimental canvas concept for custom controls, using GDI+.
+  /// Considering attaching it to TJDCustomControl, but need to
+  /// carefully consider implementation based on its complex nature.
+  /// For example, window handles being destroyed / recreated.
+  /// </summary>
   TJDCanvas = class(TPersistent)
   private
     FCanvas: TCanvas;
@@ -401,28 +418,68 @@ type
     {$ENDIF}
     function ClipRect: TJDRect;
   published
+    //TODO: Implement TJDBrush and TJDPen concepts...
     property BrushColor: TJDColor read FBrushColor write SetBrushColor;
     property PenColor: TJDColor read FPenColor write SetPenColor;
     property PenWidth: Single read GetPenWidth write SetPenWidth;
   end;
 
-//Color related
+////////////////////////////////////////////////////////////////////////////////
+// Color related functions
+////////////////////////////////////////////////////////////////////////////////
+
+/// <summary>
+/// Determines the color mode based on currently active theme's base color
+/// </summary>
 function DetectColorMode(const AColor: TColor): TJDColorMode;
+/// <summary>
+/// Converts RGB color to HSV color
+/// </summary>
 function RGBToHSV(R, G, B: Byte; var H, S, V: Double): Boolean;
+/// <summary>
+/// Converts HSV color to RGB color
+/// </summary>
 function HSVToRGB(H, S, V: Double; var R, G, B: Byte): Boolean;
+/// <summary>
+/// Converts RGB color to HTML color
+/// </summary>
 function ColorToHtml(Color: TColor): string;
+/// <summary>
+/// Converts RGB color to HTML color
+/// </summary>
 function ColorToHtml2(Clr: TColor): string;
+/// <summary>
+/// Converts HTML color to RGB color
+/// </summary>
 function HtmlToColor(Color: string): TColor;
+/// <summary>
+/// Tweaks the brightness of a given color
+/// </summary>
 function TweakColor(const AColor: TColor; const Diff: Integer): TColor;
 
-//General graphics related
+////////////////////////////////////////////////////////////////////////////////
+// General graphics related functions
+////////////////////////////////////////////////////////////////////////////////
+
+/// <summary>
+/// Draws a control's parent image in a given canvas for a transparency effect.
+/// </summary>
 procedure DrawParentImage(Control: TControl; Dest: TCanvas);
+
+/// <summary>
+/// Determines a point around a given point at a given radius
+/// </summary>
 function PointAroundCenter(Center: TJDPoint; Distance: Single; Degrees: Single;
   OvalOffset: Single = 1): TJDPoint;
+
+/// <summary>
+/// Draws text to a given canvas with a given format
+/// </summary>
 function DrawTextJD(hDC: HDC; Str: String;
   var lpRect: TJDRect; uFormat: UINT): Integer;
 
 {$IFDEF USE_GDIP}
+//function PointToGPPoint(P: TPoint): TGPPointF;
 function RectToGPRect(R: TRect): TGPRectF;
 function ColorToGPColor(C: TColor): Cardinal;
 {$ENDIF}
