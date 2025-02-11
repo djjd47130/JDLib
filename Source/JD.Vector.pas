@@ -33,7 +33,7 @@ type
 
   TJDVectorPoint = class(TCollectionItem)
   private
-    Fowner: TJDVectorPoints;
+    FOwner: TJDVectorPoints;
     FX: Single;
     FY: Single;
     procedure SetX(const Value: Single);

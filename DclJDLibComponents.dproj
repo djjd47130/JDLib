@@ -115,28 +115,29 @@
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="JDLibComponents.dcp"/>
         <DCCReference Include="DesignIDE.dcp"/>
-        <DCCReference Include="Source\JD.Ctrls.FontButtonEdit.pas">
-            <Form>frmFontButtonEditor</Form>
-            <FormType>dfm</FormType>
-        </DCCReference>
-        <DCCReference Include="Source\JD.Ctrls.FontButtonEditCtrl.pas">
-            <Form>frmSelectControl</Form>
-            <FormType>dfm</FormType>
-        </DCCReference>
         <DCCReference Include="Source\JDLib.InstallComps.pas"/>
-        <DCCReference Include="Source\JD.Ctrls.WinControlHelper.pas"/>
-        <DCCReference Include="Source\JD.Ctrls.CharPicker.pas">
-            <Form>JDGlyphPicker</Form>
-            <FormType>dfm</FormType>
-        </DCCReference>
-        <DCCReference Include="Source\JD.Ctrls.PageMenuEditor.pas"/>
-        <DCCReference Include="Source\JD.Ctrls.JDGaugeEditors.pas"/>
-        <DCCReference Include="Source\JD.ColorPropEdit.pas">
+        <DCCReference Include="Source\Editors\JD.ColorPropEdit.pas">
             <Form>frmJDColorPropEdit</Form>
             <FormType>dfm</FormType>
         </DCCReference>
-        <None Include="Source\JDLib.inc"/>
-        <None Include="Source\JDLibUses.inc"/>
+        <DCCReference Include="Source\Editors\JD.Ctrls.CharPicker.pas">
+            <Form>JDGlyphPicker</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
+        <DCCReference Include="Source\Editors\JD.Ctrls.FontButtonEdit.pas">
+            <Form>frmFontButtonEditor</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
+        <DCCReference Include="Source\Editors\JD.Ctrls.FontButtonEditCtrl.pas">
+            <Form>frmSelectControl</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
+        <DCCReference Include="Source\Editors\JD.Ctrls.GlyphListEditor.pas">
+            <Form>GlyphListEditor</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
+        <DCCReference Include="Source\Editors\JD.Ctrls.JDGaugeEditors.pas"/>
+        <DCCReference Include="Source\Editors\JD.Ctrls.PageMenuEditor.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

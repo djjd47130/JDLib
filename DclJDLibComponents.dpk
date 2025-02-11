@@ -35,13 +35,13 @@ requires
   DesignIDE;
 
 contains
-  JD.Ctrls.FontButtonEdit in 'Source\JD.Ctrls.FontButtonEdit.pas' {frmFontButtonEditor},
-  JD.Ctrls.FontButtonEditCtrl in 'Source\JD.Ctrls.FontButtonEditCtrl.pas' {frmSelectControl},
   JDLib.InstallComps in 'Source\JDLib.InstallComps.pas',
-  JD.Ctrls.WinControlHelper in 'Source\JD.Ctrls.WinControlHelper.pas',
-  JD.Ctrls.CharPicker in 'Source\JD.Ctrls.CharPicker.pas' {JDGlyphPicker},
-  JD.Ctrls.PageMenuEditor in 'Source\JD.Ctrls.PageMenuEditor.pas',
-  JD.Ctrls.JDGaugeEditors in 'Source\JD.Ctrls.JDGaugeEditors.pas',
-  JD.ColorPropEdit in 'Source\JD.ColorPropEdit.pas' {frmJDColorPropEdit};
+  JD.ColorPropEdit in 'Source\Editors\JD.ColorPropEdit.pas' {frmJDColorPropEdit},
+  JD.Ctrls.CharPicker in 'Source\Editors\JD.Ctrls.CharPicker.pas' {JDGlyphPicker},
+  JD.Ctrls.FontButtonEdit in 'Source\Editors\JD.Ctrls.FontButtonEdit.pas' {frmFontButtonEditor},
+  JD.Ctrls.FontButtonEditCtrl in 'Source\Editors\JD.Ctrls.FontButtonEditCtrl.pas' {frmSelectControl},
+  JD.Ctrls.GlyphListEditor in 'Source\Editors\JD.Ctrls.GlyphListEditor.pas' {GlyphListEditor},
+  JD.Ctrls.JDGaugeEditors in 'Source\Editors\JD.Ctrls.JDGaugeEditors.pas',
+  JD.Ctrls.PageMenuEditor in 'Source\Editors\JD.Ctrls.PageMenuEditor.pas';
 
 end.
