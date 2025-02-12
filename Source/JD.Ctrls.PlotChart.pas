@@ -139,13 +139,19 @@ type
   /// </summary>
   TJDPlotChartPointType = (ptEllipse, ptRectangle, ptTriangle, ptHexagon);
 
+  /// <summary>
+  /// Event type related to a specific plot point.
+  /// </summary>
   TJDPlotPointEvent = procedure(Sender: TObject; P: TJDPlotPoint) of object;
 
+
+  
   /// <summary>
   /// Main TJDPlotChart control encapsulating user customization of plot points.
   /// </summary>
   TJDPlotChart = class(TJDControl)
   private
+    FInitialized: Boolean;
     FGdiPlusStartupInput: GdiplusStartupInput;
     FBuffer: TBitmap;
     FUI: TJDPlotChartUI;
@@ -160,6 +166,7 @@ type
     FOnPointAdded: TJDPlotPointEvent;
     FOnPointMoved: TJDPlotPointEvent;
     FOnPointDeleted: TJDPlotPointEvent;
+    FOnHoverMousePoint: TJDPlotPointEvent;
     procedure SetUI(const Value: TJDPlotChartUI);
     function PlotPointToPoint(P: TJDPlotPoint): TPointF; overload;
     function PlotPointToPoint(P: TPointF): TPointF; overload;
@@ -170,6 +177,8 @@ type
     procedure ClampPoint(Point: TJDPlotPoint);
     procedure EnforceLinkLeftAndRight(Point: TJDPlotPoint);
     procedure AdjustRightMostPoint;
+    procedure PopulateSampleData;
+    procedure SetOnHoverMousePoint(const Value: TJDPlotPointEvent);
   protected
     procedure InvalidateOptionGroup(AGroup: TJDPlotChartOptionGroup);
 
@@ -220,6 +229,8 @@ type
     property OnPointAdded: TJDPlotPointEvent read FOnPointAdded write FOnPointAdded;
     property OnPointMoved: TJDPlotPointEvent read FOnPointMoved write FOnPointMoved;
     property OnPointDeleted: TJDPlotPointEvent read FOnPointDeleted write FOnPointDeleted;
+
+    property OnHoverMousePoint: TJDPlotPointEvent read FOnHoverMousePoint write SetOnHoverMousePoint;
 
   end;
 
@@ -324,7 +335,8 @@ type
   /// UI options for the in-fill beneath the plotted line.
   /// </summary>
   TJDPlotChartUIFill = class(TJDPlotChartUISurface)
-
+  public
+    constructor Create(AOwner: TJDPlotChart); override;
   end;
 
   /// <summary>
@@ -354,15 +366,19 @@ type
     FWidth: Single;
     FVisible: Boolean;
     FPointType: TJDPlotChartPointType;
+    FAlpha: Byte;
     procedure ColorChanged(Sender: TObject);
     procedure SetColor(const Value: TJDColorRef);
     procedure SetWidth(const Value: Single);
     procedure SetVisible(const Value: Boolean);
     procedure SetPointType(const Value: TJDPlotChartPointType);
+    procedure SetAlpha(const Value: Byte);
   public
     constructor Create(AOwner: TJDPlotChart); override;
     destructor Destroy; override;
+    function MakeBrush: TGPSolidBrush;
   published
+    property Alpha: Byte read FAlpha write SetAlpha;
     property PointType: TJDPlotChartPointType read FPointType write SetPointType;
     property Width: Single read FWidth write SetWidth;
     property Color: TJDColorRef read FColor write SetColor;
@@ -375,15 +391,18 @@ type
   TJDPlotChartUIAxis = class(TJDPlotChartOptionGroup)
   private
     FLabels: TJDPlotChartLabelPosition;
-    FLine: TJDPlotChartUILine;
+    FBaseLine: TJDPlotChartUILine;
+    FGridLines: TJDPlotChartUILine;
     procedure SetLabels(const Value: TJDPlotChartLabelPosition);
-    procedure SetLine(const Value: TJDPlotChartUILine);
+    procedure SetBaseLine(const Value: TJDPlotChartUILine);
+    procedure SetGridLines(const Value: TJDPlotChartUILine);
   public
     constructor Create(AOwner: TJDPlotChart); override;
     destructor Destroy; override;
   published
     property Labels: TJDPlotChartLabelPosition read FLabels write SetLabels;
-    property Line: TJDPlotChartUILine read FLine write SetLine;
+    property BaseLine: TJDPlotChartUILine read FBaseLine write SetBaseLine;
+    property GridLines: TJDPlotChartUILine read FGridLines write SetGridLines;
   end;
 
   /// <summary>
@@ -400,6 +419,8 @@ type
     FAxisBottom: TJDPlotChartUIAxis;
     FFill: TJDPlotChartUIFill;
     FPadding: Single;
+    FPointHover: TJDPlotChartUIPoint;
+    FPointMouse: TJDPlotChartUIPoint;
     procedure ColorChanged(Sender: TObject);
     procedure SetColor(const Value: TJDColorRef);
     procedure SetTransparent(const Value: Boolean);
@@ -410,6 +431,8 @@ type
     procedure SetAxisBottom(const Value: TJDPlotChartUIAxis);
     procedure SetFill(const Value: TJDPlotChartUIFill);
     procedure SetPadding(const Value: Single);
+    procedure SetPointHover(const Value: TJDPlotChartUIPoint);
+    procedure SetPointMouse(const Value: TJDPlotChartUIPoint);
   public
     constructor Create(AOwner: TJDPlotChart); override;
     destructor Destroy; override;
@@ -421,6 +444,8 @@ type
     property Fill: TJDPlotChartUIFill read FFill write SetFill;
     property Line: TJDPlotChartUILine read FLine write SetLine;
     property Points: TJDPlotChartUIPoint read FPoints write SetPoints;
+    property PointMouse: TJDPlotChartUIPoint read FPointMouse write SetPointMouse;
+    property PointHover: TJDPlotChartUIPoint read FPointHover write SetPointHover;
     property Transparent: Boolean read FTransparent write SetTransparent default False;
     property Padding: Single read FPadding write SetPadding;
   end;
@@ -587,6 +612,16 @@ end;
 constructor TJDPlotChart.Create(AOwner: TComponent);
 begin
   inherited;
+  Parent := TWinControl(AOwner);
+
+  FGdiPlusStartupInput.DebugEventCallback := nil;
+  FGdiPlusStartupInput.SuppressBackgroundThread := False;
+  FGdiPlusStartupInput.SuppressExternalCodecs := False;
+  FGdiPlusStartupInput.GdiplusVersion := 1;
+  GdiplusStartup(GdiPlusToken, @FGdiPlusStartupInput, nil);
+
+  Width:= 300;
+  Height:= 200;
 
   FPoints:= TJDPlotPoints.Create(Self);
 
@@ -594,12 +629,6 @@ begin
   FDraggingIndex := -1;
   FDragging := False;
   FDraggingVertical:= False;
-
-  FGdiPlusStartupInput.DebugEventCallback := nil;
-  FGdiPlusStartupInput.SuppressBackgroundThread := False;
-  FGdiPlusStartupInput.SuppressExternalCodecs := False;
-  FGdiPlusStartupInput.GdiplusVersion := 1;
-  GdiplusStartup(GdiPlusToken, @FGdiPlusStartupInput, nil);
 
   FUI:= TJDPlotChartUI.Create(Self);
   FUX:= TJDPlotChartUX.Create(Self);
@@ -612,7 +641,10 @@ begin
   Font.Size:= 7;
 
   //Sample data
-  CreatePlotPoints(IncHour(Now,-2), IncHour(Now,2), 30);
+  //CreatePlotPoints(IncHour(Now,-2), IncHour(Now,2), 30);
+  PopulateSampleData;
+
+  FInitialized:= True;
 
 end;
 
@@ -627,6 +659,25 @@ begin
   GdiplusShutdown(GdiPlusToken);
 
   inherited;
+end;
+
+procedure TJDPlotChart.PopulateSampleData;
+var
+  I: Integer;
+  SamplePoint: TJDPlotPoint;
+begin
+  FPoints.Clear; // Clear any existing points
+
+  // Add sample points to the chart
+  for I := 0 to 9 do begin
+    SamplePoint := FPoints.Add;
+    SamplePoint.SetPoint(
+      FUX.ChartArea.AxisBottom.Min + I * ((FUX.ChartArea.AxisBottom.Max - FUX.ChartArea.AxisBottom.Min) / 9),
+      FUX.ChartArea.AxisLeft.Min + Random(Round(FUX.ChartArea.AxisLeft.Max - FUX.ChartArea.AxisLeft.Min))
+    );
+  end;
+
+  Invalidate; // Redraw the chart
 end;
 
 procedure TJDPlotChart.CreatePlotPoints(TimeStart, TimeStop: TTime;
@@ -798,8 +849,15 @@ end;
 procedure TJDPlotChart.Resize;
 begin
   inherited;
+  if not FInitialized then Exit;
+
   FBuffer.SetSize(ClientWidth, ClientHeight);
   Invalidate;
+end;
+
+procedure TJDPlotChart.SetOnHoverMousePoint(const Value: TJDPlotPointEvent);
+begin
+  FOnHoverMousePoint := Value;  
 end;
 
 procedure TJDPlotChart.SetPoints(const Value: TJDPlotPoints);
@@ -864,6 +922,11 @@ begin
   var GhostFound := False;
   var NearPoint := False;
 
+  HoverPoint := PointToPlotPoint(Point(X, Y));
+  //if Assigned(FOnHoverMousePoint) then
+  //  FOnHoverMousePoint(Self, HoverPoint);
+  
+
   FHoveringIndex := -1;
   for var I := 0 to FPoints.Count - 1 do begin
     var P := PlotPointToPoint(FPoints[I]);
@@ -877,9 +940,9 @@ begin
   // Update plot point(s) based on rules
   if PtInRect(R, Point(X, Y)) or Dragging then begin
 
-
     if FDragging and (FDraggingIndex <> -1) then begin
       NewPoint := PointToPlotPoint(Point(X, Y));
+      ClampPoint(FPoints[FDraggingIndex]);
       FPoints[FDraggingIndex].SetPoint(NewPoint, False);
 
       // Use the new point for status bar update
@@ -951,7 +1014,6 @@ begin
       FPoints[0].SetPoint(FPoints[0].X, Point.Y);
   end;
 end;
-
 
 procedure TJDPlotChart.ClampPoint(Point: TJDPlotPoint);
 var
@@ -1116,17 +1178,31 @@ var
     Z: Single;
     Brush: TGPSolidBrush;
   begin
-    Z := FUI.ChartArea.Points.Width / 2;
     for var X := 0 to FPoints.Count - 1 do begin
       var P := PlotPointToPoint(FPoints[X]);
-      if FHoveringIndex = X then
+      if FHoveringIndex = X then begin
         // Hover Point
-        Brush := TGPSolidBrush.Create(Winapi.GDIPAPI.MakeColor(255, 255, 0, 0)) // Red color
-      else
-        //Regular Point
-        Brush := TGPSolidBrush.Create(Winapi.GDIPAPI.MakeColor(255, GetRValue(FUI.ChartArea.Points.Color.GetJDColor),
-                                                GetGValue(FUI.ChartArea.Points.Color.GetJDColor),
-                                                GetBValue(FUI.ChartArea.Points.Color.GetJDColor)));
+        Brush:= FUI.ChartArea.PointHover.MakeBrush;
+        Z := FUI.ChartArea.PointHover.Width / 2;
+      end else begin
+        // Regular Point
+        Brush:= FUI.ChartArea.Points.MakeBrush;
+        Z := FUI.ChartArea.Points.Width / 2;
+      end;
+      try
+        G.FillEllipse(Brush, P.X - Z, P.Y - Z, Z * 2, Z * 2);
+      finally
+        Brush.Free;
+      end;
+    end;
+  end;
+
+  procedure DrawGhostPoint;
+  begin
+    var Z: Single := FUI.ChartArea.PointMouse.Width / 2;
+    if FGhostPointVisible and FUI.ChartArea.PointMouse.Visible then begin
+      var P := PlotPointToPoint(FGhostPlotPoint);
+      var Brush:= FUI.ChartArea.PointMouse.MakeBrush;
       try
         G.FillEllipse(Brush, P.X - Z, P.Y - Z, Z * 2, Z * 2);
       finally
@@ -1165,19 +1241,6 @@ var
     end;
   end;
 
-  procedure DrawGhostPoint;
-  begin
-    if FGhostPointVisible then begin
-      var GP := PlotPointToPoint(FGhostPlotPoint);
-      var Brush := TGPSolidBrush.Create(Winapi.GDIPAPI.MakeColor(255, 0, 255, 255)); //TODO
-      try
-        G.FillEllipse(Brush, GP.X - 4, GP.Y - 4, 8, 8);
-      finally
-        Brush.Free;
-      end;
-    end;
-  end;
-
 
 
 
@@ -1191,7 +1254,7 @@ var
     LabelText: string;
   begin
     // Draw Bottom Axis Baseline
-    Pen := MakePen(FUI.ChartArea.AxisBottom.FLine.Color, FUI.ChartArea.AxisBottom.FLine.Width, 255);
+    Pen:= FUI.ChartArea.AxisBottom.BaseLine.MakePen;
     try
       var P1 := PointF(ChartRect.Left, ChartRect.Bottom); // Adjust this based on where the baseline should be
       var P2 := PointF(ChartRect.Right, ChartRect.Bottom);
@@ -1201,7 +1264,7 @@ var
     end;
 
     // Draw Vertical Grid Lines and Labels
-    Pen := MakePen(FUI.ChartArea.AxisBottom.FLine.Color, FUI.ChartArea.AxisBottom.FLine.Width, 255); // Use existing color for grid lines
+    Pen:= FUI.ChartArea.AxisBottom.GridLines.MakePen;
     try
       for I := 0 to Round((FUX.ChartArea.AxisBottom.Max - FUX.ChartArea.AxisBottom.Min) / FUX.ChartArea.AxisBottom.Frequency) do begin
         Position := ChartRect.Left + I * (ChartRect.Width / ((FUX.ChartArea.AxisBottom.Max - FUX.ChartArea.AxisBottom.Min) / FUX.ChartArea.AxisBottom.Frequency));
@@ -1230,7 +1293,7 @@ var
     LabelText: string;
   begin
     // Draw Left Axis Baseline
-    Pen := MakePen(FUI.ChartArea.AxisLeft.FLine.Color, FUI.ChartArea.AxisLeft.FLine.Width, 255);
+    Pen:= FUI.ChartArea.AxisLeft.BaseLine.MakePen;
     try
       var P1 := PointF(ChartRect.Left, ChartRect.Top); // Adjust this based on where the baseline should be
       var P2 := PointF(ChartRect.Left, ChartRect.Bottom);
@@ -1240,7 +1303,7 @@ var
     end;
 
     // Draw Horizontal Grid Lines and Labels
-    Pen := MakePen(FUI.ChartArea.AxisLeft.FLine.Color, FUI.ChartArea.AxisLeft.FLine.Width, 255); // Use existing color for grid lines
+    Pen:= FUI.ChartArea.AxisLeft.GridLines.MakePen;
     try
       for I := 0 to Round((FUX.ChartArea.AxisLeft.Max - FUX.ChartArea.AxisLeft.Min) / FUX.ChartArea.AxisLeft.Frequency) do begin
         Position := ChartRect.Bottom - I * (ChartRect.Height / ((FUX.ChartArea.AxisLeft.Max - FUX.ChartArea.AxisLeft.Min) / FUX.ChartArea.AxisLeft.Frequency));
@@ -1260,10 +1323,6 @@ var
       Pen.Free;
     end;
   end;
-
-
-
-
 
 begin
   inherited;
@@ -1429,6 +1488,16 @@ begin
   FPoints.Width:= 10;
   FPoints.Visible:= True;
 
+  FPointMouse:= TJDPlotChartUIPoint.Create(AOwner);
+  FPointMouse.Color.Color:= clGreen;
+  FPointMouse.Width:= 12;
+  FPointMouse.Visible:= True;
+
+  FPointHover:= TJDPlotChartUIPoint.Create(AOwner);
+  FPointHover.Color.Color:= clRed;
+  FPointHover.Width:= 12;
+  FPointHover.Visible:= True;
+
   FAxisLeft:= TJDPlotChartUIAxis.Create(FOwner);
   FAxisBottom:= TJDPlotChartUIAxis.Create(FOwner);
 
@@ -1445,6 +1514,8 @@ begin
   FreeAndNil(FFill);
   FreeAndNil(FAxisBottom);
   FreeAndNil(FAxisLeft);
+  FreeAndNil(FPointHover);
+  FreeAndNil(FPointMouse);
   FreeAndNil(FPoints);
   FreeAndNil(FLine);
   FreeAndNil(FBorder);
@@ -1492,6 +1563,18 @@ end;
 procedure TJDPlotChartUIChart.SetPadding(const Value: Single);
 begin
   FPadding := Value;
+  Invalidate;
+end;
+
+procedure TJDPlotChartUIChart.SetPointHover(const Value: TJDPlotChartUIPoint);
+begin
+  FPointHover.Assign(Value);
+  Invalidate;
+end;
+
+procedure TJDPlotChartUIChart.SetPointMouse(const Value: TJDPlotChartUIPoint);
+begin
+  FPointMouse.Assign(Value);
   Invalidate;
 end;
 
@@ -1555,7 +1638,7 @@ begin
   inherited;
   FColor:= TJDColorRef.Create;
   FColor.OnChange:= ColorChanged;
-
+  FAlpha:= 255;
 end;
 
 destructor TJDPlotChartUIPoint.Destroy;
@@ -1563,6 +1646,21 @@ begin
 
   FreeAndNil(FColor);
   inherited;
+end;
+
+function TJDPlotChartUIPoint.MakeBrush: TGPSolidBrush;
+begin
+  Result:= TGPSolidBrush.Create(Winapi.GDIPAPI.MakeColor(FAlpha,
+    Color.GetJDColor.Red,
+    Color.GetJDColor.Green,
+    Color.GetJDColor.Blue
+    ));
+end;
+
+procedure TJDPlotChartUIPoint.SetAlpha(const Value: Byte);
+begin
+  FAlpha := Value;
+  Invalidate;
 end;
 
 procedure TJDPlotChartUIPoint.SetColor(const Value: TJDColorRef);
@@ -1594,18 +1692,27 @@ end;
 constructor TJDPlotChartUIAxis.Create(AOwner: TJDPlotChart);
 begin
   inherited;
-  FLine:= TJDPlotChartUILine.Create(FOwner);
-  FLine.Width:= 3;
-  FLine.Color.UseStandardColor:= False;
-  FLine.Color.Color:= clSilver;
-  FLine.Visible:= True;
+  FBaseLine:= TJDPlotChartUILine.Create(FOwner);
+  FBaseLine.Width:= 3;
+  FBaseLine.Color.UseStandardColor:= False;
+  FBaseLine.Color.Color:= clSilver;
+  FBaseLine.Visible:= True;
+  FBaseLine.Alpha:= 220;
+
+  FGridLines:= TJDPlotChartUILine.Create(FOwner);
+  FGridLines.Width:= 1;
+  FGridLines.Color.UseStandardColor:= False;
+  FGridLines.Color.Color:= clGray;
+  FGridLines.Visible:= True;
+  FGridLines.Alpha:= 180;
 
 end;
 
 destructor TJDPlotChartUIAxis.Destroy;
 begin
 
-  FreeAndNil(FLine);
+  FreeAndNil(FGridLines);
+  FreeAndNil(FBaseLine);
   inherited;
 end;
 
@@ -1615,9 +1722,15 @@ begin
   Invalidate;
 end;
 
-procedure TJDPlotChartUIAxis.SetLine(const Value: TJDPlotChartUILine);
+procedure TJDPlotChartUIAxis.SetBaseLine(const Value: TJDPlotChartUILine);
 begin
-  FLine.Assign(Value);
+  FBaseLine.Assign(Value);
+  Invalidate;
+end;
+
+procedure TJDPlotChartUIAxis.SetGridLines(const Value: TJDPlotChartUILine);
+begin
+  FGridLines.Assign(Value);
   Invalidate;
 end;
 
@@ -1664,7 +1777,6 @@ begin
   if FY <> Value then
     SetPoint(FX, Value);
 end;
-
 
 { TJDPlotPoints }
 
@@ -1927,6 +2039,15 @@ procedure TJDPlotChartUXAxis.SetFrequency(const Value: Single);
 begin
   FFrequency := Value;
   Invalidate;
+end;
+
+{ TJDPlotChartUIFill }
+
+constructor TJDPlotChartUIFill.Create(AOwner: TJDPlotChart);
+begin
+  inherited;
+  Color.Color:= $00303030;
+  Alpha:= 120;
 end;
 
 end.
