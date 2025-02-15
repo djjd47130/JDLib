@@ -40,7 +40,8 @@ A custom control allowing users to create and manage plot points to generate dat
 
 A dynamic and customizable gauge control.
 
-![image](https://github.com/user-attachments/assets/45613732-589e-4674-8b86-e0615ddec064)
+![image](https://github.com/user-attachments/assets/2e56bd3b-1f4a-47ff-8e6e-f6e1867f585a)
+
 
 
 ## Smooth Move Component
