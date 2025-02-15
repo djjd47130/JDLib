@@ -150,7 +150,7 @@ A character representing a glyph in a specific font.
 
 
 ## Color Manager
-**TJDColorManager** [MOSTLY FUNCTIONAL]
+**[TJDColorManager](/Docs/TJDColorManager.md)** [MOSTLY FUNCTIONAL]
 
 A central class to manage colors in light and dark modes application-wide.
 
