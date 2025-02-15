@@ -2,19 +2,20 @@
 JD Library of Custom Components and Controls, written by Jerry Dodge.
 
 ### NOTE:
-This library is under active development, and is in no way complete, until further notice.
+This library is under active development, and is in no way complete until further notice. Some things are fully functional, while other things are completely unmaintained prototypes. 
 
 ### Prerequisites
 
 JDLib is optimized for VCL in Delphi 10.4, and uses / requires the following:
 
-- VCL
-- GDI+
-- Indy
+- GDI+ (Built into Delphi)
+- Indy (Built into Delphi)
+
+
 
 ### Documentation
 
-[Latest Documentation Markdown Content](/Docs/JDLib%20Docs.md)
+[New documentation being written here](/Docs/JDLib%20Docs.md)
 
 
 
@@ -24,13 +25,26 @@ JDLib is optimized for VCL in Delphi 10.4, and uses / requires the following:
 ## Font Button Control
 **[TJDFontButton](/Docs/TJDFontButton.md)** [MOSTLY FUNCTIONAL]
 
-A button which supports a font glyph instead of a graphic image.
+A button which supports a font glyph instead of a graphic image, among other unique features.
+
+- Completely custom, not inheriting from any existing button control.
+- Options for where and how to display the glyph, if at all.
+- Transparent background options.
+- Optional overlay glyph.
+- Optional sub-caption.
+- Supports VCL styles.
 
 
 ## Plot Chart Control
 **[TJDPlotChart](/Docs/TJDPlotChart.md)** [ACTIVE PROJECT]
 
 A custom control allowing users to create and manage plot points to generate data.
+
+- Run-time UI control of plot points by dragging plot points.
+- Uses GDI+ for smooth graphics.
+- Several UI/UX options to control behavior.
+- Ultimately calculate Y-axis value based on any given X-axis value.
+- Used for variable control, such as fan speed, volume, etc.
 
 ![image](https://github.com/user-attachments/assets/c714ec12-9d92-4fc1-8172-56fe0d3b1d4f)
 
@@ -49,11 +63,20 @@ A dynamic and customizable gauge control.
  
 Event-driven component to manage the movement of controls or values in general. Comparable to the "Float Animations" available in Firemonkey.
 
+- Entirely stand-alone - is not linked with any components or properties.
+- Background thread to perform calculations and trigger events.
+- Options for smooth "snap" movements.
+
 
 ## Font Glyphs Component
 **TJDFontGlyphs** [FULLY FUNCTIONAL]
 
 Collection of glyphs to be rendered into a collection of image lists.
+
+- Attaches to one or more `TImageList` components.
+- Generate collection of `TJDGlyphRef`s with font and color controls.
+- Attached image lists automatically synchronized with registered glyphs.
+- Same glyphs easily replicated among different size image lists.
 
 
 ## Page Menu Control
@@ -86,6 +109,9 @@ Detects and reports system information such as CPU, RAM, and Storage.
 
 Provides direct access to system Volume and Mute controls.
 
+- Directly read and write system volume and mute state.
+- Events instantly triggered upon system volume or mute state changes.
+- Allows you to implement third-party system volume and mute control.
 
 
 ## Font Glyph Property
