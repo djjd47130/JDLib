@@ -8,25 +8,92 @@ This library is under active development, and is in no way complete, until furth
 
 JDLib is optimized for VCL in Delphi 10.4, and uses / requires the following:
 
+- VCL
 - GDI+
 - Indy
 
-### Documentation:
+### Documentation
 
 [Latest Documentation Markdown Content](/Docs/JDLib%20Docs.md)
 
-### Components:
 
-- **[TJDFontButton](/Docs/TJDFontButton.md)** Control - A button which supports a font glyph instead of a graphic image.
--  **[TJDSmoothMove](/Docs/TJDSmoothMove.md)** Component - Event-driven component to manage the movement of controls or values in general. 
-    - Comparable to the "Float Animations" available in Firemonkey.
-- **TJDPageMenu** Control - A custom control to switch between pages. 
+
+# JDLib Contents
+
+
+## Font Button Control
+**[TJDFontButton](/Docs/TJDFontButton.md)**
+
+A button which supports a font glyph instead of a graphic image.
+
+
+## Plot Chart Control
+**[TJDPlotChart](/Docs/TJDPlotChart.md)** [ACTIVE PROJECT]
+
+A custom control allowing users to create and manage plot points to generate data.
+
+![image](https://github.com/user-attachments/assets/c714ec12-9d92-4fc1-8172-56fe0d3b1d4f)
+
+
+## Gauge Control
+**[TJDGauge](/Docs/TJDGauge.md)** [ACTIVE PROJECT]
+
+A dynamic and customizable gauge control.
+
+![image](https://github.com/user-attachments/assets/45613732-589e-4674-8b86-e0615ddec064)
+
+
+## Smooth Move Component
+ **[TJDSmoothMove](/Docs/TJDSmoothMove.md)**
+ 
+Event-driven component to manage the movement of controls or values in general. Comparable to the "Float Animations" available in Firemonkey.
+
+
+## Font Glyphs Component
+**TJDFontGlyphs**
+
+Collection of glyphs to be rendered into a collection of image lists.
+
+
+## Page Menu Control
+**TJDPageMenu** [PROTOTYPE]
+
+A custom control to switch between pages. 
     - Similar to, but far different from, a THeaderControl.
-- **TJDImageGrid** Control - A custom control to display a list of custom-drawn images.
-- **TJDSideMenu** Control - A custom control to display a main menu on the left side.
-- **[TJDGauge](/Docs/TJDGauge.md)** Control - A dynamic and customizable gauge control.
-- **TJDFontGlyph** Property - A character representing a glyph in a specific font.
-- **TJDFontGlyphs** Component - Collection of glyphs to be rendered into a collection of image lists.
-- **TJDSystemMonitor** Component - Detects and reports system information such as CPU, RAM, and Storage.
-- **TJDVolumeControls** Component - Provides direct access to system Volume and Mute controls.
-- **[TJDPlotChart](/Docs/TJDPlotChart.md)** Control - A custom control allowing users to create and manage plot points to generate data.
+
+
+## Image Grid Control
+**TJDImageGrid** [PROTOTYPE]
+
+A custom control to display a list of custom-drawn images.
+
+
+## Side Menu Control
+**TJDSideMenu** [PROTOTYPE]
+
+A custom control to display a main menu on the left side.
+
+
+## System Monitor Component
+**TJDSystemMonitor**
+
+Detects and reports system information such as CPU, RAM, and Storage.
+
+
+## Volume Controls Component
+**TJDVolumeControls**
+
+Provides direct access to system Volume and Mute controls.
+
+
+
+## Font Glyph Property
+**TJDFontGlyph**
+
+A character representing a glyph in a specific font.
+
+
+## Color Record
+**TJDColor**
+
+A flexible record type with class operators to cast between RGB, HSV, CMYK, and custom color management.
