@@ -98,3 +98,11 @@ A character representing a glyph in a specific font.
 **TJDColor**
 
 A flexible record type with class operators to cast between RGB, HSV, CMYK, and custom color management.
+
+
+## Point and Rect Records
+**TJDPoint** and **TJDRect**
+
+Flexible record types with class operators to cast between `TPoint`/`TRect`, `TPointF`/`TRectF`, and `TGPPoint`/`TGPRect`.
+
+
