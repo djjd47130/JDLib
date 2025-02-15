@@ -272,20 +272,22 @@ type
   TJDColorHSVRef = class(TPersistent)
   private
     FOwner: TJDColorRef;
-    function GetH: TJDCHue;
-    function GetS: TJDCSaturation;
-    function GetV: TJDCBrightness;
-    procedure SetH(const Value: TJDCHue);
-    procedure SetS(const Value: TJDCSaturation);
-    procedure SetV(const Value: TJDCBrightness);
+    function GetH: Word;
+    function GetS: Byte;
+    function GetV: Byte;
+    procedure SetH(const Value: Word);
+    procedure SetS(const Value: Byte);
+    procedure SetV(const Value: Byte);
   public
     constructor Create(AOwner: TJDColorRef);
     destructor Destroy; override;
     procedure Invalidate;
   published
-    property H: TJDCHue read GetH write SetH stored False;
-    property S: TJDCSaturation read GetS write SetS stored False;
-    property V: TJDCBrightness read GetV write SetV stored False;
+    //TODO: Change to Byte and implement property setter rules
+    //  or make property editors as they fail to display in designtime.
+    property H: Word read GetH write SetH stored False;
+    property S: Byte read GetS write SetS stored False;
+    property V: Byte read GetV write SetV stored False;
   end;
 
   TJDColorCMYKRef = class(TPersistent)
@@ -345,6 +347,8 @@ type
     property CMYK: TJDColorCMYKRef read FCMYK write SetCMYK stored False;
     property UseStandardColor: Boolean read FUseStandardColor write SetUseStandardColor;
   end;
+
+
 
   ///  <summary>
   ///  Global object to keep track of color themes throughout JDLib.
@@ -439,7 +443,8 @@ function RGBToHSV(R, G, B: Byte; var H, S, V: Double): Boolean;
 /// <summary>
 /// Converts HSV color to RGB color
 /// </summary>
-function HSVToRGB(H, S, V: Double; var R, G, B: Byte): Boolean;
+//function HSVToRGB(H, S, V: Double; var R, G, B: Byte): Boolean;
+procedure HSVToRGB(H, S, V: Double; out R, G, B: Byte);
 /// <summary>
 /// Converts RGB color to HTML color
 /// </summary>
@@ -647,6 +652,7 @@ begin
   Result:= True;
 end;
 
+{
 function HSVToRGB(H, S, V: Double; var R, G, B: Byte): Boolean;
 var
   i: Integer;
@@ -684,6 +690,57 @@ begin
     else CopyOutput(V, p, q);
   end;
   Result:= True;
+end;
+}
+
+procedure HSVToRGB(H, S, V: Double; out R, G, B: Byte);
+var
+  C, X, M, HPrime: Double;
+  R_, G_, B_: Double;
+begin
+  Assert((H >= 0) and (H <= 360), 'Hue must be in the range 0-360');
+  Assert((S >= 0) and (S <= 100), 'Saturation must be in the range 0-100');
+  Assert((V >= 0) and (V <= 100), 'Brightness must be in the range 0-100');
+
+  // Normalize S and V to 0-1 range
+  S := S / 100;
+  V := V / 100;
+
+  HPrime := H / 60;
+  C := V * S;
+  X := C * (1 - Abs(Frac(HPrime) - 1));
+  M := V - C;
+
+  if (HPrime >= 0) and (HPrime < 1) then begin
+    R_ := C;
+    G_ := X;
+    B_ := 0;
+  end else if (HPrime >= 1) and (HPrime < 2) then begin
+    R_ := X;
+    G_ := C;
+    B_ := 0;
+  end else if (HPrime >= 2) and (HPrime < 3) then begin
+    R_ := 0;
+    G_ := C;
+    B_ := X;
+  end else if (HPrime >= 3) and (HPrime < 4) then begin
+    R_ := 0;
+    G_ := X;
+    B_ := C;
+  end else if (HPrime >= 4) and (HPrime < 5) then begin
+    R_ := X;
+    G_ := 0;
+    B_ := C;
+  end else begin
+    R_ := C;
+    G_ := 0;
+    B_ := X;
+  end;
+
+  // Convert to 0-255 range
+  R := Round((R_ + M) * 255);
+  G := Round((G_ + M) * 255);
+  B := Round((B_ + M) * 255);
 end;
 
 function PointAroundCenter(Center: TJDPoint; Distance: Single; Degrees: Single;
@@ -1448,19 +1505,19 @@ begin
   inherited;
 end;
 
-function TJDColorHSVRef.GetH: TJDCHue;
+function TJDColorHSVRef.GetH: Word;
 begin
-  Result:= FOwner.GetJDColor.Hue;
+  Result:= Round(FOwner.GetJDColor.Hue.FValue);
 end;
 
-function TJDColorHSVRef.GetS: TJDCSaturation;
+function TJDColorHSVRef.GetS: Byte;
 begin
-  Result:= FOwner.GetJDColor.Saturation;
+  Result:= Round(FOwner.GetJDColor.Saturation.FValue);
 end;
 
-function TJDColorHSVRef.GetV: TJDCBrightness;
+function TJDColorHSVRef.GetV: Byte;
 begin
-  Result:= FOwner.GetJDColor.Brightness;
+  Result:= Round(FOwner.GetJDColor.Brightness.FValue);
 end;
 
 procedure TJDColorHSVRef.Invalidate;
@@ -1468,7 +1525,7 @@ begin
   FOwner.Invalidate;
 end;
 
-procedure TJDColorHSVRef.SetH(const Value: TJDCHue);
+procedure TJDColorHSVRef.SetH(const Value: Word);
 var
   C: TJDColor;
 begin
@@ -1478,7 +1535,7 @@ begin
   Invalidate;
 end;
 
-procedure TJDColorHSVRef.SetS(const Value: TJDCSaturation);
+procedure TJDColorHSVRef.SetS(const Value: Byte);
 var
   C: TJDColor;
 begin
@@ -1488,7 +1545,7 @@ begin
   Invalidate;
 end;
 
-procedure TJDColorHSVRef.SetV(const Value: TJDCBrightness);
+procedure TJDColorHSVRef.SetV(const Value: Byte);
 var
   C: TJDColor;
 begin
