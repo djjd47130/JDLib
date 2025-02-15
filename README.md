@@ -94,6 +94,12 @@ Provides direct access to system Volume and Mute controls.
 A character representing a glyph in a specific font.
 
 
+## Color Manager
+**TJDColorManager** [MOSTLY FUNCTIONAL]
+
+A central class to manage colors in light and dark modes application-wide.
+
+
 ## Color Record
 **TJDColor** [FULLY FUNCTIONAL]
 
