@@ -19,7 +19,17 @@ JDLib is optimized for VCL in Delphi 10.4, and uses / requires the following:
 
 
 
+
 # JDLib Contents
+
+### Status Labels
+
+Note how each item listed below has a [BOLD STATUS] by it. The meanings are:
+
+- [FULLY FUNCTIONAL] - Tested and used in production projects. Does not mean bug-free or complete, however. 
+- [MOSTLY FUNCTIONAL] - Functional for the most part, but not suitable for any production use yet.
+- [ACTIVE PROJECT] - Currently in active development, and not suitable for production. 
+- [PROTOTYPE] - A concept which has been started but put on the side, and is far from production.
 
 
 ## Font Button Control
@@ -119,11 +129,18 @@ Provides direct access to system Volume and Mute controls.
 
 A character representing a glyph in a specific font.
 
+- Used as property on components to devine a font glyph.
+- Integrates custom property editor to browse glyphs in a given font.
+
 
 ## Color Manager
 **TJDColorManager** [MOSTLY FUNCTIONAL]
 
 A central class to manage colors in light and dark modes application-wide.
+
+- Detects dark/light color mode based on current VCL style.
+- Implements several standardized colors which vary depending on color mode.
+- Broadcasts color and style changes to any registered components or controls.
 
 
 ## Color Record
@@ -131,10 +148,23 @@ A central class to manage colors in light and dark modes application-wide.
 
 A flexible record type with class operators to cast between RGB, HSV, CMYK, and custom color management.
 
+- Implicitly cast to and from `TColor`.
+- Direct RGB value support.
+- Direct HSV value support.
+- Directly CMYK value support.
+- Alpha transparency support. [IN DEVELOPMENT]
+- JD standard color support.
+
+  
 
 ## Point and Rect Records
 **TJDPoint** and **TJDRect** [FULLY FUNCTIONAL]
 
 Flexible record types with class operators to cast between `TPoint`/`TRect`, `TPointF`/`TRectF`, and `TGPPoint`/`TGPRect`.
 
+- `TJDPoint` and `TJDRect` naturally use Single for X/Y values.
+- Implicitly cast `TJDPoint` to and from `TPoint`, `TPointF`, and `TGPPoint`.
+- Implicitly cast `TJDRect` to and from `TRect`, `TRectF`, and `TGPRect`.
+- Helpful control methods such as `Move`, `Inflate`, `Deflate`.
+- Helpful referemce methods such as `TJDRect.TopRight` point.
 
