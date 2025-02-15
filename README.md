@@ -12,6 +12,12 @@ JDLib is optimized for VCL in Delphi 10.4, and uses / requires the following:
 - Indy (Built into Delphi)
 
 
+## Custom Color System
+
+It's important to note that various components / controls across JDLib make use of a centralized color management mechanism. This includes a set of standardized color values which can be customized in the different light/dark color modes. For example, when in light mode, `fcYellow` would be a darker yellow, whereas in dark mode, it would be a lighter yellow. What's important is to maintain a contrast of colors depending on the current base color.
+
+Please refer to `TJDColorManager` for more information.
+
 
 ### Documentation
 
@@ -55,6 +61,7 @@ A custom control allowing users to create and manage plot points to generate dat
 - Several UI/UX options to control behavior.
 - Ultimately calculate Y-axis value based on any given X-axis value.
 - Used for variable control, such as fan speed, volume, etc.
+- Not necessarily intended for general display of data - instead geared towards user data input.
 
 ![image](https://github.com/user-attachments/assets/c714ec12-9d92-4fc1-8172-56fe0d3b1d4f)
 
@@ -64,8 +71,15 @@ A custom control allowing users to create and manage plot points to generate dat
 
 A dynamic and customizable gauge control.
 
-![image](https://github.com/user-attachments/assets/2e56bd3b-1f4a-47ff-8e6e-f6e1867f585a)
+- Variety of gauge types to choose from for different appearances. For example, Horizontal Bar, Vertical Bar, Arc...
+- Uses GDI+ for smooth graphics.
+- Supports importing third-party gauge implementations on the same backbone.
+- Supports more than 1 value, with options for how to combine values together.
+- Several options to control UI/UX.
+- Used to provide enhanced UI display of one or a few data points.
+- One big goal is to also treat it as a track bar of sorts.
 
+![image](https://github.com/user-attachments/assets/2e56bd3b-1f4a-47ff-8e6e-f6e1867f585a)
 
 
 ## Smooth Move Component
@@ -93,7 +107,9 @@ Collection of glyphs to be rendered into a collection of image lists.
 **TJDPageMenu** [PROTOTYPE]
 
 A custom control to switch between pages. 
-    - Similar to, but far different from, a THeaderControl.
+
+- Similar to, but far different from, a THeaderControl.
+- Inspired by the TChromeTabs control, but intended to be much more light-weight.
 
 
 ## Image Grid Control
