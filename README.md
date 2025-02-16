@@ -160,14 +160,14 @@ A central class to manage colors in light and dark modes application-wide.
 
 
 ## Color Record
-**TJDColor** [FULLY FUNCTIONAL]
+`TJDColor` [FULLY FUNCTIONAL]
 
 A flexible record type with class operators to cast between RGB, HSV, CMYK, and custom color management.
 
 - Implicitly cast to and from `TColor`.
 - Direct RGB value support.
 - Direct HSV value support.
-- Directly CMYK value support.
+- Direct CMYK value support.
 - Alpha transparency support. [IN DEVELOPMENT]
 - JD standard color support.
 
