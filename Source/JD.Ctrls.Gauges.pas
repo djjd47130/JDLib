@@ -546,6 +546,7 @@ type
     property ValueAlign: TAlignment read FValueAlign write SetValueAlign default taRightJustify;
     property ValueFormat: String read FValueFormat write SetValueFormat;
     property ValueMargin: Single read FValueMargin write SetValueMargin;
+    property Visible;
 
     property MainValue: TJDGaugeValue read GetMainValue write SetMainValue stored False;
 

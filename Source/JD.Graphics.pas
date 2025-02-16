@@ -1,4 +1,4 @@
-unit JD.Graphics;
+ï»¿unit JD.Graphics;
 
 //Delphi class operators: https://docwiki.embarcadero.com/RADStudio/Sydney/en/Operator_Overloading_(Delphi)
 
@@ -189,7 +189,8 @@ type
     FRed: Byte;
     FGreen: Byte;
     FBlue: Byte;
-    //FAlpha: Byte;
+    FAlpha: Byte;
+    
 
     //TODO: Support JD Standard colors
     //  At this point, may not be necessary since it's in TJDColorRef.
@@ -199,8 +200,8 @@ type
     //  predefine as many color references as their heart desires,
     //  give each one a unique name, and reference them here...
 
-    //function GetAlpha: Byte;
-    //procedure SetAlpha(const Value: Byte);
+    function GetAlpha: Byte;
+    procedure SetAlpha(const Value: Byte);
 
     function GetHue: TJDCHue;
     function GetSaturation: TJDCSaturation;
@@ -227,7 +228,7 @@ type
     class operator Equal(a: TJDColor; b: TJDColor): Boolean;
     class operator NotEqual(a: TJDColor; b: TJDColor): Boolean;
 
-    //property Alpha: Byte read GetAlpha write SetAlpha;
+    property Alpha: Byte read GetAlpha write SetAlpha;
 
     property Red: Byte read FRed write FRed;
     property Green: Byte read FGreen write FGreen;
@@ -283,8 +284,6 @@ type
     destructor Destroy; override;
     procedure Invalidate;
   published
-    //TODO: Change to Byte and implement property setter rules
-    //  or make property editors as they fail to display in designtime.
     property H: Word read GetH write SetH stored False;
     property S: Byte read GetS write SetS stored False;
     property V: Byte read GetV write SetV stored False;
@@ -325,33 +324,53 @@ type
     FHSV: TJDColorHSVRef;
     FCMYK: TJDColorCMYKRef;
     FOnChange: TNotifyEvent;
-    function GetColor: TColor;
-    procedure SetColor(const Value: TColor);
-    procedure SetStandardColor(const Value: TJDStandardColor);
-    procedure SetUseStandardColor(const Value: Boolean);
-    procedure SetCMYK(const Value: TJDColorCMYKRef);
-    procedure SetHSV(const Value: TJDColorHSVRef);
-    procedure SetRGB(const Value: TJDColorRGBRef);
+    function GetColor: TColor; virtual;
+    procedure SetColor(const Value: TColor); virtual;
+    procedure SetStandardColor(const Value: TJDStandardColor); virtual;
+    procedure SetUseStandardColor(const Value: Boolean); virtual;
+    procedure SetCMYK(const Value: TJDColorCMYKRef); virtual;
+    procedure SetHSV(const Value: TJDColorHSVRef); virtual;
+    procedure SetRGB(const Value: TJDColorRGBRef); virtual;
+    function IsStandardColorStored: Boolean;
+    function IsMainColorStored: Boolean;
   public
-    constructor Create;
+    constructor Create; virtual;
     destructor Destroy; override;
     procedure Assign(Source: TPersistent); override;
-    procedure Invalidate;
-    function GetJDColor: TJDColor;
+    procedure Invalidate; virtual;
+    function GetJDColor: TJDColor; virtual;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
   published
-    property Color: TColor read GetColor write SetColor;
-    property StandardColor: TJDStandardColor read FStandardColor write SetStandardColor;
+    property Color: TColor read GetColor write SetColor stored IsMainColorStored;
     property RGB: TJDColorRGBRef read FRGB write SetRGB stored False;
     property HSV: TJDColorHSVRef read FHSV write SetHSV stored False;
     property CMYK: TJDColorCMYKRef read FCMYK write SetCMYK stored False;
-    property UseStandardColor: Boolean read FUseStandardColor write SetUseStandardColor;
+    property StandardColor: TJDStandardColor read FStandardColor write SetStandardColor stored IsStandardColorStored;
+    property UseStandardColor: Boolean read FUseStandardColor write SetUseStandardColor stored True;
+  end;
+
+  ///  <summary>
+  ///  A selection of a color with several customizable options
+  ///  including an Alpha transparency channel.
+  ///  Meant to be used as a published property on custom controls.
+  ///  </summary>
+  TJDAlphaColorRef = class(TJDColorRef)
+  private
+    FAlpha: Byte;
+    procedure SetAlpha(const Value: Byte);
+  public
+    constructor Create; override;
+    procedure Assign(Source: TPersistent); override;
+    function GetJDColor: TJDColor; override;
+  published
+    property Alpha: Byte read FAlpha write SetAlpha;
   end;
 
 
 
   ///  <summary>
   ///  Global object to keep track of color themes throughout JDLib.
+  ///  - BaseColor: The main background color to be used to determine color mode.
   ///  - ColorMode: Controls whether in Light, Dark, or Medium light modes.
   ///  - BaseColor: The main background color to be used to determine color mode
   ///    and use for masks.
@@ -507,6 +526,22 @@ begin
   Result:= _ColorManager;
 end;
 
+function GetAValue(Color: TColor): Byte;
+begin
+  Result := (Color shr 24) and $FF;
+end;
+
+function SetAValue(Color: TColor; A: Byte): TColor;
+begin
+  Result := (Color and $00FFFFFF) or (A shl 24);
+end;
+
+function RGBA(R, G, B, A: Byte): TColor;
+begin
+  //Result := (A shl 24) or (R shl 16) or (G shl 8) or B;
+  Result := (A shl 24) or (B shl 16) or (G shl 8) or R;
+end;
+
 {$IFDEF USE_GDIP}
 function RectToGPRect(R: TRect): TGPRectF;
 begin
@@ -538,7 +573,7 @@ var
 begin
   COL := ColorToRGB(Color);
   { first convert TColor to Integer to remove the higher bits }
-  { erst TColor zu Integer, da die Unnötigen höheren Bit entfernt werden }
+  { erst TColor zu Integer, da die Unnï¿½tigen hï¿½heren Bit entfernt werden }
   Result := '#' + IntToHex(COL and $FF, 2) +
     IntToHex(COL shr 8 and $FF, 2) +
     IntToHex(COL shr 16 and $FF, 2);
@@ -652,47 +687,6 @@ begin
   Result:= True;
 end;
 
-{
-function HSVToRGB(H, S, V: Double; var R, G, B: Byte): Boolean;
-var
-  i: Integer;
-  f, p, q, t: Double;
-  procedure CopyOutput(const RV, GV, BV: Double);
-  const
-    RGBmax = 255;
-  begin
-    R:= Round(RGBmax * RV);
-    G:= Round(RGBmax * GV);
-    B:= Round(RGBmax * BV);
-  end;
-begin
-  Assert(InRange(H, 0.0, 1.0)); //Shouldn't this be up to 360?
-  Assert(InRange(S, 0.0, 1.0));
-  Assert(InRange(V, 0.0, 1.0));
-  if S = 0.0 then begin
-    // achromatic (grey)
-    CopyOutput(B, B, B);
-    Result:= True;
-    exit;
-  end;
-  H := H * 6.0; // sector 0 to 5
-  i := floor(H);
-  f := H - i; // fractional part of H
-  p := V * (1.0 - S);
-  q := V * (1.0 - S * f);
-  t := V * (1.0 - S * (1.0 - f));
-  case i of
-    0: CopyOutput(V, t, p);
-    1: CopyOutput(q, V, p);
-    2: CopyOutput(p, V, t);
-    3: CopyOutput(p, q, V);
-    4: CopyOutput(t, p, V);
-    else CopyOutput(V, p, q);
-  end;
-  Result:= True;
-end;
-}
-
 procedure HSVToRGB(H, S, V: Double; out R, G, B: Byte);
 var
   C, X, M, HPrime: Double;
@@ -751,9 +745,22 @@ begin
   //Oval support: https://stackoverflow.com/questions/8433443/modify-a-formula-from-calculating-around-a-circle-to-around-an-oval
   //Return point around a center point, based on angle and distance (radius)...
   //Convert angle from degrees to radians; Subtract 135 to bring position to 0 Degrees
+  //TODO: I recall an updated version of this along with a reverse function... where are they???
   Radians:= (Degrees - 135) * Pi / 180;
   Result.X:= Distance*Cos(Radians) - Distance*Sin(Radians) + Center.X;
   Result.Y:= (Distance*Sin(Radians) + Distance*Cos(Radians)) / OvalOffset + Center.Y;
+end;
+
+function GetDegreesFromPointAroundCenter(Center: TJDPoint; P: TJDPoint;
+  OvalOffset: Single = 1): Single;
+var
+  Radians: Real;
+begin
+  //Given a point, return the angle back to the center point
+  //Reverse of PointAroundCenter.
+  //GENERATED BY CODEIUM
+  Radians:= Arctan2(P.Y - Center.Y, P.X - Center.X);
+  Result:= (Radians * 180 / Pi) + 135;
 end;
 
 { TJDCHue }
@@ -1012,8 +1019,10 @@ end;
 
 class operator TJDColor.Implicit(Value: TJDColor): TColor;
 begin
-  with Value do
-    Result:= RGB(Red, Green, Blue);
+  with Value do begin
+    Result:= RGBA(Red, Green, Blue, Alpha);
+    //Result:= SetAValue(Result, Alpha);
+  end;
 end;
 
 class operator TJDColor.Implicit(Value: TColor): TJDColor;
@@ -1022,6 +1031,7 @@ begin
     FRed:= GetRValue(Value);
     FGreen:= GetGValue(Value);
     FBlue:= GetBValue(Value);
+    FAlpha:= GetAValue(Value);
   end;
 end;
 
@@ -1062,8 +1072,8 @@ end;
 function TJDColor.GetGDIPColor: Cardinal;
 begin
   //TODO: Alpha...
-  Result:= GDIPAPI.MakeColor(255, FRed, FGreen, FBlue);
-  //Result:= GDIPAPI.MakeColor(FAlpha, FRed, FGreen, FBlue);
+  //Result:= GDIPAPI.MakeColor(255, FRed, FGreen, FBlue);
+  Result:= GDIPAPI.MakeColor(FAlpha, FRed, FGreen, FBlue);
 end;
 
 function TJDColor.GetMagenta: Byte;
@@ -1079,6 +1089,11 @@ end;
 class operator TJDColor.Equal(a, b: TJDColor): Boolean;
 begin
   Result:= TColor(A) = TColor(B);
+end;
+
+function TJDColor.GetAlpha: Byte;
+begin
+  Result:= FAlpha;
 end;
 
 function TJDColor.GetBlack: Byte;
@@ -1126,6 +1141,11 @@ end;
 procedure TJDColor.SetYellow(const Value: Byte);
 begin
   Self:= CMYK(Cyan, Magenta, Value, Black);
+end;
+
+procedure TJDColor.SetAlpha(const Value: Byte);
+begin
+  FAlpha:= Value;
 end;
 
 procedure TJDColor.SetBlack(const Value: Byte);
@@ -1192,6 +1212,16 @@ begin
     FOnChange(Self);
 end;
 
+function TJDColorRef.IsMainColorStored: Boolean;
+begin
+  Result:= not FUseStandardColor;
+end;
+
+function TJDColorRef.IsStandardColorStored: Boolean;
+begin
+  Result:= FUseStandardColor;
+end;
+
 procedure TJDColorRef.SetColor(const Value: TColor);
 begin
   FUseStandardColor:= False;
@@ -1226,6 +1256,36 @@ end;
 procedure TJDColorRef.SetUseStandardColor(const Value: Boolean);
 begin
   FUseStandardColor := Value;
+  Invalidate;
+end;
+
+{ TJDAlphaColorRef }
+
+procedure TJDAlphaColorRef.Assign(Source: TPersistent);
+begin
+  if Source is TJDAlphaColorRef then begin
+    FColor:= TJDAlphaColorRef(Source).FColor;
+    FAlpha:= TJDAlphaColorRef(Source).FAlpha;
+    FStandardColor:= TJDColorRef(Source).FStandardColor;
+    FUseStandardColor:= TJDColorRef(Source).FUseStandardColor;
+  end else
+    inherited;
+end;
+
+constructor TJDAlphaColorRef.Create;
+begin
+  inherited;
+  FAlpha:= 255;
+end;
+
+function TJDAlphaColorRef.GetJDColor: TJDColor;
+begin
+  inherited;
+end;
+
+procedure TJDAlphaColorRef.SetAlpha(const Value: Byte);
+begin
+  FAlpha := Value;
   Invalidate;
 end;
 
