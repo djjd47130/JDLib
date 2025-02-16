@@ -12,3 +12,35 @@
 2. **JD.Graphics.pas** - Contains common code related to graphics.
 3. **JD.Ctrls.FontButtonEdit.pas** - Contains a component editor for the `TFontButton`
 4. **JD.Ctrls.FontButtonEditCtrl** - Contains a component editor to convert other buttons to `TFontButton`
+
+## Properties
+- DownSize
+- DrawStyle
+- Image
+  - AutoSize
+  - Font
+  - GrowSize
+  - StandardColor
+  - Text
+  - UseStandardColor
+- ImagePosition
+- Overlay
+  - Font
+  - Margin
+  - Position
+  - StandardColor
+  - Text
+  - UseStandardColor
+- ParentColorOverride
+- ShowGuides
+- Spacing
+- StyleColors
+  - scCaption
+  - scImage
+  - scBack
+  - scFrame
+- SubText
+- SubTextFont
+- SubTextStyle
+- Text
+
