@@ -214,12 +214,11 @@ type
     property DoubleBuffered;
     property Font;
     property Hint;
+    property Points: TJDPlotPoints read FPoints write SetPoints;
     property ShowHint;
-
     property UI: TJDPlotChartUI read FUI write SetUI;
     property UX: TJDPlotChartUX read FUX write SetUX;
-
-    property Points: TJDPlotPoints read FPoints write SetPoints;
+    property Visible;
 
     property OnClick;
     property OnMouseDown;
@@ -1037,11 +1036,11 @@ begin
       begin
         if Index > 0 then begin
           if FPoints[Index].X <= FPoints[Index - 1].X then
-            FPoints[Index].X := FPoints[Index - 1].X + 0.01;
+            FPoints[Index].FX := FPoints[Index - 1].X + 0.01;
         end;
         if Index < FPoints.Count - 1 then begin
           if FPoints[Index].X >= FPoints[Index + 1].X then
-            FPoints[Index].X := FPoints[Index + 1].X - 0.01;
+            FPoints[Index].FX := FPoints[Index + 1].X - 0.01;
         end;
       end;
 
@@ -1049,16 +1048,16 @@ begin
       begin
         if Index > 0 then begin
           if FPoints[Index].X <= FPoints[Index - 1].X then begin
-            FPoints[Index - 1].X := FPoints[Index].X - 0.01;
+            FPoints[Index - 1].FX := FPoints[Index].X - 0.01;
             if FPoints[Index - 1].X <= FPoints[Index - 2].X then
-              FPoints[Index - 1].X := FPoints[Index - 2].X + 0.01;
+              FPoints[Index - 1].FX := FPoints[Index - 2].X + 0.01;
           end;
         end;
         if Index < FPoints.Count - 1 then begin
           if FPoints[Index].X >= FPoints[Index + 1].X then begin
-            FPoints[Index + 1].X := FPoints[Index].X + 0.01;
+            FPoints[Index + 1].FX := FPoints[Index].X + 0.01;
             if FPoints[Index + 1].X >= FPoints[Index + 2].X then
-              FPoints[Index + 1].X := FPoints[Index + 2].X - 0.01;
+              FPoints[Index + 1].FX := FPoints[Index + 2].X - 0.01;
           end;
         end;
       end;
@@ -1068,17 +1067,19 @@ begin
         if Index > 0 then begin
           for var I := Index - 1 downto 0 do begin
             if FPoints[I].X >= FPoints[I + 1].X then
-              FPoints[I].X := FPoints[I + 1].X - 0.01;
+              FPoints[I].FX := FPoints[I + 1].X - 0.01;
           end;
         end;
         if Index < FPoints.Count - 1 then begin
           for var I := Index + 1 to FPoints.Count - 1 do begin
             if FPoints[I].X <= FPoints[I - 1].X then
-              FPoints[I].X := FPoints[I - 1].X + 0.01;
+              FPoints[I].FX := FPoints[I - 1].X + 0.01;
           end;
         end;
       end;
   end;
+
+  Invalidate;
 end;
 
 procedure TJDPlotChart.AdjustRightMostPoint;
@@ -1753,17 +1754,20 @@ end;
 
 procedure TJDPlotPoint.SetPoint(const X, Y: Single; TriggerEvent: Boolean = True);
 begin
-  FX := X;
-  FY := Y;
+  if (FX <> X) or (FY <> Y) then begin
 
-  TJDPlotChart(Collection.Owner).ClampPoint(Self);
-  TJDPlotChart(Collection.Owner).CheckOverlapOnFly(Index);
-  TJDPlotChart(Collection.Owner).EnforceLinkLeftAndRight(Self);
+    FX := X;
+    FY := Y;
 
-  if TriggerEvent then
-    TJDPlotChart(Collection.Owner).PointMoved(Self);
+    TJDPlotChart(Collection.Owner).ClampPoint(Self);
+    TJDPlotChart(Collection.Owner).CheckOverlapOnFly(Index);
+    TJDPlotChart(Collection.Owner).EnforceLinkLeftAndRight(Self);
 
-  Invalidate;
+    if TriggerEvent then
+      TJDPlotChart(Collection.Owner).PointMoved(Self);
+
+    Invalidate;
+  end;
 end;
 
 procedure TJDPlotPoint.SetX(const Value: Single);
