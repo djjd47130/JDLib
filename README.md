@@ -16,7 +16,7 @@ JDLib is optimized for VCL in Delphi 10.4, and uses / requires the following:
 
 It's important to note that various components / controls across JDLib make use of a centralized color management mechanism. This includes a set of standardized color values which can be customized in the different light/dark color modes. For example, when in light mode, `fcYellow` would be a darker yellow, whereas in dark mode, it would be a lighter yellow. What's important is to maintain a contrast of colors depending on the current base color.
 
-Please refer to `TJDColorManager` for more information.
+Please refer to [`TJDColorManager`](/Docs/TJDColorManager.md) for more information.
 
 
 ### Documentation
