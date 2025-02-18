@@ -11,10 +11,16 @@ Allows you to create a chart in run-time by simply dragging around
 plot points, and double-clicking to either create or delete them.
 Uses GDI+ for graphics, and provides many UI/UX options.
 
+DISCLAIMER
+
+I cannot honestly take 100% credit for this - a lot was written by Copilot AI.
+It was somewhat painful to be back and forth clarifying exact rules, to the
+point where I may has well have written it myself to begin with.
+
 RULES
 
 The following rules must apply for this control:
-1 - Chart area must be calculated
+1 - Chart area (Rect) must be calculated
     - Because of UI/UX settings, the actual chart area may vary
     - function ChartRect takes care of these rules by returning
       the bounds of the actual chart area.
@@ -152,6 +158,7 @@ type
   TJDPlotChart = class(TJDControl)
   private
     FInitialized: Boolean;
+    FClampingEnabled: Boolean;
     FGdiPlusStartupInput: GdiplusStartupInput;
     FBuffer: TBitmap;
     FUI: TJDPlotChartUI;
@@ -248,6 +255,7 @@ type
     procedure Invalidate;
     procedure SetPoint(const X, Y: Single; TriggerEvent: Boolean = True); overload;
     procedure SetPoint(const P: TPointF; TriggerEvent: Boolean = True); overload;
+
   published
     property X: Single read FX write SetX;
     property Y: Single read FY write SetY;
@@ -266,6 +274,10 @@ type
   public
     constructor Create(AOwner: TJDPlotChart); reintroduce;
     procedure Invalidate;
+
+    function SaveToString: String;
+    function LoadFromString(const S: String): Boolean;
+
     function Add: TJDPlotPoint;
     function Insert(const Index: Integer): TJDPlotPoint;
     property Items[const Index: Integer]: TJDPlotPoint read GetItem write SetItem; default;
@@ -639,6 +651,8 @@ begin
   Font.Quality:= TFontQuality.fqAntialiased;
   Font.Size:= 7;
 
+  FClampingEnabled:= True;
+
   //Sample data
   //CreatePlotPoints(IncHour(Now,-2), IncHour(Now,2), 30);
   PopulateSampleData;
@@ -861,7 +875,12 @@ end;
 
 procedure TJDPlotChart.SetPoints(const Value: TJDPlotPoints);
 begin
-  FPoints.Assign(Value);
+  FClampingEnabled:= False;
+  try
+    FPoints.Assign(Value);
+  finally
+    FClampingEnabled:= True;
+  end;
   Invalidate;
 end;
 
@@ -1014,6 +1033,7 @@ begin
   end;
 end;
 
+{
 procedure TJDPlotChart.ClampPoint(Point: TJDPlotPoint);
 var
   ClampedX, ClampedY: Single;
@@ -1027,6 +1047,46 @@ begin
     Point.FY := ClampedY;
 
   Invalidate;
+end;
+}
+
+procedure TJDPlotChart.ClampPoint(Point: TJDPlotPoint);
+var
+  ClampedY: Single;
+begin
+  if (csLoading in ComponentState) or not FClampingEnabled then
+    Exit;
+
+  if not FInitialized then
+    Exit;
+
+  // Clamp Y value within the bounds of the Y axis
+  ClampedY := Max(FUX.ChartArea.AxisLeft.FMin, Min(Point.Y, FUX.ChartArea.AxisLeft.FMax));
+
+  if Point.Index = 0 then
+  begin
+    // Ensure the first point's X position is always the minimum X value
+    Point.FX := FUX.ChartArea.AxisBottom.Min;
+    // Clamp Y value for the first point
+    if Point.FY <> ClampedY then
+      Point.FY := ClampedY;
+  end
+  else if Point.Index = FPoints.Count - 1 then
+  begin
+    // Ensure the last point's X position is always the maximum X value
+    Point.FX := FUX.ChartArea.AxisBottom.Max;
+    // Clamp Y value for the last point
+    if Point.FY <> ClampedY then
+      Point.FY := ClampedY;
+  end
+  else
+  begin
+    // For other points, only clamp Y value
+    //if Point.FY <> ClampedY then
+    //  Point.FY := ClampedY;
+  end;
+
+  Invalidate; // Redraw the chart
 end;
 
 procedure TJDPlotChart.CheckOverlapOnFly(Index: Integer);
@@ -1754,6 +1814,15 @@ end;
 
 procedure TJDPlotPoint.SetPoint(const X, Y: Single; TriggerEvent: Boolean = True);
 begin
+  if csDestroying in (Collection.Owner as TJDPlotChart).ComponentState then
+    Exit;
+
+  if not TJDPlotChart(Collection.Owner).FClampingEnabled then
+    Exit;
+
+  if not TJDPlotChart(Collection.Owner).FInitialized then
+    Exit;
+
   if (FX <> X) or (FY <> Y) then begin
 
     FX := X;
@@ -1843,6 +1912,177 @@ begin
   //TODO: Enforce rules...
   Invalidate;
 end;
+
+function TJDPlotPoints.SaveToString: String;
+var
+  i: Integer;
+  Point: TJDPlotPoint;
+  StringList: TStringList;
+begin
+  StringList := TStringList.Create;
+  try
+    // Set the delimiter
+    StringList.Delimiter := '|';
+
+    // Add the number of points as the first element
+    StringList.Add(IntToStr(Self.Count));
+
+    // Add each point's data with the delimiter
+    for i := 0 to Self.Count - 1 do
+    begin
+      Point := Items[i];
+      StringList.Add(Format('%f|%f', [Point.X, Point.Y]));
+    end;
+
+    // Convert the list to a delimited string
+    Result := StringList.DelimitedText;
+  finally
+    StringList.Free;
+  end;
+end;
+
+{
+function TJDPlotPoints.LoadFromString(const S: String): Boolean;
+var
+  StringList: TStringList;
+  i, Count: Integer;
+  Point: TJDPlotPoint;
+  Parts: TArray<String>;
+  X, Y: Single;
+begin
+  Result := False;
+  //(Owner as TJDPlotChart).FClampingEnabled:= False;
+  try
+    StringList := TStringList.Create;
+    try
+      // Set the delimiter and load the string into the list
+      StringList.Delimiter := '|';
+      StringList.DelimitedText := S;
+
+      // Read the number of points from the first element
+      if StringList.Count > 0 then
+      begin
+        Count := StrToInt(StringList[0]);
+
+        // Clear existing points
+        Clear;
+
+        // Read each point's data from subsequent elements
+        for i := 1 to Count do
+        begin
+          Parts := StringList[i].Split(['|']);
+          if Length(Parts) = 2 then
+          begin
+            X := StrToFloat(Parts[0]);
+            Y := StrToFloat(Parts[1]);
+
+            Point := Add;
+            Point.FX:= X;
+            Point.FY:= Y;
+            //Point.SetPoint(X, Y, False);
+          end;
+        end;
+
+        // Optionally, trigger clamping for all points after loading
+        for i := 0 to Count - 1 do
+        begin
+          // Assuming ClampPoint is a method of the owning chart
+          (Owner as TJDPlotChart).ClampPoint(Items[i]);
+        end;
+
+        // Redraw the chart
+        (Owner as TJDPlotChart).Invalidate;
+
+        Result := True;
+      end;
+    finally
+      StringList.Free;
+    end;
+  finally
+    //(Owner as TJDPlotChart).FClampingEnabled:= True;
+  end;
+end;
+}
+
+function TJDPlotPoints.LoadFromString(const S: String): Boolean;
+var
+  StringList: TStringList;
+  i, Count: Integer;
+  Point: TJDPlotPoint;
+  Parts: TArray<String>;
+  X, Y: Single;
+  JDPlotChart: TJDPlotChart;
+begin
+  Result := False;
+  StringList := TStringList.Create;
+  try
+    // Set the delimiter and load the string into the list
+    StringList.Delimiter := '|';
+    StringList.DelimitedText := S;
+
+    // Read the number of points from the first element
+    if StringList.Count > 0 then
+    begin
+      Count := StrToInt(StringList[0]);
+
+      // Clear existing points
+      Clear;
+
+      JDPlotChart := Owner as TJDPlotChart;
+      if Assigned(JDPlotChart) then
+      begin
+        // Temporarily disable clamping and other positioning logic
+        JDPlotChart.FClampingEnabled := False;
+      end;
+
+      try
+        // Read each point's data from subsequent elements
+        for i := 1 to Count do
+        begin
+          Parts := StringList[i].Split(['|']);
+          if Length(Parts) = 2 then
+          begin
+            // Validate and convert X and Y values
+            if TryStrToFloat(Parts[0], X) and TryStrToFloat(Parts[1], Y) then
+            begin
+              Point := Add;
+              Point.FX := X;  // Use direct access to avoid rule checks
+              Point.FY := Y;  // Use direct access to avoid rule checks
+            end
+            else
+            begin
+              raise Exception.CreateFmt('Invalid data format at point %d', [i]);
+            end;
+          end
+          else
+          begin
+            raise Exception.CreateFmt('Invalid data format at point %d', [i]);
+          end;
+        end;
+
+        Result := True;
+      finally
+        if Assigned(JDPlotChart) then
+        begin
+          // Re-enable clamping after all points are loaded
+          JDPlotChart.FClampingEnabled := True;
+
+          // Optionally, trigger clamping for all points after loading
+          for i := 0 to Count - 1 do
+          begin
+            JDPlotChart.ClampPoint(Items[i]);
+          end;
+
+          // Redraw the chart
+          JDPlotChart.Invalidate;
+        end;
+      end;
+    end;
+  finally
+    StringList.Free;
+  end;
+end;
+
 
 { TJDPlotChartOptionGroup }
 
