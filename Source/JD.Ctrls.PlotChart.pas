@@ -186,6 +186,7 @@ type
     procedure AdjustRightMostPoint;
     procedure PopulateSampleData;
     procedure SetOnHoverMousePoint(const Value: TJDPlotPointEvent);
+    procedure WMMouseMove(var Msg: TWMMouseMove);
   protected
     procedure InvalidateOptionGroup(AGroup: TJDPlotChartOptionGroup);
 
@@ -197,6 +198,7 @@ type
     procedure Resize; override;
     procedure DblClick; override;
 
+    procedure WndProc(var Message: TMessage); override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState;
       X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
@@ -416,6 +418,20 @@ type
     property GridLines: TJDPlotChartUILine read FGridLines write SetGridLines;
   end;
 
+  TJDPlotChartUICrosshairs = class(TJDPlotChartOptionGroup)
+  private
+    FHorizontal: TJDPlotChartUILine;
+    FVertical: TJDPlotChartUILine;
+    procedure SetHorizontal(const Value: TJDPlotChartUILine);
+    procedure SetVertical(const Value: TJDPlotChartUILine);
+  public
+    constructor Create(AOwner: TJDPlotChart); override;
+    destructor Destroy; override;
+  published
+    property Horizontal: TJDPlotChartUILine read FHorizontal write SetHorizontal;
+    property Vertical: TJDPlotChartUILine read FVertical write SetVertical;
+  end;
+
   /// <summary>
   /// UI options for everything in the chart area.
   /// </summary>
@@ -432,6 +448,7 @@ type
     FPadding: Single;
     FPointHover: TJDPlotChartUIPoint;
     FPointMouse: TJDPlotChartUIPoint;
+    FCrosshairs: TJDPlotChartUICrosshairs;
     procedure ColorChanged(Sender: TObject);
     procedure SetColor(const Value: TJDColorRef);
     procedure SetTransparent(const Value: Boolean);
@@ -444,6 +461,7 @@ type
     procedure SetPadding(const Value: Single);
     procedure SetPointHover(const Value: TJDPlotChartUIPoint);
     procedure SetPointMouse(const Value: TJDPlotChartUIPoint);
+    procedure SetCrosshairs(const Value: TJDPlotChartUICrosshairs);
   public
     constructor Create(AOwner: TJDPlotChart); override;
     destructor Destroy; override;
@@ -452,6 +470,7 @@ type
     property AxisBottom: TJDPlotChartUIAxis read FAxisBottom write SetAxisBottom;
     property Border: TJDPlotChartUILine read FBorder write SetBorder;
     property Color: TJDColorRef read FColor write SetColor;
+    property Crosshairs: TJDPlotChartUICrosshairs read FCrosshairs write SetCrosshairs;
     property Fill: TJDPlotChartUIFill read FFill write SetFill;
     property Line: TJDPlotChartUILine read FLine write SetLine;
     property Points: TJDPlotChartUIPoint read FPoints write SetPoints;
@@ -896,6 +915,26 @@ begin
   Invalidate;
 end;
 
+procedure TJDPlotChart.WMMouseMove(var Msg: TWMMouseMove);
+begin
+  inherited;
+  if csDesigning in ComponentState then
+  begin
+    // Call MouseMove to handle the mouse move event in design-time
+    MouseMove(KeysToShiftState(Msg.Keys), Msg.XPos, Msg.YPos);
+  end;
+end;
+
+procedure TJDPlotChart.WndProc(var Message: TMessage);
+begin
+  inherited WndProc(Message);
+  if (csDesigning in ComponentState) and (Message.Msg = WM_MOUSEMOVE) then
+  begin
+    // Handle the mouse move message in design-time
+    WMMouseMove(TWMMouseMove(Message));
+  end;
+end;
+
 procedure TJDPlotChart.CMMouseEnter(var Message: TMessage);
 begin
 
@@ -1258,20 +1297,6 @@ var
     end;
   end;
 
-  procedure DrawGhostPoint;
-  begin
-    var Z: Single := FUI.ChartArea.PointMouse.Width / 2;
-    if FGhostPointVisible and FUI.ChartArea.PointMouse.Visible then begin
-      var P := PlotPointToPoint(FGhostPlotPoint);
-      var Brush:= FUI.ChartArea.PointMouse.MakeBrush;
-      try
-        G.FillEllipse(Brush, P.X - Z, P.Y - Z, Z * 2, Z * 2);
-      finally
-        Brush.Free;
-      end;
-    end;
-  end;
-
   procedure DrawAccentColor(AColor: TJDColorRef; AAlpha: Byte = 255);
   var
     Brush: TGPSolidBrush;
@@ -1301,11 +1326,6 @@ var
       Brush.Free;
     end;
   end;
-
-
-
-
-//The New Shit from AI
 
   procedure DrawBottomAxis;
   var
@@ -1385,6 +1405,58 @@ var
     end;
   end;
 
+  procedure DrawGhostPoint;
+  begin
+    if FGhostPointVisible and FUI.ChartArea.PointMouse.Visible then begin
+      var P := PlotPointToPoint(FGhostPlotPoint);
+      var Brush:= FUI.ChartArea.PointMouse.MakeBrush;
+      var Z: Single := FUI.ChartArea.PointMouse.Width / 2;
+      try
+        G.FillEllipse(Brush, P.X - Z, P.Y - Z, Z * 2, Z * 2);
+      finally
+        Brush.Free;
+      end;
+    end;
+  end;
+
+  procedure DrawCrosshairs;
+  var
+    P1, P2: TGPPointF;
+    Pen: TGPPen;
+  begin
+    var R: TJDRect:= Self.ClientToScreen(ChartRect);
+    var MP: TJDPoint:= Mouse.CursorPos;
+    if not R.ContainsPoint(MP) then
+      Exit;
+
+    MP:= Self.ScreenToClient(MP);
+    if FUI.ChartArea.Crosshairs.Horizontal.Visible then begin
+      Pen:= FUI.ChartArea.Crosshairs.Horizontal.MakePen;
+      try
+        P1.X:= ChartRect.Left;
+        P1.Y:= MP.Y;
+        P2.X:= ChartRect.Right;
+        P2.Y:= MP.Y;
+        G.DrawLine(Pen, P1, P2);
+      finally
+        Pen.Free;
+      end;
+    end;
+    if FUI.ChartArea.Crosshairs.Vertical.Visible then begin
+      Pen:= FUI.ChartArea.Crosshairs.Vertical.MakePen;
+      try
+        P1.X:= MP.X;
+        P1.Y:= ChartRect.Top;
+        P2.X:= MP.X;
+        P2.Y:= ChartRect.Bottom;
+        G.DrawLine(Pen, P1, P2);
+      finally
+        Pen.Free;
+      end;
+    end;
+  end;
+
+
 begin
   inherited;
 
@@ -1397,9 +1469,6 @@ begin
         DrawBackground;
         DrawAccentColor(FUI.ChartArea.Fill.Color,
           FUI.ChartArea.Fill.Alpha);
-        //DrawVerticalGridLines;
-        //DrawHorizontalGridLines;
-        //DrawAxis;
         DrawBottomAxis;
         DrawLeftAxis;
         if FUI.ChartArea.Line.Visible then
@@ -1407,6 +1476,7 @@ begin
         if FUI.ChartArea.Points.Visible then
           DrawPoints;
         DrawGhostPoint;
+        DrawCrosshairs;
       except
         on E: Exception do begin
           //TODO
@@ -1559,6 +1629,8 @@ begin
   FPointHover.Width:= 12;
   FPointHover.Visible:= True;
 
+  FCrosshairs:= TJDPlotChartUICrosshairs.Create(AOwner);
+
   FAxisLeft:= TJDPlotChartUIAxis.Create(FOwner);
   FAxisBottom:= TJDPlotChartUIAxis.Create(FOwner);
 
@@ -1572,6 +1644,7 @@ end;
 destructor TJDPlotChartUIChart.Destroy;
 begin
 
+  FreeAndNil(FCrosshairs);
   FreeAndNil(FFill);
   FreeAndNil(FAxisBottom);
   FreeAndNil(FAxisLeft);
@@ -1606,6 +1679,13 @@ end;
 procedure TJDPlotChartUIChart.SetColor(const Value: TJDColorRef);
 begin
   FColor.Assign(Value);
+  Invalidate;
+end;
+
+procedure TJDPlotChartUIChart.SetCrosshairs(
+  const Value: TJDPlotChartUICrosshairs);
+begin
+  FCrosshairs.Assign(Value);
   Invalidate;
 end;
 
@@ -2292,6 +2372,46 @@ begin
   inherited;
   Color.Color:= $00303030;
   Alpha:= 120;
+end;
+
+{ TJDPlotChartUICrosshairs }
+
+constructor TJDPlotChartUICrosshairs.Create(AOwner: TJDPlotChart);
+begin
+  inherited;
+
+  FHorizontal:= TJDPlotChartUILine.Create(AOwner);
+  FHorizontal.Color.Color:= clYellow;
+  FHorizontal.Width:= 1;
+  FHorizontal.Alpha:= 180;
+  FHorizontal.Visible:= True;
+
+  FVertical:= TJDPlotChartUILine.Create(AOwner);
+  FVertical.Color.Color:= clYellow;
+  FVertical.Width:= 1;
+  FVertical.Alpha:= 180;
+  FVertical.Visible:= True;
+
+end;
+
+destructor TJDPlotChartUICrosshairs.Destroy;
+begin
+  FreeAndNil(FVertical);
+  FreeAndNil(FHorizontal);
+  inherited;
+end;
+
+procedure TJDPlotChartUICrosshairs.SetHorizontal(
+  const Value: TJDPlotChartUILine);
+begin
+  FHorizontal.Assign(Value);
+  Invalidate;
+end;
+
+procedure TJDPlotChartUICrosshairs.SetVertical(const Value: TJDPlotChartUILine);
+begin
+  FVertical.Assign(Value);
+  Invalidate;
 end;
 
 end.
