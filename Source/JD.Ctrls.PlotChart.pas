@@ -233,6 +233,8 @@ type
     property OnMouseDown;
     property OnMouseUp;
     property OnMouseMove;
+    property OnMouseEnter;
+    property OnMouseLeave;
 
     property OnPointAdded: TJDPlotPointEvent read FOnPointAdded write FOnPointAdded;
     property OnPointMoved: TJDPlotPointEvent read FOnPointMoved write FOnPointMoved;
