@@ -6,6 +6,8 @@ interface
   Unit originally grabbed from the following Stack Overflow answer:
   https://stackoverflow.com/questions/33571061/get-the-percentage-of-total-cpu-usage
 
+  Many changes and additions since then, including RAM, Storage, OS info, etc.
+
   Disk space: https://stackoverflow.com/questions/6383598/delphi-how-to-get-total-disk-space-of-windows-drive
 
   Strictly speaking, this itself can be encapsulated inside of a thread with

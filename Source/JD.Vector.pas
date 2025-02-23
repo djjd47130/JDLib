@@ -8,7 +8,7 @@ unit JD.Vector;
   Usage:
   - Create instance of TJDVectorGraphic
   - Create items in "Parts" collection
-    - Each part represents a single polygon of a specific color
+    - Each part represents a single polygon of a specific color or texture
     - Each part gets rendered in order from top to bottom
     - Create vector points in "Points" collection
   - Call "Render" to draw graphic to destination canvas
@@ -337,6 +337,7 @@ end;
 
 procedure TJDVectorGraphic.Invalidate;
 begin
+  //TODO: Link to a canvas and invalidate it...
 
 end;
 
