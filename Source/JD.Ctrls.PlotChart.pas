@@ -70,6 +70,8 @@ type
   TJDPlotChartOptionGroup = class;
   TJDPlotChartUI = class;
   TJDPlotChartUX = class;
+  TJDPlotChartCrosshair = class;
+  TJDPlotChartCrosshairs = class;
 
 
   //////////////////////////////////////////////////////////////////////////////
@@ -178,6 +180,10 @@ type
   /// </summary>
   TJDPlotChartCrosshairType = (
     /// <summary>
+    /// Allows setting crosshair position via X/Y properties directly.
+    /// </summary>
+    ctFixed,
+    /// <summary>
     /// Allows setting crosshair position via OnCustomCrosshair event.
     /// </summary>
     ctCustom,
@@ -220,7 +226,7 @@ type
   ///   - ctPlotLine: Assign X to desired position - Y follows plot line.
   /// </summary>
   TJDPlotChartCrosshairEvent = procedure(Sender: TObject;
-    const CrosshairIndex: Integer; var X, Y: Single) of object;
+    Crosshair: TJDPlotChartCrosshair; var X, Y: Single) of object;
 
 
 
@@ -250,6 +256,7 @@ type
     FOnPointMoved: TJDPlotPointEvent;
     FOnPointDeleted: TJDPlotPointEvent;
     FOnHoverMousePoint: TJDPlotHoverEvent;
+    FOnCustomCrosshair: TJDPlotChartCrosshairEvent;
     procedure SetUI(const Value: TJDPlotChartUI);
     function PlotPointToPoint(P: TJDPlotPoint): TPointF; overload;
     function PlotPointToPoint(P: TPointF): TPointF; overload;
@@ -269,6 +276,7 @@ type
     procedure PointAdded(APoint: TJDPlotPoint); virtual;
     procedure PointMoved(APoint: TJDPlotPoint); virtual;
     procedure PointDeleted(APoint: TJDPlotPoint); virtual;
+    procedure CustomCrosshair(Crosshair: TJDPlotChartCrosshair; var X, Y: Single); virtual;
 
     procedure Paint; override;
     procedure Resize; override;
@@ -317,6 +325,7 @@ type
     property OnPointDeleted: TJDPlotPointEvent read FOnPointDeleted write FOnPointDeleted;
 
     property OnHoverMousePoint: TJDPlotHoverEvent read FOnHoverMousePoint write SetOnHoverMousePoint;
+    property OnCustomCrosshair: TJDPlotChartCrosshairEvent read FOnCustomCrosshair write FOnCustomCrosshair;
 
   end;
 
@@ -362,6 +371,7 @@ type
     function Insert(const Index: Integer): TJDPlotPoint;
     property Items[const Index: Integer]: TJDPlotPoint read GetItem write SetItem; default;
   end;
+
 
 
 
@@ -496,6 +506,7 @@ type
     property GridLines: TJDPlotChartUILine read FGridLines write SetGridLines;
   end;
 
+  //OLD: Getting replaced with collection...
   TJDPlotChartUICrosshairs = class(TJDPlotChartOptionGroup)
   private
     FHorizontal: TJDPlotChartUILine;
@@ -557,6 +568,41 @@ type
     property Transparent: Boolean read FTransparent write SetTransparent default False;
     property Padding: Single read FPadding write SetPadding;
   end;
+
+
+
+
+  //NEW CROSSHAIR COLLECTION CONCEPT
+
+  TJDPlotChartCrosshair = class(TCollectionItem)
+  private
+    FCrosshairType: TJDPlotChartCrosshairType;
+    FX: Single;
+    FY: Single;
+    FHorizontal: TJDPlotChartUILine;
+    FVertical: TJDPlotChartUILine;
+    procedure SetHorizontal(const Value: TJDPlotChartUILine);
+    procedure SetVertical(const Value: TJDPlotChartUILine);
+  public
+    constructor Create(Collection: TCollection); override;
+    destructor Destroy; override;
+    procedure Invalidate;
+  published
+    property Horizontal: TJDPlotChartUILine read FHorizontal write SetHorizontal;
+    property Vertical: TJDPlotChartUILine read FVertical write SetVertical;
+  end;
+
+  TJDPlotChartCrosshairs = class(TOwnedCollection)
+  private
+    function GetItem(const Index: Integer): TJDPlotChartCrosshair;
+    procedure SetItem(const Index: Integer; const Value: TJDPlotChartCrosshair);
+  public
+
+    property Items[const Index: Integer]: TJDPlotChartCrosshair read GetItem write SetItem; default;
+  end;
+
+
+
 
   /// <summary>
   /// UI options for the entire control.
@@ -802,6 +848,8 @@ var
     I.FY:= AY;
   end;
 begin
+  //TODO: This is very specific to the separate "TurnMeDown" project.
+  //Need to move there respectively.
   StartHour := HourOf(TimeStart) + (MinuteOf(TimeStart) / 60);
   StopHour := HourOf(TimeStop) + (MinuteOf(TimeStop) / 60);
 
@@ -826,6 +874,13 @@ begin
   end;
 
   Invalidate;
+end;
+
+procedure TJDPlotChart.CustomCrosshair(Crosshair: TJDPlotChartCrosshair; var X,
+  Y: Single);
+begin
+  if Assigned(FOnCustomCrosshair) then
+    FOnCustomCrosshair(Self, Crosshair, X, Y);
 end;
 
 function TJDPlotChart.GetTimePerc(ATime: TTime): Single;
@@ -2490,6 +2545,53 @@ procedure TJDPlotChartUICrosshairs.SetVertical(const Value: TJDPlotChartUILine);
 begin
   FVertical.Assign(Value);
   Invalidate;
+end;
+
+{ TJDPlotChartCrosshair }
+
+constructor TJDPlotChartCrosshair.Create(Collection: TCollection);
+begin
+  inherited;
+  FHorizontal:= TJDPlotChartUILine.Create(Collection.Owner as TJDPlotChart);
+  FVertical:= TJDPlotChartUILine.Create(Collection.Owner as TJDPlotChart);
+
+end;
+
+destructor TJDPlotChartCrosshair.Destroy;
+begin
+
+  FreeAndNil(FVertical);
+  FreeAndNil(FHorizontal);
+  inherited;
+end;
+
+procedure TJDPlotChartCrosshair.Invalidate;
+begin
+  (Collection.Owner as TJDPlotChart).Invalidate;
+end;
+
+procedure TJDPlotChartCrosshair.SetHorizontal(const Value: TJDPlotChartUILine);
+begin
+  FHorizontal.Assign(Value);
+end;
+
+procedure TJDPlotChartCrosshair.SetVertical(const Value: TJDPlotChartUILine);
+begin
+  FVertical.Assign(Value);
+end;
+
+{ TJDPlotChartCrosshairs }
+
+function TJDPlotChartCrosshairs.GetItem(
+  const Index: Integer): TJDPlotChartCrosshair;
+begin
+
+end;
+
+procedure TJDPlotChartCrosshairs.SetItem(const Index: Integer;
+  const Value: TJDPlotChartCrosshair);
+begin
+
 end;
 
 end.
