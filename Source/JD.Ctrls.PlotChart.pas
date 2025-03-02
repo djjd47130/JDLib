@@ -71,7 +71,30 @@ type
   TJDPlotChartUI = class;
   TJDPlotChartUX = class;
 
-  TJDPlotChartOverlap = (drRestrict, drPushNeighbor, drPushAll);
+
+  //////////////////////////////////////////////////////////////////////////////
+  /// ENUM TYPES
+  //////////////////////////////////////////////////////////////////////////////
+
+  /// <summary>
+  /// Enum defining how moving a plot point into another one reacts.
+  /// TODO: Add another option which auto-merges squished groups of points...
+  /// TODO: Add another option which controls "padding" between plot points...
+  /// </summary>
+  TJDPlotChartOverlap = (
+    /// <summary>
+    /// Does not allow moving plot point past neighboring point.
+    /// </summary>
+    drRestrict,
+    /// <summary>
+    /// Allows pushing neighboring point up to the next neighboring point.
+    /// </summary>
+    drPushNeighbor,
+    /// <summary>
+    /// Allows pushing all neighboring points to end of chart.
+    /// </summary>
+    drPushAll
+    );
 
   /// <summary>
   /// Enum defining one of the possible axis.
@@ -86,12 +109,14 @@ type
     /// </summary>
     caLeft,
     /// <summary>
+    /// NEW CONCEPT - IN DEVELOPMENT
     /// Right (Z) Axis
     /// </summary>
     caRight
     );
 
   /// <summary>
+  /// NEW CONCEPT - IN DEVELOPMENT
   /// Enum defining a variety of preset axis types.
   /// </summary>
   TJDPlotChartAxisType = (
@@ -136,21 +161,72 @@ type
     );
 
   /// <summary>
+  /// NEW CONCEPT - IN DEVELOPMENT
   /// Enum defining the type of chart line to be drawn
   /// </summary>
   TJDPlotChartLineType = (ptSolid, ptDotted, ptDashed);
 
   /// <summary>
+  /// NEW CONCEPT - IN DEVELOPMENT
   /// Enum defining the type of chart point to be drawn
   /// </summary>
   TJDPlotChartPointType = (ptEllipse, ptRectangle, ptTriangle, ptHexagon);
 
   /// <summary>
+  /// NEW CONCEPT - IN DEVELOPMENT
+  /// Enum defining the type of crosshair links
+  /// </summary>
+  TJDPlotChartCrosshairType = (
+    /// <summary>
+    /// Allows setting crosshair position via OnCustomCrosshair event.
+    /// </summary>
+    ctCustom,
+    /// <summary>
+    /// Crosshair automatically follows current mouse position.
+    /// </summary>
+    ctMouse,
+    /// <summary>
+    /// Crosshair automatically follows plotline via OnCustomCrosshair event.
+    /// </summary>
+    ctPlotLine
+    );
+
+
+  //////////////////////////////////////////////////////////////////////////////
+  /// EVENT TYPES
+  //////////////////////////////////////////////////////////////////////////////
+
+  /// <summary>
   /// Event type related to a specific plot point.
+  /// - TJDPlotChart.OnPointAdded
+  /// - TJDPlotChart.OnPointDeleted
+  /// - TJDPlotChart.OnPointMoved
   /// </summary>
   TJDPlotPointEvent = procedure(Sender: TObject; P: TJDPlotPoint) of object;
 
+  /// <summary>
+  /// Event type related to hovering the mouse.
+  /// - TJDPlotChart.OnHoverMousePoint
+  /// </summary>
+  TJDPlotHoverEvent = procedure(Sender: TObject; X, Y: Single) of object;
 
+  /// <summary>
+  /// NEW CONCEPT - IN DEVELOPMENT
+  /// Event type related to custom crosshair feedback.
+  /// - TJDPlotChart.OnCustomCrosshair - usage depends on
+  ///   current crosshair type (TJDPlotChartCrosshairType).
+  ///   - ctCustom: Assign X and Y to desired position.
+  ///   - ctMouse: Not Supported.
+  ///   - ctPlotLine: Assign X to desired position - Y follows plot line.
+  /// </summary>
+  TJDPlotChartCrosshairEvent = procedure(Sender: TObject;
+    const CrosshairIndex: Integer; var X, Y: Single) of object;
+
+
+
+  //////////////////////////////////////////////////////////////////////////////
+  /// CONTROL: TJDPlotChart
+  //////////////////////////////////////////////////////////////////////////////
   
   /// <summary>
   /// Main TJDPlotChart control encapsulating user customization of plot points.
@@ -173,7 +249,7 @@ type
     FOnPointAdded: TJDPlotPointEvent;
     FOnPointMoved: TJDPlotPointEvent;
     FOnPointDeleted: TJDPlotPointEvent;
-    FOnHoverMousePoint: TJDPlotPointEvent;
+    FOnHoverMousePoint: TJDPlotHoverEvent;
     procedure SetUI(const Value: TJDPlotChartUI);
     function PlotPointToPoint(P: TJDPlotPoint): TPointF; overload;
     function PlotPointToPoint(P: TPointF): TPointF; overload;
@@ -185,7 +261,7 @@ type
     procedure EnforceLinkLeftAndRight(Point: TJDPlotPoint);
     procedure AdjustRightMostPoint;
     procedure PopulateSampleData;
-    procedure SetOnHoverMousePoint(const Value: TJDPlotPointEvent);
+    procedure SetOnHoverMousePoint(const Value: TJDPlotHoverEvent);
     procedure WMMouseMove(var Msg: TWMMouseMove);
   protected
     procedure InvalidateOptionGroup(AGroup: TJDPlotChartOptionGroup);
@@ -240,7 +316,7 @@ type
     property OnPointMoved: TJDPlotPointEvent read FOnPointMoved write FOnPointMoved;
     property OnPointDeleted: TJDPlotPointEvent read FOnPointDeleted write FOnPointDeleted;
 
-    property OnHoverMousePoint: TJDPlotPointEvent read FOnHoverMousePoint write SetOnHoverMousePoint;
+    property OnHoverMousePoint: TJDPlotHoverEvent read FOnHoverMousePoint write SetOnHoverMousePoint;
 
   end;
 
@@ -889,7 +965,7 @@ begin
   Invalidate;
 end;
 
-procedure TJDPlotChart.SetOnHoverMousePoint(const Value: TJDPlotPointEvent);
+procedure TJDPlotChart.SetOnHoverMousePoint(const Value: TJDPlotHoverEvent);
 begin
   FOnHoverMousePoint := Value;  
 end;
@@ -982,8 +1058,8 @@ begin
   var NearPoint := False;
 
   HoverPoint := PointToPlotPoint(Point(X, Y));
-  //if Assigned(FOnHoverMousePoint) then
-  //  FOnHoverMousePoint(Self, HoverPoint);
+  if Assigned(FOnHoverMousePoint) then
+    FOnHoverMousePoint(Self, HoverPoint.X, HoverPoint.Y);
   
 
   FHoveringIndex := -1;
