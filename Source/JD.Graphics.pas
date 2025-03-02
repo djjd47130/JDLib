@@ -368,8 +368,78 @@ type
 
 
 
+
+////////////////////////////////////////////////////////////////////////////////
+/// NEW CONCEPT - Dynamically add colors referenced by name
+////////////////////////////////////////////////////////////////////////////////
+
+  TJDColorItem = class;
+  TJDColorItems = class;
+  TJDColorList = class;
+
+  TJDColorItemEvent = procedure(Sender: TObject; Item: TJDColorItem) of object;
+
+  TJDColorItem = class(TCollectionItem)
+  private
+    FName: String;
+    FColor: TJDColorRef;
+    FOnChange: TNotifyEvent;
+    procedure SetColor(const Value: TJDColorRef);
+    procedure SetName(const Value: String);
+    function GenerateUniqueName: String;
+    procedure ColorChanged(Sender: TObject);
+  public
+    constructor Create(Collection: TCollection); override;
+    destructor Destroy; override;
+    procedure Assign(Source: TPersistent); override;
+    procedure Invalidate;
+    function GetDisplayName: String; override;
+    property OnChange: TNotifyEvent read FOnChange write FOnChange;
+  published
+    property Color: TJDColorRef read FColor write SetColor;
+    property Name: String read FName write SetName;
+  end;
+
+  TJDColorItems = class(TOwnedCollection)
+  private
+    FOwnerComponent: TJDColorList;
+  protected
+  public
+    constructor Create(AOwner: TPersistent); reintroduce;
+    destructor Destroy; override;
+    procedure Notify(Item: TCollectionItem; Action: TCollectionNotification); override;
+  end;
+
+  TJDColorList = class(TComponent)
+  private
+    FColors: TJDColorItems;
+    FOnChange: TJDColorItemEvent;
+    FOnItemAdded: TJDColorItemEvent;
+    FOnItemDeleted: TJDColorItemEvent;
+    FOnItemChanged: TJDColorItemEvent;
+    procedure SetColors(const Value: TJDColorItems);
+    procedure ItemNotify(Sender: TObject; Item: TCollectionItem; Action: TCollectionNotification);
+  protected
+    procedure Changed(Item: TJDColorItem); virtual;
+  public
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
+  published
+    property Colors: TJDColorItems read FColors write SetColors;
+    property OnChange: TJDColorItemEvent read FOnChange write FOnChange;
+    property OnItemAdded: TJDColorItemEvent read FOnItemAdded write FOnItemAdded;
+    property OnItemDeleted: TJDColorItemEvent read FOnItemDeleted write FOnItemDeleted;
+    property OnItemChanged: TJDColorItemEvent read FOnItemChanged write FOnItemChanged;
+  end;
+
+
+
+
+
+
   ///  <summary>
   ///  Global object to keep track of color themes throughout JDLib.
+  ///  - Single instance accessible via "ColorManager" global variable.
   ///  - BaseColor: The main background color to be used to determine color mode.
   ///  - ColorMode: Controls whether in Light, Dark, or Medium light modes.
   ///  - BaseColor: The main background color to be used to determine color mode
@@ -1692,6 +1762,155 @@ begin
   C.Yellow:= Value;
   FOwner.Color:= C;
   Invalidate;
+end;
+
+{ TJDColorItem }
+
+constructor TJDColorItem.Create(Collection: TCollection);
+begin
+  inherited;
+  FColor:= TJDColorRef.Create;
+  FColor.OnChange:= ColorChanged;
+  FName:= GenerateUniqueName;
+
+end;
+
+destructor TJDColorItem.Destroy;
+begin
+
+  FreeAndNil(FColor);
+  inherited;
+end;
+
+procedure TJDColorItem.ColorChanged(Sender: TObject);
+begin
+  Invalidate;
+end;
+
+function TJDColorItem.GenerateUniqueName: string;
+var
+  BaseName: string;
+  Count, I: Integer;
+  Unique: Boolean;
+begin
+  BaseName := 'Item';
+  Count := 1;
+  Unique := False;
+
+  while not Unique do begin
+    Unique := True;
+    for I := 0 to Collection.Count - 1 do begin
+      if CompareText((Collection.Items[I] as TJDColorItem).Name, BaseName + IntToStr(Count)) = 0 then
+      begin
+        Unique := False;
+        Break;
+      end;
+    end;
+    if not Unique then
+      Inc(Count);
+  end;
+
+  Result := BaseName + IntToStr(Count);
+end;
+
+function TJDColorItem.GetDisplayName: String;
+begin
+  Result:= Name;
+end;
+
+procedure TJDColorItem.Assign(Source: TPersistent);
+begin
+  if Source is TJDColorItem then begin
+    Name := TJDColorItem(Source).Name;
+    Color.Assign(TJDColorItem(Source).Color);
+  end else
+    inherited Assign(Source);
+end;
+
+procedure TJDColorItem.Invalidate;
+begin
+  if Assigned(FOnChange) then
+    FOnChange(Self);
+end;
+
+procedure TJDColorItem.SetColor(const Value: TJDColorRef);
+begin
+  FColor.Assign(Value);
+  Invalidate;
+end;
+
+procedure TJDColorItem.SetName(const Value: String);
+var
+  I: Integer;
+  Item: TCollectionItem;
+begin
+  if CompareText(FName, Value) = 0 then
+    Exit;
+
+  for I := 0 to Collection.Count - 1 do begin
+    Item := Collection.Items[I];
+    if CompareText((Item as TJDColorItem).Name, Value) = 0 then
+      raise Exception.Create('Duplicate name not allowed');
+  end;
+
+  FName := Value;
+  Changed(False);
+  Invalidate;
+end;
+
+{ TJDColorItems }
+
+constructor TJDColorItems.Create(AOwner: TPersistent);
+begin
+  inherited Create(AOwner, TJDColorItem);
+  FOwnerComponent:= AOwner as TJDColorList;
+end;
+
+destructor TJDColorItems.Destroy;
+begin
+
+  inherited;
+end;
+
+procedure TJDColorItems.Notify(Item: TCollectionItem;
+  Action: TCollectionNotification);
+begin
+  inherited Notify(Item, Action);
+  if Assigned(FOwnerComponent) then
+    FOwnerComponent.ItemNotify(Self, Item, Action);
+end;
+
+{ TJDColorList }
+
+procedure TJDColorList.Changed(Item: TJDColorItem);
+begin
+  if Assigned(FOnChange) then
+    FOnChange(Self, Item);
+end;
+
+constructor TJDColorList.Create(AOwner: TComponent);
+begin
+  inherited;
+  FColors:= TJDColorItems.Create(Self);
+
+end;
+
+destructor TJDColorList.Destroy;
+begin
+
+  FreeAndNil(FColors);
+  inherited;
+end;
+
+procedure TJDColorList.ItemNotify(Sender: TObject; Item: TCollectionItem;
+  Action: TCollectionNotification);
+begin
+
+end;
+
+procedure TJDColorList.SetColors(const Value: TJDColorItems);
+begin
+  FColors := Value;
 end;
 
 initialization
