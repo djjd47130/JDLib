@@ -171,7 +171,22 @@ A flexible record type with class operators to cast between RGB, HSV, CMYK, and 
 - Alpha transparency support. [IN DEVELOPMENT]
 - JD standard color support.
 
-  
+
+## Color Reference
+`TJDColorRef` [FULLY FUNCTIONAL]
+
+A `TPersistent` to be a published property of a component, and managed through the IDE's object inspector.
+
+- Uses `TJDColor` behind the scenes
+- Direct RGB value support.
+- Direct HSV value support.
+- Direct CMYK value support.
+- Alpha transparency support. [IN DEVELOPMENT]
+- JD standard color support.
+
+![image](https://github.com/user-attachments/assets/c6f20302-b487-424a-b931-76ecf655ed89)
+
+
 
 ## Point and Rect Records
 **TJDPoint** and **TJDRect** [FULLY FUNCTIONAL]
