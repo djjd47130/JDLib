@@ -9,21 +9,21 @@ package JDLibComponents;
 {$EXTENDEDSYNTAX ON}
 {$IMPORTEDDATA ON}
 {$IOCHECKS ON}
-{$LOCALSYMBOLS ON}
+{$LOCALSYMBOLS OFF}
 {$LONGSTRINGS ON}
 {$OPENSTRINGS ON}
-{$OPTIMIZATION OFF}
+{$OPTIMIZATION ON}
 {$OVERFLOWCHECKS OFF}
 {$RANGECHECKS OFF}
-{$REFERENCEINFO ON}
+{$REFERENCEINFO OFF}
 {$SAFEDIVIDE OFF}
-{$STACKFRAMES ON}
+{$STACKFRAMES OFF}
 {$TYPEDADDRESS OFF}
 {$VARSTRINGCHECKS ON}
 {$WRITEABLECONST OFF}
 {$MINENUMSIZE 1}
 {$IMAGEBASE $400000}
-{$DEFINE DEBUG}
+{$DEFINE RELEASE}
 {$DEFINE USE_GDIP}
 {$ENDIF IMPLICITBUILDING}
 {$RUNONLY}
@@ -58,6 +58,7 @@ contains
   JD.Vector in 'Source\JD.Vector.pas',
   JD.Sockets in 'Source\JD.Sockets.pas',
   JD.SysMon.Utils in 'Source\JD.SysMon.Utils.pas',
-  JD.Ctrls.PlotChart in 'Source\JD.Ctrls.PlotChart.pas';
+  JD.Ctrls.PlotChart in 'Source\JD.Ctrls.PlotChart.pas',
+  JD.VolumeControls2 in 'Source\JD.VolumeControls2.pas';
 
 end.

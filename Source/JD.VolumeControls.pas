@@ -3,13 +3,16 @@ unit JD.VolumeControls;
 //Source: https://stackoverflow.com/q/66630233/988445
 //WinAPI Docs: https://learn.microsoft.com/en-us/windows/win32/api/endpointvolume/nf-endpointvolume-iaudioendpointvolume-setmastervolumelevel
 
+//TODO: Change to support all platforms...
+
 interface
 
 uses
   Winapi.Windows, Winapi.Messages,
   System.Classes, System.SysUtils,
   ActiveX, ComObj,
-  JD.Common;
+  JD.Common,
+  Winapi.MMSystem;
 
 const
   CLASS_IMMDeviceEnumerator : TGUID = '{BCDE0395-E52F-467C-8E3D-C4579291692E}';
@@ -17,6 +20,7 @@ const
   IID_IAudioEndpointVolume : TGUID = '{5CDF2C82-841E-4546-9722-0CF74078229A}';
 
   WM_VOLNOTIFY = WM_USER + 1;
+
 
 type
 
@@ -73,7 +77,6 @@ type
     function GetState(out State: Integer): HRESULT; stdcall;
   end;
 
-
   IMMDeviceCollection = interface(IUnknown)
   ['{0BD7A1BE-7A1A-44DB-8397-CC5392387B5E}']
   end;
@@ -89,6 +92,7 @@ type
     function GetDevice(pwstrId: pointer; out Dev: IMMDevice): HRESULT; stdcall;
     function RegisterEndpointNotificationCallback(pClient: IMMNotificationClient): HRESULT; stdcall;
   end;
+
 
   { Custom Component }
 
