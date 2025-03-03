@@ -1555,6 +1555,7 @@ var
 
   procedure DrawGhostPoint;
   begin
+    //TODO: Fix issue of disappearing near plot lines...
     if FGhostPointVisible and FUI.ChartArea.PointMouse.Visible then begin
       var P := PlotPointToPoint(FGhostPlotPoint);
       var Brush:= FUI.ChartArea.PointMouse.MakeBrush;
@@ -1600,6 +1601,7 @@ var
 
   procedure DrawCrosshairs;
   begin
+    //TODO: Ever since implementing, everything including IDE became glitchy...
     var R: TJDRect:= Self.ClientToScreen(ChartRect);
     var CP: TJDPoint;
 
