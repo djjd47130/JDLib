@@ -157,6 +157,7 @@ A central class to manage colors in light and dark modes application-wide.
 - Detects dark/light color mode based on current VCL style.
 - Implements several standardized colors which vary depending on color mode.
 - Broadcasts color and style changes to any registered components or controls.
+- NOTE: New concept started to change colors to dynamic string-name based instead of fixed enums.
 
 
 ## Color Record
