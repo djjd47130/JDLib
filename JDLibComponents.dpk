@@ -36,7 +36,8 @@ requires
   IndySystem,
   IndyProtocols,
   vclimg,
-  dbrtl;
+  dbrtl,
+  dwsLibRuntime;
 
 contains
   JD.Common in 'Source\JD.Common.pas',
@@ -59,6 +60,7 @@ contains
   JD.Sockets in 'Source\JD.Sockets.pas',
   JD.SysMon.Utils in 'Source\JD.SysMon.Utils.pas',
   JD.Ctrls.PlotChart in 'Source\JD.Ctrls.PlotChart.pas',
-  JD.VolumeControls2 in 'Source\JD.VolumeControls2.pas';
+  JD.VolumeControls2 in 'Source\JD.VolumeControls2.pas',
+  JD.Graphics.DWScript in 'Source\JD.Graphics.DWScript.pas' {dmJDGraphicsDWScript: TDataModule};
 
 end.
