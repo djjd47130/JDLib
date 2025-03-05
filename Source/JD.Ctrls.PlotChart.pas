@@ -225,6 +225,9 @@ type
     Crosshair: TJDPlotChartCrosshair; var X, Y: Single) of object;
 
 
+  TJDPlotChartAxisTextEvent = procedure(Sender: TObject; const Axis: TJDPlotChartAxis;
+    const Value: Single; var Text: String) of object;
+
 
   //////////////////////////////////////////////////////////////////////////////
   /// CONTROL: TJDPlotChart
@@ -254,6 +257,7 @@ type
     FOnHoverMousePoint: TJDPlotHoverEvent;
     FOnCustomCrosshair: TJDPlotChartCrosshairEvent;
     FCrosshairs: TJDPlotChartCrosshairs;
+    FOnGetAxisText: TJDPlotChartAxisTextEvent;
     procedure SetUI(const Value: TJDPlotChartUI);
     function PlotPointToPoint(P: TJDPlotPoint): TPointF; overload;
     function PlotPointToPoint(P: TPointF): TPointF; overload;
@@ -276,6 +280,8 @@ type
     procedure PointMoved(APoint: TJDPlotPoint); virtual;
     procedure PointDeleted(APoint: TJDPlotPoint); virtual;
     procedure CustomCrosshair(Crosshair: TJDPlotChartCrosshair; var X, Y: Single); virtual;
+    procedure GetAxisText(const Axis: TJDPlotChartAxis; const Value: Single;
+      var Text: String); virtual;
 
     procedure Paint; override;
     procedure Resize; override;
@@ -326,7 +332,7 @@ type
 
     property OnHoverMousePoint: TJDPlotHoverEvent read FOnHoverMousePoint write SetOnHoverMousePoint;
     property OnCustomCrosshair: TJDPlotChartCrosshairEvent read FOnCustomCrosshair write FOnCustomCrosshair;
-
+    property OnGetAxisText: TJDPlotChartAxisTextEvent read FOnGetAxisText write FOnGetAxisText;
   end;
 
   /// <summary>
@@ -920,6 +926,13 @@ begin
   Result := 0;
 end;
 
+procedure TJDPlotChart.GetAxisText(const Axis: TJDPlotChartAxis;
+  const Value: Single; var Text: String);
+begin
+  if Assigned(FOnGetAxisText) then
+    FOnGetAxisText(Self, Axis, Value, Text);
+end;
+
 function TJDPlotChart.GetTimePerc(ATime: TTime): Single;
 var
   TargetHour: Single;
@@ -1421,7 +1434,7 @@ var
     try
       LayoutRect.X := X;
       LayoutRect.Y := Y;
-      LayoutRect.Width := 40; // Narrower bounding box to better fit the labels
+      LayoutRect.Width := 55; // Narrower bounding box to better fit the labels
       LayoutRect.Height := 15; // Adjusted height for better text fit
       G.DrawString(PChar(Text), -1, GdiFont, LayoutRect, nil, SolidBrush);
     finally
@@ -1503,6 +1516,100 @@ var
     end;
   end;
 
+
+  procedure DrawBottomAxis;
+  var
+    Pen: TGPPen;
+    I: Integer;
+    Position, DataValue: Single;
+    LabelText: string;
+  begin
+    // Draw Bottom Axis Baseline
+    Pen := FUI.ChartArea.AxisBottom.BaseLine.MakePen;
+    try
+      var P1 := PointF(ChartRect.Left, ChartRect.Bottom);
+      var P2 := PointF(ChartRect.Right, ChartRect.Bottom);
+      G.DrawLine(Pen, P1.X, P1.Y, P2.X, P2.Y);
+    finally
+      Pen.Free;
+    end;
+
+    // Draw Vertical Grid Lines and Labels
+    Pen := FUI.ChartArea.AxisBottom.GridLines.MakePen;
+    try
+      for I := 0 to Round((FUX.ChartArea.AxisBottom.Max - FUX.ChartArea.AxisBottom.Min) / FUX.ChartArea.AxisBottom.Frequency) do begin
+        // Pre-calculate the data value
+        DataValue := FUX.ChartArea.AxisBottom.Min + I * FUX.ChartArea.AxisBottom.Frequency;
+
+        // Calculate grid line position
+        Position := ChartRect.Left + I * (ChartRect.Width / ((FUX.ChartArea.AxisBottom.Max - FUX.ChartArea.AxisBottom.Min) / FUX.ChartArea.AxisBottom.Frequency));
+        G.DrawLine(Pen, Position, ChartRect.Top, Position, ChartRect.Bottom);
+
+        if FUI.ChartArea.AxisBottom.Labels <> lpNone then begin
+          // Trigger event to query alternate text
+          LabelText := FormatFloat(FUX.ChartArea.AxisBottom.Format, DataValue);
+          GetAxisText(caBottom, DataValue, LabelText);
+
+          // Render the label
+          if FUI.ChartArea.AxisBottom.Labels = lpInside then
+            RenderText(Position - 10, ChartRect.Bottom - 20, LabelText) // Inside
+          else
+            RenderText(Position - 10, ChartRect.Bottom + 5, LabelText); // Outside
+        end;
+      end;
+    finally
+      Pen.Free;
+    end;
+  end;
+
+  procedure DrawLeftAxis;
+  var
+    Pen: TGPPen;
+    I: Integer;
+    Position, DataValue: Single;
+    LabelText: string;
+  begin
+    // Draw Left Axis Baseline
+    Pen := FUI.ChartArea.AxisLeft.BaseLine.MakePen;
+    try
+      var P1 := PointF(ChartRect.Left, ChartRect.Top);
+      var P2 := PointF(ChartRect.Left, ChartRect.Bottom);
+      G.DrawLine(Pen, P1.X, P1.Y, P2.X, P2.Y);
+    finally
+      Pen.Free;
+    end;
+
+    // Draw Horizontal Grid Lines and Labels
+    Pen := FUI.ChartArea.AxisLeft.GridLines.MakePen;
+    try
+      for I := 0 to Round((FUX.ChartArea.AxisLeft.Max - FUX.ChartArea.AxisLeft.Min) / FUX.ChartArea.AxisLeft.Frequency) do begin
+        // Pre-calculate the data value
+        DataValue := FUX.ChartArea.AxisLeft.Min + I * FUX.ChartArea.AxisLeft.Frequency;
+
+        // Calculate grid line position
+        Position := ChartRect.Bottom - I * (ChartRect.Height / ((FUX.ChartArea.AxisLeft.Max - FUX.ChartArea.AxisLeft.Min) / FUX.ChartArea.AxisLeft.Frequency));
+        G.DrawLine(Pen, ChartRect.Left, Position, ChartRect.Right, Position);
+
+        if FUI.ChartArea.AxisLeft.Labels <> lpNone then begin
+          // Trigger event to query alternate text
+          LabelText := FormatFloat(FUX.ChartArea.AxisLeft.Format, DataValue);
+          GetAxisText(caLeft, DataValue, LabelText);
+
+          // Render the label
+          if FUI.ChartArea.AxisLeft.Labels = lpInside then
+            RenderText(ChartRect.Left + 5, Position - 10, LabelText) // Inside
+          else
+            RenderText(ChartRect.Left - 30, Position - 10, LabelText); // Outside
+        end;
+      end;
+    finally
+      Pen.Free;
+    end;
+  end;
+
+
+
+  {
   procedure DrawBottomAxis;
   var
     Pen: TGPPen;
@@ -1524,11 +1631,16 @@ var
     Pen:= FUI.ChartArea.AxisBottom.GridLines.MakePen;
     try
       for I := 0 to Round((FUX.ChartArea.AxisBottom.Max - FUX.ChartArea.AxisBottom.Min) / FUX.ChartArea.AxisBottom.Frequency) do begin
+
+        //TODO: Extract data value in its own variable...
+
         Position := ChartRect.Left + I * (ChartRect.Width / ((FUX.ChartArea.AxisBottom.Max - FUX.ChartArea.AxisBottom.Min) / FUX.ChartArea.AxisBottom.Frequency));
         G.DrawLine(Pen, Position, ChartRect.Top, Position, ChartRect.Bottom);
 
         if FUI.ChartArea.AxisBottom.Labels <> lpNone then begin
           LabelText := FormatFloat(FUX.ChartArea.AxisBottom.Format, FUX.ChartArea.AxisBottom.Min + I * FUX.ChartArea.AxisBottom.Frequency);
+
+          //TODO: Trigger event to query alternate text...
 
           // Check Label Position
           if FUI.ChartArea.AxisBottom.Labels = lpInside then
@@ -1563,11 +1675,19 @@ var
     Pen:= FUI.ChartArea.AxisLeft.GridLines.MakePen;
     try
       for I := 0 to Round((FUX.ChartArea.AxisLeft.Max - FUX.ChartArea.AxisLeft.Min) / FUX.ChartArea.AxisLeft.Frequency) do begin
+
+        //TODO: Extract data value in its own variable...
+        var PlotValue: Single:= (I * FUX.ChartArea.AxisLeft.Frequency); //Is this correct??
+
         Position := ChartRect.Bottom - I * (ChartRect.Height / ((FUX.ChartArea.AxisLeft.Max - FUX.ChartArea.AxisLeft.Min) / FUX.ChartArea.AxisLeft.Frequency));
         G.DrawLine(Pen, ChartRect.Left, Position, ChartRect.Right, Position);
 
         if FUI.ChartArea.AxisLeft.Labels <> lpNone then begin
           LabelText := FormatFloat(FUX.ChartArea.AxisLeft.Format, FUX.ChartArea.AxisLeft.Min + I * FUX.ChartArea.AxisLeft.Frequency);
+
+          //TODO: Trigger event to query alternate text...
+          //Need to pass plot data value, NOT pixel value...
+          //GetAxisText(caLeft,
 
           // Check Label Position
           if FUI.ChartArea.AxisLeft.Labels = lpInside then
@@ -1580,6 +1700,7 @@ var
       Pen.Free;
     end;
   end;
+  }
 
   procedure DrawGhostPoint;
   begin
