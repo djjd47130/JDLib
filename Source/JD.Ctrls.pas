@@ -42,12 +42,23 @@ type
   TJDUICanvas = class;
   TJDUIControl = class;
 
+
+  TJDUIBrushType = (
+   btSolidColor,
+   btHatchFill,
+   btTextureFill,
+   btPathGradient,
+   btLinearGradient
+  );
+
   TJDUILayerEvent = procedure(Sender: TObject; Layer: TJDUILayer) of object;
 
   TJDUILayerPaintEvent = procedure(Sender: TObject; Layer: TJDUILayer;
     Canvas: TJDUICanvas) of object;
 
   TJDUIRectVarEvent = procedure(Sender: TObject; var R: TJDRect) of object;
+
+  TJDUIBrushClass = class of TJDUIBrush;
 
   TJDUIBrush = class(TPersistent)
   private
@@ -65,6 +76,10 @@ type
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
   published
     property Color: TJDAlphaColorRef read FColor write SetColor;
+  end;
+
+  TJDUISolidBrush = class(TJDUIBrush)
+  private
   end;
 
   TJDUIPen = class(TPersistent)
@@ -87,6 +102,23 @@ type
     property Color: TJDAlphaColorRef read FColor write SetColor;
     property Width: Single read FWidth write SetWidth;
   end;
+
+  TJDBitmap = class(TPersistent)
+  private
+    FOwner: TPersistent;
+    FBmp: TBitmap;
+    FCanvas: TJDUICanvas;
+    FWidth: Single;
+    FHeight: Single;
+  protected
+    function GetOwner: TPersistent; override;
+  public
+    constructor Create(AOwner: TPersistent); virtual;
+    destructor Destroy; override;
+    property Canvas: TJDUICanvas read FCanvas;
+  end;
+
+
 
   TJDUILayer = class(TCollectionItem)
   private
@@ -525,6 +557,29 @@ end;
 procedure TJDUILayers.SetItems(const Index: Integer; const Value: TJDUILayer);
 begin
   inherited SetItem(Index, Value);
+end;
+
+{ TJDBitmap }
+
+constructor TJDBitmap.Create(AOwner: TPersistent);
+begin
+  FOwner:= AOwner;
+  FBmp:= TBitmap.Create;
+  FCanvas:= TJDUICanvas.Create(Self, FBmp.Canvas);
+
+end;
+
+destructor TJDBitmap.Destroy;
+begin
+
+  FreeAndNil(FCanvas);
+  FreeAndNil(FBmp);
+  inherited;
+end;
+
+function TJDBitmap.GetOwner: TPersistent;
+begin
+  Result:= FOwner;
 end;
 
 end.
