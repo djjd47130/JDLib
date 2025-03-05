@@ -1601,6 +1601,7 @@ var
 
   procedure DrawCrosshairs;
   begin
+  {
     //TODO: Ever since implementing, everything including IDE became glitchy...
     var R: TJDRect:= Self.ClientToScreen(ChartRect);
     var CP: TJDPoint;
@@ -1648,6 +1649,7 @@ var
 
 
 
+      }
 
     end;
 
@@ -1676,10 +1678,10 @@ var
         Pen.Free;
       end;
     end;
-    }
 
   end;
 
+    }
 
 begin
   inherited;
