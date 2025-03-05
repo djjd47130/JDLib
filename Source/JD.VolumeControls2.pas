@@ -426,6 +426,7 @@ var
 begin
   CoInitialize(nil);
   try
+    Count:= 0;
     CoCreateInstance(CLSID_MMDeviceEnumerator, nil, CLSCTX_INPROC_SERVER, IID_IMMDeviceEnumerator, DeviceEnumerator);
     DeviceEnumerator.GetDefaultAudioEndpoint(Cardinal(eRender), Cardinal(eConsole), DefaultDevice);
     DefaultDevice.Activate(IID_IAudioEndpointVolume, CLSCTX_INPROC_SERVER, nil, AudioEndpointVolume);
@@ -464,6 +465,7 @@ begin
   Result := -1;
   CoInitialize(nil);
   try
+    Count:= 0;
     CoCreateInstance(CLSID_MMDeviceEnumerator, nil, CLSCTX_INPROC_SERVER, IID_IMMDeviceEnumerator, DeviceEnumerator);
     DeviceEnumerator.GetDefaultAudioEndpoint(Cardinal(eRender), Cardinal(eConsole), DefaultDevice);
     DefaultDevice.Activate(IID_IAudioEndpointVolume, CLSCTX_INPROC_SERVER, nil, AudioEndpointVolume);
@@ -500,6 +502,7 @@ var
 begin
   CoInitialize(nil);
   try
+    Count:= 0;
     CoCreateInstance(CLSID_MMDeviceEnumerator, nil, CLSCTX_INPROC_SERVER, IID_IMMDeviceEnumerator, DeviceEnumerator);
     DeviceEnumerator.GetDefaultAudioEndpoint(Cardinal(eRender), Cardinal(eConsole), DefaultDevice);
     DefaultDevice.Activate(IID_IAudioEndpointVolume, CLSCTX_INPROC_SERVER, nil, AudioEndpointVolume);
@@ -538,6 +541,7 @@ begin
   Result := False;
   CoInitialize(nil);
   try
+    Count:= 0;
     CoCreateInstance(CLSID_MMDeviceEnumerator, nil, CLSCTX_INPROC_SERVER, IID_IMMDeviceEnumerator, DeviceEnumerator);
     DeviceEnumerator.GetDefaultAudioEndpoint(Cardinal(eRender), Cardinal(eConsole), DefaultDevice);
     DefaultDevice.Activate(IID_IAudioEndpointVolume, CLSCTX_INPROC_SERVER, nil, AudioEndpointVolume);

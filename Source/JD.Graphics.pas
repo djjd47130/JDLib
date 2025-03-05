@@ -478,44 +478,13 @@ type
       read GetColorNew write SetColorNew;
   end;
 
-  /// <summary>
-  /// Experimental canvas concept for custom controls, using GDI+.
-  /// Considering attaching it to TJDCustomControl, but need to
-  /// carefully consider implementation based on its complex nature.
-  /// For example, window handles being destroyed / recreated.
-  /// </summary>
-  TJDCanvas = class(TPersistent)
-  private
-    FCanvas: TCanvas;
-    FCreatedCanvas: Boolean;
-    {$IFDEF USE_GDIP}
-    FGPCanvas: TGPGraphics;
-    FGPPen: TGPPen;
-    FGPSolidBrush: TGPSolidBrush;
-    {$ENDIF}
-    FPainting: Boolean;
-    FBrushColor: TJDColor;
-    FPenColor: TJDColor;
-    procedure SetBrushColor(const Value: TJDColor);
-    procedure SetPenColor(const Value: TJDColor);
-    procedure SetPenWidth(const Value: Single);
-    function GetPenWidth: Single;
-  public
-    constructor Create(ACanvas: TCanvas);
-    destructor Destroy; override;
-    procedure BeginPaint;
-    procedure EndPaint;
-    property Canvas: TCanvas read FCanvas;
-    {$IFDEF USE_GDIP}
-    property GPCanvas: TGPGraphics read FGPCanvas;
-    {$ENDIF}
-    function ClipRect: TJDRect;
-  published
-    //TODO: Implement TJDBrush and TJDPen concepts...
-    property BrushColor: TJDColor read FBrushColor write SetBrushColor;
-    property PenColor: TJDColor read FPenColor write SetPenColor;
-    property PenWidth: Single read GetPenWidth write SetPenWidth;
-  end;
+
+
+
+
+
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Color related functions
@@ -1351,6 +1320,7 @@ end;
 function TJDAlphaColorRef.GetJDColor: TJDColor;
 begin
   inherited;
+  Result.Alpha:= FAlpha;
 end;
 
 procedure TJDAlphaColorRef.SetAlpha(const Value: Byte);
@@ -1491,70 +1461,6 @@ end;
 procedure TJDColorManager.UnregisterControl(AControl: TWinControl);
 begin
   FControls.Delete(FControls.IndexOf(AControl));
-end;
-
-{ TJDCanvas }
-
-function TJDCanvas.ClipRect: TJDRect;
-begin
-  Result:= FCanvas.ClipRect;
-end;
-
-constructor TJDCanvas.Create(ACanvas: TCanvas);
-begin
-  if Assigned(ACanvas) then begin
-    FCanvas:= ACanvas;
-    FCreatedCanvas:= False;
-  end else begin
-    FCanvas:= TCanvas.Create;
-    //TODO
-    FCreatedCanvas:= True;
-  end;
-  FGPPen:= TGPPen.Create;
-  FGPSolidBrush:= TGPSolidBrush.Create;
-end;
-
-destructor TJDCanvas.Destroy;
-begin
-  FreeAndNil(FGPSolidBrush);
-  FreeAndNil(FGPPen);
-  if FCreatedCanvas then
-    FreeAndNil(FCanvas);
-  inherited;
-end;
-
-procedure TJDCanvas.BeginPaint;
-begin
-  FPainting:= True;
-  FGPCanvas:= TGPGraphics.Create(FCanvas.Handle);
-end;
-
-procedure TJDCanvas.EndPaint;
-begin
-  FPainting:= False;
-  FreeAndNil(FGPCanvas);
-end;
-
-function TJDCanvas.GetPenWidth: Single;
-begin
-  Result:= FGPPen.GetWidth;
-end;
-
-procedure TJDCanvas.SetBrushColor(const Value: TJDColor);
-begin
-  FBrushColor:= Value;
-  FGPSolidBrush.SetColor(ColorToGPColor(Value));
-end;
-
-procedure TJDCanvas.SetPenColor(const Value: TJDColor);
-begin
-  FPenColor:= Value;
-  FGPPen.SetColor(ColorToGPColor(Value));
-end;
-
-procedure TJDCanvas.SetPenWidth(const Value: Single);
-begin
-  FGPPen.SetWidth(Value);
 end;
 
 { TJDColorRGBRef }

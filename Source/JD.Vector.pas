@@ -20,7 +20,10 @@ interface
 uses
   System.Classes, System.SysUtils,
   Winapi.Windows,
-  Vcl.Graphics;
+  Vcl.Graphics,
+  JD.Ctrls,
+  JD.Common,
+  JD.Graphics;
 
 type
   TJDVectorPoint = class;
@@ -111,15 +114,36 @@ type
 
   TJDVectorGraphic = class(TPersistent)
   private
+    FOwner: TPersistent;
     FParts: TJDVectorParts;
+    FOnChange: TNotifyEvent;
     procedure SetParts(const Value: TJDVectorParts);
+    procedure SetOnChange(const Value: TNotifyEvent);
+  protected
+    function GetOwner: TPersistent; override;
   public
-    constructor Create;
+    constructor Create(AOwner: TPersistent); virtual;
     destructor Destroy; override;
-    procedure Invalidate;
+    property Owner: TPersistent read FOwner;
+    procedure Invalidate; virtual;
     procedure Render(ACanvas: TCanvas; const X, Y: Integer; const Scale: Single);
   published
     property Parts: TJDVectorParts read FParts write SetParts;
+    property OnChange: TNotifyEvent read FOnChange write SetOnChange;
+  end;
+
+  TJDVectorImage = class(TJDControl)
+  private
+    FGraphic: TJDVectorGraphic;
+    procedure GraphicChanged(Sender: TObject);
+    procedure SetGraphic(const Value: TJDVectorGraphic);
+  protected
+    procedure Paint; override;
+  public
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
+  published
+    property Graphic: TJDVectorGraphic read FGraphic write SetGraphic;
   end;
 
 implementation
@@ -324,8 +348,10 @@ end;
 
 { TJDVectorGraphic }
 
-constructor TJDVectorGraphic.Create;
+constructor TJDVectorGraphic.Create(AOwner: TPersistent);
 begin
+  inherited Create;
+  FOwner:= AOwner;
   FParts:= TJDVectorParts.Create(Self);
 end;
 
@@ -335,10 +361,21 @@ begin
   inherited;
 end;
 
+function TJDVectorGraphic.GetOwner: TPersistent;
+begin
+  Result:= FOwner;
+end;
+
 procedure TJDVectorGraphic.Invalidate;
 begin
   //TODO: Link to a canvas and invalidate it...
+  if Assigned(FOnChange) then
+    FOnChange(Self);
+end;
 
+procedure TJDVectorGraphic.SetOnChange(const Value: TNotifyEvent);
+begin
+  FOnChange := Value;
 end;
 
 procedure TJDVectorGraphic.SetParts(const Value: TJDVectorParts);
@@ -355,6 +392,40 @@ begin
     P:= FParts[I];
     P.Render(ACanvas, X, Y, Scale);
   end;
+end;
+
+{ TJDVectorImage }
+
+constructor TJDVectorImage.Create(AOwner: TComponent);
+begin
+  inherited;
+  FGraphic:= TJDVectorGraphic.Create(Self);
+  FGraphic.OnChange:= GraphicChanged;
+
+end;
+
+destructor TJDVectorImage.Destroy;
+begin
+
+  FreeAndNil(FGraphic);
+  inherited;
+end;
+
+procedure TJDVectorImage.GraphicChanged(Sender: TObject);
+begin
+  Invalidate;
+end;
+
+procedure TJDVectorImage.Paint;
+begin
+  inherited;
+  FGraphic.Render(Canvas, 0, 0, 1.0);
+end;
+
+procedure TJDVectorImage.SetGraphic(const Value: TJDVectorGraphic);
+begin
+  FGraphic.Assign(Value);
+  Invalidate;
 end;
 
 end.
