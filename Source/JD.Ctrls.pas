@@ -108,8 +108,8 @@ type
     FOwner: TPersistent;
     FBmp: TBitmap;
     FCanvas: TJDUICanvas;
-    FWidth: Single;
-    FHeight: Single;
+    //FWidth: Single;
+    //FHeight: Single;
   protected
     function GetOwner: TPersistent; override;
   public
@@ -536,16 +536,16 @@ begin
       var C: TJDUICanvas:= L.LockCanvas;
       try
         //TODO: Paint FBuffer onto ACanvas...
-        ACanvas.BeginPaint;
+        C.BeginPaint;
         try
           var Img: TGPBitmap:= TGPBitmap.Create (L.FBuffer.Handle, L.FBuffer.Palette);
           try
-            ACanvas.GPCanvas.DrawImage(Img, CR);
+            C.GPCanvas.DrawImage(Img, CR);
           finally
             Img.Free;
           end;
         finally
-          ACanvas.EndPaint;
+          C.EndPaint;
         end;
       finally
         L.UnlockCanvas;
