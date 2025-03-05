@@ -268,6 +268,7 @@ type
     procedure SetOnHoverMousePoint(const Value: TJDPlotHoverEvent);
     procedure WMMouseMove(var Msg: TWMMouseMove);
     procedure SetCrosshairs(const Value: TJDPlotChartCrosshairs);
+    function GetYofX(const X: Single): Single;
   protected
     procedure InvalidateOptionGroup(AGroup: TJDPlotChartOptionGroup);
 
@@ -890,6 +891,33 @@ procedure TJDPlotChart.CustomCrosshair(Crosshair: TJDPlotChartCrosshair; var X,
 begin
   if Assigned(FOnCustomCrosshair) then
     FOnCustomCrosshair(Self, Crosshair, X, Y);
+end;
+
+function TJDPlotChart.GetYofX(const X: Single): Single;
+var
+  I: Integer;
+  P1, P2: TJDPlotPoint;
+  XDiff, YDiff: Single;
+begin
+  // Iterate through the list of points to find the interval containing X
+  for I := 0 to FPoints.Count - 2 do begin
+    if (FPoints[I].X <= X) and (X <= FPoints[I + 1].X) then begin
+      P1 := FPoints[I];
+      P2 := FPoints[I + 1];
+
+      // Linear interpolation to find the corresponding Y value
+      XDiff := P2.X - P1.X;
+      if XDiff = 0 then
+        Exit(P1.Y); // Avoid division by zero
+
+      YDiff := P2.Y - P1.Y;
+      Result := P1.Y + ((X - P1.X) / XDiff) * YDiff;
+      Exit;
+    end;
+  end;
+
+  // If X is not within the range of FPoints, return a default value
+  Result := 0;
 end;
 
 function TJDPlotChart.GetTimePerc(ATime: TTime): Single;
@@ -1600,25 +1628,22 @@ var
   end;
 
   procedure DrawCrosshairs;
+  var
+    TX, TY: Single;
   begin
-  {
-    //TODO: Ever since implementing, everything including IDE became glitchy...
+    var Crosshair: TJDPlotChartCrosshair;
     var R: TJDRect:= Self.ClientToScreen(ChartRect);
     var CP: TJDPoint;
-
     for var I := 0 to FCrosshairs.Count-1 do begin
-      var CH:= FCrosshairs.Items[I];
-      case CH.FCrosshairType of
+      Crosshair:= FCrosshairs.Items[I];
+      case Crosshair.FCrosshairType of
         ctCustom: begin
-          //Position crosshair at X/Y coordinates...
-          CP:= PointF(CH.X, CH.Y);
-          var TX: Single:= CH.X;
-          var TY: Single:= CH.Y;
+          //Position crosshair at specific X/Y coordinates...
+          TX:= CP.X;
+          TY:= CP.Y;
           //Trigger event...
-          CustomCrosshair(CH, TX, TY);
-          CH.X:= TX;
-          CH.Y:= TY;
-
+          CustomCrosshair(Crosshair, TX, TY);
+          CP:= PointF(TX, TY);
           CP:= Self.PlotPointToPoint(CP);
         end;
         ctMouse: begin
@@ -1630,58 +1655,18 @@ var
         end;
         ctPlotLine: begin
           //Trigger event to query X coordinate and follow Y on plot line...
-          CP:= PointF(CH.X, CH.Y);
-          var TX: Single:= CH.X;
-          var TY: Single:= CH.Y;
-          TY:= GetTimePerc(TX); //TODO?
+          TX:= Crosshair.X;
           //Trigger event...
-          CustomCrosshair(CH, TX, TY);
-          CH.X:= TX;
-          CH.Y:= GetTimePerc(TX);
-
+          CustomCrosshair(Crosshair, TX, TY);
+          TY:= GetYofX(TX);
+          CP:= PointF(TX, TY);
           CP:= Self.PlotPointToPoint(CP);
         end;
       end;
-
       //Draw horizontal/vertical lines based on exact pixel location...
-      DrawCrosshair(CH, CP.X, CP.Y);
-
-
-
-
-      }
-
+      DrawCrosshair(Crosshair, CP.X, CP.Y);
     end;
-
-    {
-    if FUI.ChartArea.Crosshairs.Horizontal.Visible then begin
-      Pen:= FUI.ChartArea.Crosshairs.Horizontal.MakePen;
-      try
-        P1.X:= ChartRect.Left;
-        P1.Y:= MP.Y;
-        P2.X:= ChartRect.Right;
-        P2.Y:= MP.Y;
-        G.DrawLine(Pen, P1, P2);
-      finally
-        Pen.Free;
-      end;
-    end;
-    if FUI.ChartArea.Crosshairs.Vertical.Visible then begin
-      Pen:= FUI.ChartArea.Crosshairs.Vertical.MakePen;
-      try
-        P1.X:= MP.X;
-        P1.Y:= ChartRect.Top;
-        P2.X:= MP.X;
-        P2.Y:= ChartRect.Bottom;
-        G.DrawLine(Pen, P1, P2);
-      finally
-        Pen.Free;
-      end;
-    end;
-
   end;
-
-    }
 
 begin
   inherited;
@@ -1692,17 +1677,22 @@ begin
     G.SetInterpolationMode(InterpolationModeHighQualityBicubic);
     try
       try
-        DrawBackground;
-        DrawAccentColor(FUI.ChartArea.Fill.Color,
-          FUI.ChartArea.Fill.Alpha);
-        DrawBottomAxis;
-        DrawLeftAxis;
-        if FUI.ChartArea.Line.Visible then
-          DrawLines(FUI.ChartArea.Line.Color.GetJDColor, FUI.ChartArea.Line.Width);
-        if FUI.ChartArea.Points.Visible then
-          DrawPoints;
-        DrawGhostPoint;
-        DrawCrosshairs;
+        Canvas.Lock;
+        try
+          DrawBackground;
+          DrawAccentColor(FUI.ChartArea.Fill.Color,
+            FUI.ChartArea.Fill.Alpha);
+          DrawBottomAxis;
+          DrawLeftAxis;
+          if FUI.ChartArea.Line.Visible then
+            DrawLines(FUI.ChartArea.Line.Color.GetJDColor, FUI.ChartArea.Line.Width);
+          if FUI.ChartArea.Points.Visible then
+            DrawPoints;
+          DrawGhostPoint;
+          DrawCrosshairs;
+        finally
+          Canvas.Unlock;
+        end;
       except
         on E: Exception do begin
           //TODO
