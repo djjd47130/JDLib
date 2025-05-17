@@ -2,13 +2,20 @@ unit JD.Ctrls;
 
 interface
 
+{$IF CompilerVersion >= 20.0} // 20.0 corresponds to Delphi 2009
+  {$DEFINE USE_GDIP}
+{$IFEND}
+
 uses
   System.SysUtils, System.Classes, System.SyncObjs,
   Vcl.Controls,
   Vcl.Graphics
+  {$IFDEF USE_GDIP}
   , GDIPAPI, GDIPOBJ, GDIPUTIL
+  {$ENDIF}
   , JD.Common
   , JD.Graphics
+  , JD.SuperObject
   ;
 
 //TODO: Change all library's custom controls to inherit from these standards...
@@ -44,11 +51,11 @@ type
 
 
   TJDUIBrushType = (
-   btSolidColor,
-   btHatchFill,
-   btTextureFill,
-   btPathGradient,
-   btLinearGradient
+    btSolidColor,
+    btHatchFill,
+    btTextureFill,
+    btPathGradient,
+    btLinearGradient
   );
 
   TJDUILayerEvent = procedure(Sender: TObject; Layer: TJDUILayer) of object;
@@ -63,9 +70,12 @@ type
   TJDUIBrush = class(TPersistent)
   private
     FOwner: TPersistent;
-    FColor: TJDAlphaColorRef;
+    FColor: TJDColorRef;
     FOnChange: TNotifyEvent;
-    procedure SetColor(const Value: TJDAlphaColorRef);
+    FAlpha: Byte;
+    procedure SetColor(const Value: TJDColorRef);
+    procedure SetAlpha(const Value: Byte);
+    procedure ColorChanged(Sender: TObject);
   protected
     function GetOwner: TPersistent; override;
   public
@@ -73,9 +83,17 @@ type
     destructor Destroy; override;
     procedure Invalidate;
     function MakeBrush: TGPSolidBrush; virtual;
+
+    function SaveToJSON: ISuperObject; virtual;
+    procedure LoadFromJSON(O: ISuperObject); virtual;
+
+    procedure LoadFromString(const S: String); virtual;
+    function SaveToString: String; virtual;
+
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
   published
-    property Color: TJDAlphaColorRef read FColor write SetColor;
+    property Alpha: Byte read FAlpha write SetAlpha;
+    property Color: TJDColorRef read FColor write SetColor;
   end;
 
   TJDUISolidBrush = class(TJDUIBrush)
@@ -85,11 +103,14 @@ type
   TJDUIPen = class(TPersistent)
   private
     FOwner: TPersistent;
-    FColor: TJDAlphaColorRef;
+    FColor: TJDColorRef;
     FWidth: Single;
     FOnChange: TNotifyEvent;
-    procedure SetColor(const Value: TJDAlphaColorRef);
+    FAlpha: Byte;
+    procedure SetColor(const Value: TJDColorRef);
     procedure SetWidth(const Value: Single);
+    procedure ColorChanged(Sender: TObject);
+    procedure SetAlpha(const Value: Byte);
   protected
     function GetOwner: TPersistent; override;
   public
@@ -97,9 +118,17 @@ type
     destructor Destroy; override;
     procedure Invalidate;
     function MakePen: TGPPen; virtual;
+
+    procedure LoadFromJSON(O: ISuperObject);
+    function SaveToJSON: ISuperObject;
+
+    procedure LoadFromString(const S: String); virtual;
+    function SaveToString: String; virtual;
+
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
   published
-    property Color: TJDAlphaColorRef read FColor write SetColor;
+    property Alpha: Byte read FAlpha write SetAlpha;
+    property Color: TJDColorRef read FColor write SetColor;
     property Width: Single read FWidth write SetWidth;
   end;
 
@@ -226,7 +255,9 @@ implementation
 constructor TJDUIBrush.Create(AOwner: TPersistent);
 begin
   FOwner:= AOwner;
-  FColor:= TJDAlphaColorRef.Create;
+  FColor:= TJDColorRef.Create;
+  FColor.OnChange:= ColorChanged;
+  FAlpha:= 255;
 
 end;
 
@@ -237,6 +268,11 @@ begin
   inherited;
 end;
 
+procedure TJDUIBrush.ColorChanged(Sender: TObject);
+begin
+  Invalidate;
+end;
+
 function TJDUIBrush.GetOwner: TPersistent;
 begin
   Result:= FOwner;
@@ -244,18 +280,49 @@ end;
 
 procedure TJDUIBrush.Invalidate;
 begin
-
+  if Assigned(FOnChange) then
+    FOnChange(Self);
 end;
 
 function TJDUIBrush.MakeBrush: TGPSolidBrush;
 begin
-  var C: TJDColor:= FColor.GetJDColor;
-  Result:= TGPSolidBrush.Create(C.GDIPColor);
+  Result:= TGPSolidBrush.Create(FColor.GetGDIPColor(Alpha));
 end;
 
-procedure TJDUIBrush.SetColor(const Value: TJDAlphaColorRef);
+procedure TJDUIBrush.LoadFromJSON(O: ISuperObject);
+begin
+  FColor.LoadFromJSON(O.O['Color']);
+  FAlpha:= O.I['Alpha'];
+  Invalidate;
+end;
+
+function TJDUIBrush.SaveToJSON: ISuperObject;
+begin
+  Result:= SO;
+  Result.O['Color']:= Color.SaveToJSON;
+  Result.I['Alpha']:= Alpha;
+end;
+
+procedure TJDUIBrush.LoadFromString(const S: String);
+begin
+  LoadFromJSON(SO(S));
+end;
+
+function TJDUIBrush.SaveToString: String;
+begin
+  Result:= SaveToJSON.AsJSON(True);
+end;
+
+procedure TJDUIBrush.SetAlpha(const Value: Byte);
+begin
+  FAlpha := Value;
+  Invalidate;
+end;
+
+procedure TJDUIBrush.SetColor(const Value: TJDColorRef);
 begin
   FColor.Assign(Value);
+  Invalidate;
 end;
 
 { TJDUIPen }
@@ -263,18 +330,19 @@ end;
 constructor TJDUIPen.Create(AOwner: TPersistent);
 begin
   FOwner:= AOwner;
-  FColor:= TJDAlphaColorRef.Create;
+  FColor:= TJDColorRef.Create;
+  FColor.OnChange:= ColorChanged;
+  FAlpha:= 255;
+
   FWidth:= 1;
 
 end;
 
 function TJDUIPen.MakePen: TGPPen;
-var
-  C: TJDColor;
 begin
-  C:= FColor.GetJDColor;
-  Result:= TGPPen.Create(C.GDIPColor, FWidth);
+  Result:= TGPPen.Create(FColor.GetGDIPColor(FAlpha), FWidth);
   //TODO: Implement more properties as TGPPen supports...
+  //Result.SetLineCap(FStartLineCap, FEndLineCap, FDashCap);
 
 end;
 
@@ -285,6 +353,11 @@ begin
   inherited;
 end;
 
+procedure TJDUIPen.ColorChanged(Sender: TObject);
+begin
+  Invalidate;
+end;
+
 function TJDUIPen.GetOwner: TPersistent;
 begin
   Result:= FOwner;
@@ -292,10 +365,55 @@ end;
 
 procedure TJDUIPen.Invalidate;
 begin
-
+  if Assigned(FOnChange) then
+    FOnChange(Self);
 end;
 
-procedure TJDUIPen.SetColor(const Value: TJDAlphaColorRef);
+procedure TJDUIPen.LoadFromJSON(O: ISuperObject);
+begin
+  FColor.LoadFromJSON(O.O['Color']);
+  FAlpha:= O.I['Alpha'];
+  FWidth:= O.F['Width'];
+  Invalidate;
+end;
+
+function TJDUIPen.SaveToJSON: ISuperObject;
+begin
+  Result:= SO;
+  Result.O['Color']:= Color.SaveToJSON;
+  Result.I['Alpha']:= Alpha;
+  Result.F['Width']:= Width;
+end;
+
+procedure TJDUIPen.LoadFromString(const S: String);
+var
+  O: ISuperObject;
+begin
+  O:= SO(S);
+  FColor.LoadFromString(O.S['Color']);
+  FAlpha:= O.I['Alpha'];
+  FWidth:= O.F['Width'];
+  Invalidate;
+end;
+
+function TJDUIPen.SaveToString: String;
+var
+  O: ISuperObject;
+begin
+  O:= SO;
+  O.S['Color']:= Color.SaveToString;
+  O.I['Alpha']:= Alpha;
+  O.F['Width']:= Width;
+  Result:= O.AsJSON(True);
+end;
+
+procedure TJDUIPen.SetAlpha(const Value: Byte);
+begin
+  FAlpha := Value;
+  Invalidate;
+end;
+
+procedure TJDUIPen.SetColor(const Value: TJDColorRef);
 begin
   FColor.Assign(Value);
   Invalidate;

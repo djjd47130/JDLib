@@ -1,5 +1,16 @@
 unit JD.FontGlyphs;
 
+(*
+TODO:
+- Standardize a single TJDFontGlyph (TPersistent) which can be referenced as any
+  published property with its own property editor, supporting overlay images
+  and several other rendering options to paint a single font glyph image.
+- Support multi-layered glyph - not necessarily an "overlay", but instead
+  combining 2 or more font glyphs in layers. Useful for multi-color vectors.
+
+
+*)
+
 interface
 
 uses
@@ -23,6 +34,7 @@ type
   ///  Represents a reference to a particular font glyph with options for
   ///  font name, character, scale, and color.
   ///  Also provides property editor to pick glyph and options.
+  ///  Specifically used within TFontGlyphItem.
   ///  </summary>
   TJDFontGlyphRef = class;
 
@@ -200,6 +212,73 @@ type
 
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
   end;
+
+
+
+
+
+  //NEW CONCEPT - Single property to contain multiple layered glyphs and overlays.
+  //Carries no specific size - only references to glyphs, colors, and offsets.
+  //Basically a vector image which can be scaled as needed.
+
+type
+  TJDGlyphImage = class;
+
+  TJDGlyphImagePosition = (gipCenter, gipTopLeft, gipTopRight, gipBottomLeft, gipBottomRight);
+
+  TJDGlyphImageItem = class(TCollectionItem)
+  const
+    DEF_GLYPH = ' ';
+    DEF_COLOR = clWindowText;
+    DEF_SCALE = 0.96;
+    DEF_POSITION = gipCenter;
+  private
+    FOwner: TJDGlyphImage;
+    //FGlyph: WideChar;
+    //FColor: TJDColorRef;
+    FScale: Single;
+    //FPosition: TJDGlyphImagePosition;
+    procedure SetScale(const Value: Single);
+    function IsScaleStored: Boolean;
+  public
+    constructor Create(Collection: TCollection); override;
+    destructor Destroy; override;
+    procedure Invalidate;
+  published
+    property Scale: Single read FScale write SetScale stored IsScaleStored;
+  end;
+
+  TJDGlyphImageItems = class(TOwnedCollection)
+
+  end;
+
+  TJDGlyphImage = class(TPersistent)
+  private
+    FGlyphs: TJDGlyphImageItems;
+    procedure SetGlyphs(const Value: TJDGlyphImageItems);
+  public
+    constructor Create; virtual;
+    destructor Destroy; override;
+    procedure Invalidate;
+  published
+    property Glyphs: TJDGlyphImageItems read FGlyphs write SetGlyphs;
+  end;
+
+
+
+
+  TJDGlyphImageList = class(TJDMessageComponent)
+  private
+  protected
+    procedure WndMethod(var Message: TMessage); override;
+  public
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
+    procedure Invalidate; override;
+  published
+  end;
+
+
 
 function GetFontGlyphs(dc: HDC; const PrivateOnly: Boolean = True): TCharArray;
 
@@ -690,6 +769,89 @@ procedure TJDFontGlyph.SetUseStandardColor(const Value: Boolean);
 begin
   FUseStandardColor := Value;
   Invalidate;
+end;
+
+{ TJDGlyphImageItem }
+
+constructor TJDGlyphImageItem.Create(Collection: TCollection);
+begin
+  inherited;
+  FScale:= DEF_SCALE;
+
+end;
+
+destructor TJDGlyphImageItem.Destroy;
+begin
+
+  inherited;
+end;
+
+procedure TJDGlyphImageItem.Invalidate;
+begin
+  FOwner.Invalidate;
+end;
+
+function TJDGlyphImageItem.IsScaleStored: Boolean;
+begin
+  Result:= FScale <> DEF_SCALE;
+end;
+
+procedure TJDGlyphImageItem.SetScale(const Value: Single);
+begin
+  FScale := Value;
+  Invalidate;
+end;
+
+{ TJDGlyphImage }
+
+constructor TJDGlyphImage.Create;
+begin
+
+end;
+
+destructor TJDGlyphImage.Destroy;
+begin
+
+  inherited;
+end;
+
+procedure TJDGlyphImage.Invalidate;
+begin
+
+end;
+
+procedure TJDGlyphImage.SetGlyphs(const Value: TJDGlyphImageItems);
+begin
+  FGlyphs.Assign(Value);
+  Invalidate;
+end;
+
+{ TJDGlyphImageList }
+
+constructor TJDGlyphImageList.Create(AOwner: TComponent);
+begin
+  inherited;
+
+end;
+
+destructor TJDGlyphImageList.Destroy;
+begin
+
+  inherited;
+end;
+
+procedure TJDGlyphImageList.Invalidate;
+begin
+  inherited;
+
+end;
+
+procedure TJDGlyphImageList.WndMethod(var Message: TMessage);
+begin
+  if Message.Msg = WM_JD_COLORCHANGE then begin
+    Invalidate;
+  end;
+  inherited;
 end;
 
 end.

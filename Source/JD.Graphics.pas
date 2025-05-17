@@ -8,7 +8,11 @@
 
 interface
 
-{$DEFINE USE_GDIP}
+{$IF CompilerVersion >= 20.0} // 20.0 corresponds to Delphi 2009
+  {$DEFINE USE_GDIP}
+{$IFEND}
+
+{.$DEFINE JD_ALPHA}
 
 uses
   System.Classes, System.SysUtils, System.Generics.Collections,
@@ -18,6 +22,7 @@ uses
   , GDIPAPI, GDIPOBJ, GDIPUTIL
   {$ENDIF}
   , JD.Common //JD.Common should NOT use any other JD related units!
+  , JD.SuperObject
   ;
 
 const
@@ -189,7 +194,9 @@ type
     FRed: Byte;
     FGreen: Byte;
     FBlue: Byte;
+    {$IFDEF JD_ALPHA}
     FAlpha: Byte;
+    {$ENDIF}
     
 
     //TODO: Support JD Standard colors
@@ -200,8 +207,10 @@ type
     //  predefine as many color references as their heart desires,
     //  give each one a unique name, and reference them here...
 
+    {$IFDEF JD_ALPHA}
     function GetAlpha: Byte;
     procedure SetAlpha(const Value: Byte);
+    {$ENDIF}
 
     function GetHue: TJDCHue;
     function GetSaturation: TJDCSaturation;
@@ -221,14 +230,17 @@ type
 
     function GetHTML: String;
     procedure SetHTML(const Value: String);
-    function GetGDIPColor: Cardinal;
   public
     class operator Implicit(Value: TJDColor): TColor;
     class operator Implicit(Value: TColor): TJDColor;
     class operator Equal(a: TJDColor; b: TJDColor): Boolean;
     class operator NotEqual(a: TJDColor; b: TJDColor): Boolean;
 
+    function GetGDIPColor(Alpha: Byte = 255): Cardinal;
+
+    {$IFDEF JD_ALPHA}
     property Alpha: Byte read GetAlpha write SetAlpha;
+    {$ENDIF}
 
     property Red: Byte read FRed write FRed;
     property Green: Byte read FGreen write FGreen;
@@ -244,10 +256,12 @@ type
     property Black: Byte read GetBlack write SetBlack;
 
     {$IFDEF USE_GDIP}
-    property GDIPColor: Cardinal read GetGDIPColor;
+    //property GDIPColor: Cardinal read GetGDIPColor;
     {$ENDIF}
     property HTML: String read GetHTML write SetHTML;
   end;
+
+  TJDColorArray = array of TJDColor;
 
   TJDColorRef = class;
 
@@ -339,6 +353,14 @@ type
     procedure Assign(Source: TPersistent); override;
     procedure Invalidate; virtual;
     function GetJDColor: TJDColor; virtual;
+    function GetGDIPColor(Alpha: Byte = 255): Cardinal;
+
+    function SaveToJSON: ISuperObject; virtual;
+    procedure LoadFromJSON(O: ISuperObject); virtual;
+
+    function SaveToString: String; virtual;
+    procedure LoadFromString(S: String); virtual;
+
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
   published
     property Color: TColor read GetColor write SetColor stored IsMainColorStored;
@@ -362,6 +384,9 @@ type
     constructor Create; override;
     procedure Assign(Source: TPersistent); override;
     function GetJDColor: TJDColor; override;
+    {$IFDEF USE_GDIP}
+    function GDIPColor: TGPColor;
+    {$ENDIF}
   published
     property Alpha: Byte read FAlpha write SetAlpha;
   end;
@@ -376,6 +401,8 @@ type
   TJDColorItem = class;
   TJDColorItems = class;
   TJDColorList = class;
+
+  TJDColorName = String; //TODO: Create property editor similar to TColor drop-down
 
   TJDColorItemEvent = procedure(Sender: TObject; Item: TJDColorItem) of object;
 
@@ -494,35 +521,63 @@ type
 /// Determines the color mode based on currently active theme's base color
 /// </summary>
 function DetectColorMode(const AColor: TColor): TJDColorMode;
+
 /// <summary>
 /// Converts RGB color to HSV color
 /// </summary>
 function RGBToHSV(R, G, B: Byte; var H, S, V: Double): Boolean;
+
 /// <summary>
 /// Converts HSV color to RGB color
 /// </summary>
 //function HSVToRGB(H, S, V: Double; var R, G, B: Byte): Boolean;
 procedure HSVToRGB(H, S, V: Double; out R, G, B: Byte);
+
 /// <summary>
 /// Converts RGB color to HTML color
 /// </summary>
 function ColorToHtml(Color: TColor): string;
+
 /// <summary>
 /// Converts RGB color to HTML color
 /// </summary>
 function ColorToHtml2(Clr: TColor): string;
+
 /// <summary>
 /// Converts HTML color to RGB color
 /// </summary>
 function HtmlToColor(Color: string): TColor;
+
 /// <summary>
 /// Tweaks the brightness of a given color
 /// </summary>
 function TweakColor(const AColor: TColor; const Diff: Integer): TColor;
 
+/// <summary>
+/// Returns an array of colors ranging between 2 specified colors.
+/// </summary>
+function GenerateColorGradient(StartColor, EndColor: TJDColor; Steps: Integer): TArray<TJDColor>;
+
+/// <summary>
+/// Returns an array of colors ranging between multiple specified colors.
+/// </summary>
+function GenerateMultiColorGradient(Colors: TArray<TJDColor>; Steps: Integer): TArray<TJDColor>;
+
+
+function ColorFade(const ASource: TColor; const ACount: Integer; const Shift: Integer): TJDColorArray; overload;
+
+function ColorFade(const ASource: TColor; const Shift: Integer): TJDColor; overload;
+
+function CreateGPCanvas(const DC: HDC): TGPGraphics;
+
 ////////////////////////////////////////////////////////////////////////////////
 // General graphics related functions
 ////////////////////////////////////////////////////////////////////////////////
+
+/// <summary>
+/// Restricts an integer value within the range of a byte.
+/// </summary>
+function ClampByte(Value: Integer): Byte;
 
 /// <summary>
 /// Draws a control's parent image in a given canvas for a transparency effect.
@@ -542,6 +597,7 @@ function DrawTextJD(hDC: HDC; Str: String;
   var lpRect: TJDRect; uFormat: UINT): Integer;
 
 {$IFDEF USE_GDIP}
+//TODO: Move into JD.Common with TJDPoint and TJDRect...
 //function PointToGPPoint(P: TPoint): TGPPointF;
 function RectToGPRect(R: TRect): TGPRectF;
 function ColorToGPColor(C: TColor): Cardinal;
@@ -555,7 +611,7 @@ function ColorManager: TJDColorManager;
 implementation
 
 uses
-  Math;
+  System.Math, System.StrUtils;
 
 var
   _ColorManager: TJDColorManager;
@@ -575,11 +631,13 @@ begin
   Result := (Color and $00FFFFFF) or (A shl 24);
 end;
 
+{$IFDEF JD_ALPHA}
 function RGBA(R, G, B, A: Byte): TColor;
 begin
   //Result := (A shl 24) or (R shl 16) or (G shl 8) or B;
   Result := (A shl 24) or (B shl 16) or (G shl 8) or R;
 end;
+{$ENDIF}
 
 {$IFDEF USE_GDIP}
 function RectToGPRect(R: TRect): TGPRectF;
@@ -670,6 +728,82 @@ begin
   G:= IntRange(G + Dir, 0, 255);
   B:= IntRange(B + Dir, 0, 255);
   Result:= RGB(R, G, B);
+end;
+
+function ClampByte(Value: Integer): Byte;
+begin
+  if Value < 0 then
+    Result := 0
+  else if Value > 255 then
+    Result := 255
+  else
+    Result := Value;
+end;
+
+function GenerateColorGradient(StartColor, EndColor: TJDColor; Steps: Integer): TArray<TJDColor>;
+var
+  i: Integer;
+  RStart, GStart, BStart: Byte;
+  REnd, GEnd, BEnd: Byte;
+  RStep, GStep, BStep: Double;
+  Gradient: TArray<TJDColor>;
+begin
+  SetLength(Gradient, Steps);
+
+  // Extract RGB values from the start and end colors
+  RStart := StartColor.Red;
+  GStart := StartColor.Green;
+  BStart := StartColor.Blue;
+
+  REnd := EndColor.Red;
+  GEnd := EndColor.Green;
+  BEnd := EndColor.Blue;
+
+  // Calculate step increments for each color component
+  RStep := (REnd - RStart) / (Steps - 1);
+  GStep := (GEnd - GStart) / (Steps - 1);
+  BStep := (BEnd - BStart) / (Steps - 1);
+
+  // Generate the gradient
+  for i := 0 to Steps - 1 do begin
+    Gradient[i].Red := ClampByte(Round(RStart + (RStep * i)));
+    Gradient[i].Green := ClampByte(Round(GStart + (GStep * i)));
+    Gradient[i].Blue := ClampByte(Round(BStart + (BStep * i)));
+    {$IFDEF JD_ALPHA}
+    Gradient[i].Alpha := 255; // Full opacity, adjust if needed
+    {$ENDIF}
+  end;
+
+  Result := Gradient;
+end;
+
+function GenerateMultiColorGradient(Colors: TArray<TJDColor>; Steps: Integer): TArray<TJDColor>;
+var
+  i, SegmentSteps, StartIndex: Integer;
+  PartialGradient: TArray<TJDColor>;
+  TotalSteps, CurrentStep: Integer;
+begin
+  if Length(Colors) < 2 then
+    raise Exception.Create('GenerateMultiColorGradient requires at least two colors.');
+
+  TotalSteps := Steps * (Length(Colors) - 1); // Total steps across all segments
+  SetLength(Result, TotalSteps);
+
+  CurrentStep := 0;
+
+  // Loop through each pair of consecutive colors
+  for i := 0 to High(Colors) - 1 do begin
+    SegmentSteps := Steps; // Number of steps for this segment
+
+    // Generate the gradient for this pair
+    PartialGradient := GenerateColorGradient(Colors[i], Colors[i + 1], SegmentSteps);
+
+    // Append the partial gradient to the result
+    for StartIndex := 0 to High(PartialGradient) do begin
+      Result[CurrentStep] := PartialGradient[StartIndex];
+      Inc(CurrentStep);
+    end;
+  end;
 end;
 
 function DetectColorMode(const AColor: TColor): TJDColorMode;
@@ -800,6 +934,38 @@ begin
   //GENERATED BY CODEIUM
   Radians:= Arctan2(P.Y - Center.Y, P.X - Center.X);
   Result:= (Radians * 180 / Pi) + 135;
+end;
+
+function ColorFade(const ASource: TColor; const ACount: Integer; const Shift: Integer): TJDColorArray;
+var
+  X: Integer;
+  R, G, B: Byte;
+begin
+  SetLength(Result, ACount);
+  for X := 0 to ACount-1 do begin
+    R:= IntRange(GetRValue(ASource), 1, 254) + (Shift * X);
+    G:= IntRange(GetGValue(ASource), 1, 254) + (Shift * X);
+    B:= IntRange(GetBValue(ASource), 1, 254) + (Shift * X);
+    Result[X]:= RGB(R, G, B);
+  end;
+end;
+
+function ColorFade(const ASource: TColor; const Shift: Integer): TJDColor;
+var
+  R, G, B: Byte;
+begin
+  R:= IntRange(GetRValue(ASource), 1, 254) + (Shift);
+  G:= IntRange(GetGValue(ASource), 1, 254) + (Shift);
+  B:= IntRange(GetBValue(ASource), 1, 254) + (Shift);
+  Result:= RGB(R, G, B);
+end;
+
+function CreateGPCanvas(const DC: HDC): TGPGraphics;
+begin
+  Result:= TGPGraphics.Create(DC);
+  Result.SetInterpolationMode(InterpolationMode.InterpolationModeHighQuality);
+  Result.SetSmoothingMode(SmoothingMode.SmoothingModeHighQuality);
+  Result.SetCompositingQuality(CompositingQuality.CompositingQualityHighQuality);
 end;
 
 { TJDCHue }
@@ -1059,7 +1225,12 @@ end;
 class operator TJDColor.Implicit(Value: TJDColor): TColor;
 begin
   with Value do begin
+    {$IFDEF JD_ALPHA}
     Result:= RGBA(Red, Green, Blue, Alpha);
+    {$ELSE}
+    Result:= RGB(Red, Green, Blue);
+    {$ENDIF}
+
     //Result:= SetAValue(Result, Alpha);
   end;
 end;
@@ -1070,7 +1241,9 @@ begin
     FRed:= GetRValue(Value);
     FGreen:= GetGValue(Value);
     FBlue:= GetBValue(Value);
-    FAlpha:= GetAValue(Value);
+    {$IFDEF JD_ALPHA}
+    FAlpha:= 255; // GetAValue(Value);
+    {$ENDIF}
   end;
 end;
 
@@ -1108,11 +1281,13 @@ begin
   Result:= GetCValue(RGB(FRed, FGreen, FBlue));
 end;
 
-function TJDColor.GetGDIPColor: Cardinal;
+function TJDColor.GetGDIPColor(Alpha: Byte = 255): Cardinal;
 begin
-  //TODO: Alpha...
-  //Result:= GDIPAPI.MakeColor(255, FRed, FGreen, FBlue);
-  Result:= GDIPAPI.MakeColor(FAlpha, FRed, FGreen, FBlue);
+  {$IFDEF JD_ALPHA}
+  Result:= GDIPAPI.MakeColor(Alpha, FRed, FGreen, FBlue);
+  {$ELSE}
+  Result:= GDIPAPI.MakeColor(255, FRed, FGreen, FBlue);
+  {$ENDIF}
 end;
 
 function TJDColor.GetMagenta: Byte;
@@ -1130,10 +1305,12 @@ begin
   Result:= TColor(A) = TColor(B);
 end;
 
+{$IFDEF JD_ALPHA}
 function TJDColor.GetAlpha: Byte;
 begin
   Result:= FAlpha;
 end;
+{$ENDIF}
 
 function TJDColor.GetBlack: Byte;
 begin
@@ -1182,10 +1359,12 @@ begin
   Self:= CMYK(Cyan, Magenta, Value, Black);
 end;
 
+{$IFDEF JD_ALPHA}
 procedure TJDColor.SetAlpha(const Value: Byte);
 begin
   FAlpha:= Value;
 end;
+{$ENDIF}
 
 procedure TJDColor.SetBlack(const Value: Byte);
 begin
@@ -1237,6 +1416,11 @@ begin
   Result:= GetJDColor;
 end;
 
+function TJDColorRef.GetGDIPColor(Alpha: Byte = 255): Cardinal;
+begin
+  Result:= GDIPAPI.MakeColor(Alpha, RGB.R, RGB.G, RGB.B);
+end;
+
 function TJDColorRef.GetJDColor: TJDColor;
 begin
   if FUseStandardColor then
@@ -1266,6 +1450,36 @@ begin
   FUseStandardColor:= False;
   FColor := Value;
   Invalidate;
+end;
+
+procedure TJDColorRef.LoadFromJSON(O: ISuperObject);
+begin
+  FRGB.R:= O.I['R'];
+  FRGB.G:= O.I['G'];
+  FRGB.B:= O.I['B'];
+  FStandardColor:= TJDStandardColor(O.I['StandardColor']);
+  FUseStandardColor:= O.B['UseStandardColor']; //This MUST be loaded after RGB and StandardColor!!!
+  Invalidate;
+end;
+
+function TJDColorRef.SaveToJSON: ISuperObject;
+begin
+  Result:= SO;
+  Result.B['UseStandardColor']:= UseStandardColor;
+  Result.I['StandardColor']:= Integer(StandardColor);
+  Result.I['R']:= FRGB.R;
+  Result.I['G']:= FRGB.G;
+  Result.I['B']:= FRGB.B;
+end;
+
+procedure TJDColorRef.LoadFromString(S: String);
+begin
+  LoadFromJSON(SO(S));
+end;
+
+function TJDColorRef.SaveToString: String;
+begin
+  Result:= SaveToJSON.AsJSON(True);
 end;
 
 procedure TJDColorRef.SetCMYK(const Value: TJDColorCMYKRef);
@@ -1317,10 +1531,19 @@ begin
   FAlpha:= 255;
 end;
 
+{$IFDEF USE_GDIP}
+function TJDAlphaColorRef.GDIPColor: TGPColor;
+begin
+  Result:= MakeColor(FAlpha, GetJDColor.Red, GetJDColor.Green, GetJDColor.Blue);
+end;
+{$ENDIF}
+
 function TJDAlphaColorRef.GetJDColor: TJDColor;
 begin
   inherited;
+  {$IFDEF JD_ALPHA}
   Result.Alpha:= FAlpha;
+  {$ENDIF}
 end;
 
 procedure TJDAlphaColorRef.SetAlpha(const Value: Byte);

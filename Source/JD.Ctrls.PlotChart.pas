@@ -587,11 +587,13 @@ type
     FY: Single;
     FHorizontal: TJDPlotChartUILine;
     FVertical: TJDPlotChartUILine;
+    FPoint: TJDPlotChartUIPoint;
     procedure SetHorizontal(const Value: TJDPlotChartUILine);
     procedure SetVertical(const Value: TJDPlotChartUILine);
     procedure SetCrosshairType(const Value: TJDPlotChartCrosshairType);
     procedure SetX(const Value: Single);
     procedure SetY(const Value: Single);
+    procedure SetPoint(const Value: TJDPlotChartUIPoint);
   public
     constructor Create(Collection: TCollection); override;
     destructor Destroy; override;
@@ -602,6 +604,7 @@ type
     property Vertical: TJDPlotChartUILine read FVertical write SetVertical;
     property X: Single read FX write SetX;
     property Y: Single read FY write SetY;
+    property Point: TJDPlotChartUIPoint read FPoint write SetPoint;
   end;
 
   TJDPlotChartCrosshairs = class(TOwnedCollection)
@@ -1126,15 +1129,19 @@ end;
 
 procedure TJDPlotChart.CMMouseEnter(var Message: TMessage);
 begin
-
+  //if Assigned(OnMouseEnter) then
+    //OnMouseEnter(Self);
   Invalidate;
+  inherited;
 end;
 
 procedure TJDPlotChart.CMMouseLeave(var Message: TMessage);
 begin
   FGhostPointVisible := False;
-
+  //if Assigned(OnMouseLeave) then
+    //OnMouseLeave(Self);
   Invalidate;
+  inherited;
 end;
 
 procedure TJDPlotChart.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
@@ -1607,101 +1614,6 @@ var
     end;
   end;
 
-
-
-  {
-  procedure DrawBottomAxis;
-  var
-    Pen: TGPPen;
-    I: Integer;
-    Position: Single;
-    LabelText: string;
-  begin
-    // Draw Bottom Axis Baseline
-    Pen:= FUI.ChartArea.AxisBottom.BaseLine.MakePen;
-    try
-      var P1 := PointF(ChartRect.Left, ChartRect.Bottom); // Adjust this based on where the baseline should be
-      var P2 := PointF(ChartRect.Right, ChartRect.Bottom);
-      G.DrawLine(Pen, P1.X, P1.Y, P2.X, P2.Y);
-    finally
-      Pen.Free;
-    end;
-
-    // Draw Vertical Grid Lines and Labels
-    Pen:= FUI.ChartArea.AxisBottom.GridLines.MakePen;
-    try
-      for I := 0 to Round((FUX.ChartArea.AxisBottom.Max - FUX.ChartArea.AxisBottom.Min) / FUX.ChartArea.AxisBottom.Frequency) do begin
-
-        //TODO: Extract data value in its own variable...
-
-        Position := ChartRect.Left + I * (ChartRect.Width / ((FUX.ChartArea.AxisBottom.Max - FUX.ChartArea.AxisBottom.Min) / FUX.ChartArea.AxisBottom.Frequency));
-        G.DrawLine(Pen, Position, ChartRect.Top, Position, ChartRect.Bottom);
-
-        if FUI.ChartArea.AxisBottom.Labels <> lpNone then begin
-          LabelText := FormatFloat(FUX.ChartArea.AxisBottom.Format, FUX.ChartArea.AxisBottom.Min + I * FUX.ChartArea.AxisBottom.Frequency);
-
-          //TODO: Trigger event to query alternate text...
-
-          // Check Label Position
-          if FUI.ChartArea.AxisBottom.Labels = lpInside then
-            RenderText(Position - 10, ChartRect.Bottom - 20, LabelText) // Inside
-          else
-            RenderText(Position - 10, ChartRect.Bottom + 5, LabelText); // Outside
-        end;
-      end;
-    finally
-      Pen.Free;
-    end;
-  end;
-
-  procedure DrawLeftAxis;
-  var
-    Pen: TGPPen;
-    I: Integer;
-    Position: Single;
-    LabelText: string;
-  begin
-    // Draw Left Axis Baseline
-    Pen:= FUI.ChartArea.AxisLeft.BaseLine.MakePen;
-    try
-      var P1 := PointF(ChartRect.Left, ChartRect.Top); // Adjust this based on where the baseline should be
-      var P2 := PointF(ChartRect.Left, ChartRect.Bottom);
-      G.DrawLine(Pen, P1.X, P1.Y, P2.X, P2.Y);
-    finally
-      Pen.Free;
-    end;
-
-    // Draw Horizontal Grid Lines and Labels
-    Pen:= FUI.ChartArea.AxisLeft.GridLines.MakePen;
-    try
-      for I := 0 to Round((FUX.ChartArea.AxisLeft.Max - FUX.ChartArea.AxisLeft.Min) / FUX.ChartArea.AxisLeft.Frequency) do begin
-
-        //TODO: Extract data value in its own variable...
-        var PlotValue: Single:= (I * FUX.ChartArea.AxisLeft.Frequency); //Is this correct??
-
-        Position := ChartRect.Bottom - I * (ChartRect.Height / ((FUX.ChartArea.AxisLeft.Max - FUX.ChartArea.AxisLeft.Min) / FUX.ChartArea.AxisLeft.Frequency));
-        G.DrawLine(Pen, ChartRect.Left, Position, ChartRect.Right, Position);
-
-        if FUI.ChartArea.AxisLeft.Labels <> lpNone then begin
-          LabelText := FormatFloat(FUX.ChartArea.AxisLeft.Format, FUX.ChartArea.AxisLeft.Min + I * FUX.ChartArea.AxisLeft.Frequency);
-
-          //TODO: Trigger event to query alternate text...
-          //Need to pass plot data value, NOT pixel value...
-          //GetAxisText(caLeft,
-
-          // Check Label Position
-          if FUI.ChartArea.AxisLeft.Labels = lpInside then
-            RenderText(ChartRect.Left + 5, Position - 10, LabelText) // Inside
-          else
-            RenderText(ChartRect.Left - 30, Position - 10, LabelText); // Outside
-        end;
-      end;
-    finally
-      Pen.Free;
-    end;
-  end;
-  }
-
   procedure DrawGhostPoint;
   begin
     //TODO: Fix issue of disappearing near plot lines...
@@ -1744,6 +1656,16 @@ var
         G.DrawLine(Pen, P1, P2);
       finally
         Pen.Free;
+      end;
+    end;
+    if CH.FPoint.Visible then begin
+      var P := PointF(X, Y);
+      var Brush:= CH.Point.MakeBrush;
+      var Z: Single := CH.Point.Width / 2;
+      try
+        G.FillEllipse(Brush, P.X - Z, P.Y - Z, Z * 2, Z * 2);
+      finally
+        Brush.Free;
       end;
     end;
   end;
@@ -2770,11 +2692,17 @@ begin
   FVertical.Alpha:= 180;
   FVertical.Visible:= True;
 
+  FPoint:= TJDPlotChartUIPoint.Create(Collection.Owner as TJDPlotChart);
+  FPoint.Width:= 8;
+  FPoint.Color.Color:= clYellow;
+  FPoint.Visible:= False;
+
 end;
 
 destructor TJDPlotChartCrosshair.Destroy;
 begin
 
+  FreeAndNil(FPoint);
   FreeAndNil(FVertical);
   FreeAndNil(FHorizontal);
   inherited;
@@ -2795,6 +2723,12 @@ end;
 procedure TJDPlotChartCrosshair.SetHorizontal(const Value: TJDPlotChartUILine);
 begin
   FHorizontal.Assign(Value);
+  Invalidate;
+end;
+
+procedure TJDPlotChartCrosshair.SetPoint(const Value: TJDPlotChartUIPoint);
+begin
+  FPoint.Assign(Value);
   Invalidate;
 end;
 

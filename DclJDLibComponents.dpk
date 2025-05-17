@@ -42,6 +42,7 @@ contains
   JD.Ctrls.FontButtonEditCtrl in 'Source\Editors\JD.Ctrls.FontButtonEditCtrl.pas' {frmSelectControl},
   JD.Ctrls.GlyphListEditor in 'Source\Editors\JD.Ctrls.GlyphListEditor.pas' {GlyphListEditor},
   JD.Ctrls.JDGaugeEditors in 'Source\Editors\JD.Ctrls.JDGaugeEditors.pas',
-  JD.Ctrls.PageMenuEditor in 'Source\Editors\JD.Ctrls.PageMenuEditor.pas';
+  JD.Ctrls.PageMenuEditor in 'Source\Editors\JD.Ctrls.PageMenuEditor.pas',
+  JD.VectorEditors in 'Source\Editors\JD.VectorEditors.pas';
 
 end.

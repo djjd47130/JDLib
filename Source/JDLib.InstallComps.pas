@@ -4,6 +4,7 @@ interface
 
 uses
   System.Classes,
+  JD.Logs,
   JD.Ctrls,
   JD.SmoothMove,
   JD.FontGlyphs,
@@ -30,7 +31,7 @@ begin
   RegisterComponents(JD_TAB_CAPTION,
     [TJDFontButton, TJDFontGlyphs, TJDSmoothMove, TJDPageMenu, TJDSideMenu,
     TJDGauge, TJDVolumeControls, TJDSystemMonitor, TJDPlotChart,
-    TJDVectorImage]);
+    TJDVectorImage, TJDLogger, TJDFileLogger, TJDConsoleLogger]);
 end;
 
 end.

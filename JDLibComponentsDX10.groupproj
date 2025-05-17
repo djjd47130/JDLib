@@ -15,6 +15,9 @@
         <Projects Include="JDSysMonTest\JDSysMonTest.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="JDVectorTest\JDVectorTest.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -59,14 +62,23 @@
     <Target Name="JDSysMonTest:Make">
         <MSBuild Projects="JDSysMonTest\JDSysMonTest.dproj" Targets="Make"/>
     </Target>
+    <Target Name="JDVectorTest">
+        <MSBuild Projects="JDVectorTest\JDVectorTest.dproj"/>
+    </Target>
+    <Target Name="JDVectorTest:Clean">
+        <MSBuild Projects="JDVectorTest\JDVectorTest.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="JDVectorTest:Make">
+        <MSBuild Projects="JDVectorTest\JDVectorTest.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="JDLibComponents;DclJDLibComponents;JDGaugeTest;JDSysMonTest"/>
+        <CallTarget Targets="JDLibComponents;DclJDLibComponents;JDGaugeTest;JDSysMonTest;JDVectorTest"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="JDLibComponents:Clean;DclJDLibComponents:Clean;JDGaugeTest:Clean;JDSysMonTest:Clean"/>
+        <CallTarget Targets="JDLibComponents:Clean;DclJDLibComponents:Clean;JDGaugeTest:Clean;JDSysMonTest:Clean;JDVectorTest:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="JDLibComponents:Make;DclJDLibComponents:Make;JDGaugeTest:Make;JDSysMonTest:Make"/>
+        <CallTarget Targets="JDLibComponents:Make;DclJDLibComponents:Make;JDGaugeTest:Make;JDSysMonTest:Make;JDVectorTest:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

@@ -9,21 +9,21 @@ package JDLibComponents;
 {$EXTENDEDSYNTAX ON}
 {$IMPORTEDDATA ON}
 {$IOCHECKS ON}
-{$LOCALSYMBOLS OFF}
+{$LOCALSYMBOLS ON}
 {$LONGSTRINGS ON}
 {$OPENSTRINGS ON}
-{$OPTIMIZATION ON}
+{$OPTIMIZATION OFF}
 {$OVERFLOWCHECKS OFF}
 {$RANGECHECKS OFF}
-{$REFERENCEINFO OFF}
+{$REFERENCEINFO ON}
 {$SAFEDIVIDE OFF}
-{$STACKFRAMES OFF}
+{$STACKFRAMES ON}
 {$TYPEDADDRESS OFF}
 {$VARSTRINGCHECKS ON}
 {$WRITEABLECONST OFF}
 {$MINENUMSIZE 1}
 {$IMAGEBASE $400000}
-{$DEFINE RELEASE}
+{$DEFINE DEBUG}
 {$DEFINE USE_GDIP}
 {$ENDIF IMPLICITBUILDING}
 {$RUNONLY}
@@ -61,6 +61,9 @@ contains
   JD.SysMon.Utils in 'Source\JD.SysMon.Utils.pas',
   JD.Ctrls.PlotChart in 'Source\JD.Ctrls.PlotChart.pas',
   JD.VolumeControls2 in 'Source\JD.VolumeControls2.pas',
-  JD.Graphics.DWScript in 'Source\JD.Graphics.DWScript.pas' {dmJDGraphicsDWScript: TDataModule};
+  JD.Graphics.DWScript in 'Source\JD.Graphics.DWScript.pas' {dmJDGraphicsDWScript: TDataModule},
+  JD.Logs in 'Source\JD.Logs.pas',
+  JD.Ctrls.Toolbar in 'Source\JD.Ctrls.Toolbar.pas',
+  JD.SuperObject in 'Source\JD.SuperObject.pas';
 
 end.

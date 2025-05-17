@@ -2,7 +2,9 @@ unit JD.Common;
 
 interface
 
-{$DEFINE USE_GDIP}
+{$IF CompilerVersion >= 20.0} // 20.0 corresponds to Delphi 2009
+  {$DEFINE USE_GDIP}
+{$IFEND}
 
 uses
   System.Classes, System.SysUtils, System.Types,
@@ -55,11 +57,13 @@ type
     class operator Implicit(Value: TJDPoint): TGPPointF;
     class operator Implicit(Value: TGPPointF): TJDPoint;
     {$ENDIF}
+    class function Create(const X, Y: Single): TJDPoint; static;
     property X: Single read FX write SetX;
     property Y: Single read FY write SetY;
     procedure Move(const AmtX, AmtY: Single);
     //function InRect(const R: TJDRect): Boolean;
   end;
+  TJDPoints = TArray<TJDPoint>;
 
   PJDRect = ^TJDRect;
   ///  <summary>
@@ -104,6 +108,7 @@ type
     property Left: Single read GetLeft write SetLeft;
     property Top: Single read GetTop write SetTop;
 
+    class function Create(const Left, Top, Right, Bottom: Single): TJDRect; static;
     procedure Inflate(const AmtX, AmtY: Single);
     procedure Deflate(const AmtX, AmtY: Single);
     procedure Move(const AmtX, AmtY: Single);
@@ -163,12 +168,60 @@ type
     destructor Destroy; override;
   end;
 
+
+
+function SetThreadDescription(hThread: THandle; lpThreadDescription: WideString): HRESULT; stdcall;
+  external kernel32 name 'SetThreadDescription';
+
+
 ///  <summary>
 ///  Ensures an integer falls within a given min/max range.
 ///  </summary>
 function IntRange(const Value, Min, Max: Integer): Integer;
 
+function PointAroundCircle(Center: TJDPoint; Distance: Currency; Degrees: Currency): TJDPoint;
+
+/// <summary>
+/// Translates TAlignment enum into WinAPI DT_ representation.
+/// </summary>
 function JDAlignmentToFlags(const AValue: TAlignment): Cardinal;
+
+
+
+/// <summary>
+/// Creates a TJDPoint based on X/Y coordinates.
+/// </summary>
+function JDPoint(const X, Y: Single): TJDPoint; overload;
+/// <summary>
+/// Creates a TJDPoint based on X/Y coordinates.
+/// </summary>
+function JDPoint(const X, Y: Integer): TJDPoint; overload;
+
+/// <summary>
+/// Creates a TJDRect based on edge coordinates.
+/// </summary>
+function JDRect(const Left, Top, Right, Bottom: Single): TJDRect; overload;
+/// <summary>
+/// Creates a TJDRect based on edge coordinates.
+/// </summary>
+function JDRect(const Left, Top, Right, Bottom: Integer): TJDRect; overload;
+/// <summary>
+/// Creates a TJDRect based on Top-Left and Bottom-Right points.
+/// </summary>
+function JDRect(const TopLeft, BottomRight: TJDPoint): TJDRect; overload;
+/// <summary>
+/// Creates a TJDRect based on dimensions and center position.
+/// </summary>
+function JDRect(const Width, Height: Single; const Center: TJDPoint): TJDRect; overload;
+/// <summary>
+/// Creates a TJDRect based on dimensions and center position.
+/// </summary>
+function JDRect(const Width, Height: Integer; const Center: TJDPoint): TJDRect; overload;
+
+function PosOf(const AValue: Integer): Integer; overload; //--> JD.Common
+function NegOf(const AValue: Integer): Integer; overload; //--> JD.Common
+function PosOf(const AValue: Currency): Currency; overload; //--> JD.Common
+function NegOf(const AValue: Currency): Currency; overload; //--> JD.Common
 
 implementation
 
@@ -182,6 +235,22 @@ begin
   if Result > Max then Result:= Max;
 end;
 
+//Calculates an absolute pixel point based on a center point, distance (radius), and degrees.
+//This is perhaps the most complicated part of the whole thing. Someone wrote this
+//  function for me many years ago and I've used it in many projects, and tweak it for each.
+function PointAroundCircle(Center: TJDPoint; Distance: Currency; Degrees: Currency): TJDPoint;
+var
+  Radians: Real;
+begin
+  //TODO: Change input from "Degrees" to "Radians" to eliminate the need for
+  //  a variable, this reducing heap allocation and increasing performance.
+
+  //Convert angle from degrees to radians; Subtract 135 to bring position to 0 Degrees
+  Radians:= (Degrees - 135) * Pi / 180;
+  Result.X:= Distance*Cos(Radians)-Distance*Sin(Radians)+Center.X;
+  Result.Y:= Distance*Sin(Radians)+Distance*Cos(Radians)+Center.Y;
+end;
+
 function JDAlignmentToFlags(const AValue: TAlignment): Cardinal;
 begin
   case AValue of
@@ -190,6 +259,94 @@ begin
     taCenter:       Result:= DT_CENTER;
     else            Result:= DT_LEFT;
   end;
+end;
+
+function JDPoint(const X, Y: Single): TJDPoint;
+begin
+  Result.X:= X;
+  Result.Y:= Y;
+end;
+
+function JDPoint(const X, Y: Integer): TJDPoint;
+begin
+  Result.X:= X;
+  Result.Y:= Y;
+end;
+
+function JDRect(const Left, Top, Right, Bottom: Single): TJDRect;
+begin
+  Result.Left:= Left;
+  Result.Top:= Top;
+  Result.Right:= Right;
+  Result.Bottom:= Bottom;
+end;
+
+function JDRect(const Left, Top, Right, Bottom: Integer): TJDRect;
+begin
+  Result.Left:= Left;
+  Result.Top:= Top;
+  Result.Right:= Right;
+  Result.Bottom:= Bottom;
+end;
+
+function JDRect(const TopLeft, BottomRight: TJDPoint): TJDRect;
+begin
+  Result.Left:= TopLeft.X;
+  Result.Top:= TopLeft.Y;
+  Result.Right:= BottomRight.X;
+  Result.Bottom:= BottomRight.Y;
+end;
+
+function JDRect(const Width, Height: Single; const Center: TJDPoint): TJDRect;
+var
+  OX, OY: Single;
+begin
+  OX:= (Width - Center.X);
+  OY:= (Height - Center.Y);
+  Result.Left:= OX;
+  Result.Top:= OY;
+  Result.Right:= OX + Width;
+  Result.Bottom:= OY + Height;
+end;
+
+function JDRect(const Width, Height: Integer; const Center: TJDPoint): TJDRect;
+var
+  OX, OY: Single;
+begin
+  OX:= (Width - Center.X);
+  OY:= (Height - Center.Y);
+  Result.Left:= OX;
+  Result.Top:= OY;
+  Result.Right:= OX + Width;
+  Result.Bottom:= OY + Height;
+end;
+
+function PosOf(const AValue: Integer): Integer;
+begin
+  Result:= AValue;
+  if Result < 0 then
+    Result:= -Result;
+end;
+
+function NegOf(const AValue: Integer): Integer;
+begin
+  Result:= AValue;
+  if Result > 0 then
+    Result:= -Result;
+end;
+
+function PosOf(const AValue: Currency): Currency;
+begin
+  Result:= AValue;
+  if Result < 0 then
+    Result:= -Result;
+end;
+
+function NegOf(const AValue: Currency): Currency;
+begin
+  Result:= AValue;
+  if Result > 0 then
+    Result:= -Result;
 end;
 
 { TJDMessageComponent }
@@ -275,6 +432,12 @@ class operator TJDPoint.Implicit(Value: TJDPoint): TGPPointF;
 begin
   Result.X:= Value.X;
   Result.Y:= Value.Y;
+end;
+
+class function TJDPoint.Create(const X, Y: Single): TJDPoint;
+begin
+  Result.X:= X;
+  Result.Y:= Y;
 end;
 
 class operator TJDPoint.Implicit(Value: TGPPointF): TJDPoint;
@@ -489,6 +652,14 @@ function TJDRect.ContainsPoint(const P: TJDPoint): Boolean;
 begin
   Result:= (P.X >= Left) and (P.X <= Right) and
     (P.Y >= Top) and (P.Y <= Bottom);
+end;
+
+class function TJDRect.Create(const Left, Top, Right, Bottom: Single): TJDRect;
+begin
+  Result.Left:= Left;
+  Result.Top:= Top;
+  Result.Right:= Right;
+  Result.Bottom:= Bottom;
 end;
 
 procedure TJDRect.Deflate(const AmtX, AmtY: Single);
