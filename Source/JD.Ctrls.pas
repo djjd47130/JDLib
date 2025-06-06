@@ -15,7 +15,7 @@ uses
   {$ENDIF}
   , JD.Common
   , JD.Graphics
-  , JD.SuperObject
+  , XSuperObject
   ;
 
 //TODO: Change all library's custom controls to inherit from these standards...
@@ -81,6 +81,9 @@ type
   public
     constructor Create(AOwner: TPersistent); virtual;
     destructor Destroy; override;
+    property Owner: TPersistent read FOwner;
+    procedure Assign(Source: TPersistent); override;
+
     procedure Invalidate;
     function MakeBrush: TGPSolidBrush; virtual;
 
@@ -116,6 +119,9 @@ type
   public
     constructor Create(AOwner: TPersistent); virtual;
     destructor Destroy; override;
+    property Owner: TPersistent read FOwner;
+    procedure Assign(Source: TPersistent); override;
+
     procedure Invalidate;
     function MakePen: TGPPen; virtual;
 
@@ -268,6 +274,17 @@ begin
   inherited;
 end;
 
+procedure TJDUIBrush.Assign(Source: TPersistent);
+begin
+  if Source is TJDUIBrush then begin
+    var S:= TJDUIBrush(Source);
+    FColor.Assign(S.Color);
+    FAlpha:= S.Alpha;
+    Invalidate;
+  end else
+    inherited;
+end;
+
 procedure TJDUIBrush.ColorChanged(Sender: TObject);
 begin
   Invalidate;
@@ -351,6 +368,18 @@ begin
 
   FreeAndNil(FColor);
   inherited;
+end;
+
+procedure TJDUIPen.Assign(Source: TPersistent);
+begin
+  if Source is TJDUIPen then begin
+    var S:= TJDUIPen(Source);
+    FColor.Assign(S.Color);
+    FAlpha:= S.Alpha;
+    FWidth:= S.Width;
+    Invalidate;
+  end else
+    inherited;
 end;
 
 procedure TJDUIPen.ColorChanged(Sender: TObject);

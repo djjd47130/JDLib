@@ -38,6 +38,8 @@ type
   EJDOutOfRange = EJDException;
 
   PJDPoint = ^TJDPoint;
+  PJDRect = ^TJDRect;
+
   ///  <summary>
   ///  Defines a standardized point with floating point values at its root.
   ///  Allows for implicitly casting to and from TPoint and TGPPointF;
@@ -58,14 +60,14 @@ type
     class operator Implicit(Value: TGPPointF): TJDPoint;
     {$ENDIF}
     class function Create(const X, Y: Single): TJDPoint; static;
+    procedure Move(const AmtX, AmtY: Single);
+    function AsText(const Labels: Boolean = True; const Fmt: String = '0.###'): String;
+    //function InRect(const R: TJDRect): Boolean; //TODO: How to reference TJDRect? PJDRect?
     property X: Single read FX write SetX;
     property Y: Single read FY write SetY;
-    procedure Move(const AmtX, AmtY: Single);
-    //function InRect(const R: TJDRect): Boolean;
   end;
   TJDPoints = TArray<TJDPoint>;
 
-  PJDRect = ^TJDRect;
   ///  <summary>
   ///  Defines a standardized rectangle with floating point values at its root.
   ///  Allows implicitly casting to and from TRect, TRectF, and TGPRect.
@@ -114,7 +116,11 @@ type
     procedure Move(const AmtX, AmtY: Single);
 
     //TODO: Turn these into read/write properties?
-    //  Setters would be challenging...
+    //  No, because published records do not behave as needed.
+    //  This would call for a TPersistent descendent instead,
+    //  in order to respect property streaming and assigning,
+    //  because "GetSomeRecord" returns a COPY, and all edits
+    //  are performed on that copy, and not on the original property.
     function TopLeft: TJDPoint;
     function TopRight: TJDPoint;
     function BottomLeft: TJDPoint;
@@ -179,7 +185,11 @@ function SetThreadDescription(hThread: THandle; lpThreadDescription: WideString)
 ///  </summary>
 function IntRange(const Value, Min, Max: Integer): Integer;
 
-function PointAroundCircle(Center: TJDPoint; Distance: Currency; Degrees: Currency): TJDPoint;
+/// <summary>
+/// Calculates an absolute pixel point based on a center point, distance (radius), and degrees.
+/// TODO: There's a newer version of this somewhere along with a reverse version...
+/// </summary>
+//function PointAroundCircle(Center: TJDPoint; Distance: Currency; Degrees: Currency): TJDPoint;
 
 /// <summary>
 /// Translates TAlignment enum into WinAPI DT_ representation.
@@ -218,10 +228,10 @@ function JDRect(const Width, Height: Single; const Center: TJDPoint): TJDRect; o
 /// </summary>
 function JDRect(const Width, Height: Integer; const Center: TJDPoint): TJDRect; overload;
 
-function PosOf(const AValue: Integer): Integer; overload; //--> JD.Common
-function NegOf(const AValue: Integer): Integer; overload; //--> JD.Common
-function PosOf(const AValue: Currency): Currency; overload; //--> JD.Common
-function NegOf(const AValue: Currency): Currency; overload; //--> JD.Common
+function PosOf(const AValue: Integer): Integer; overload;
+function NegOf(const AValue: Integer): Integer; overload;
+function PosOf(const AValue: Currency): Currency; overload;
+function NegOf(const AValue: Currency): Currency; overload;
 
 implementation
 
@@ -235,9 +245,7 @@ begin
   if Result > Max then Result:= Max;
 end;
 
-//Calculates an absolute pixel point based on a center point, distance (radius), and degrees.
-//This is perhaps the most complicated part of the whole thing. Someone wrote this
-//  function for me many years ago and I've used it in many projects, and tweak it for each.
+{
 function PointAroundCircle(Center: TJDPoint; Distance: Currency; Degrees: Currency): TJDPoint;
 var
   Radians: Real;
@@ -250,6 +258,7 @@ begin
   Result.X:= Distance*Cos(Radians)-Distance*Sin(Radians)+Center.X;
   Result.Y:= Distance*Sin(Radians)+Distance*Cos(Radians)+Center.Y;
 end;
+}
 
 function JDAlignmentToFlags(const AValue: TAlignment): Cardinal;
 begin
@@ -403,6 +412,12 @@ end;
 
 { TJDPoint }
 
+class function TJDPoint.Create(const X, Y: Single): TJDPoint;
+begin
+  Result.X:= X;
+  Result.Y:= Y;
+end;
+
 class operator TJDPoint.Implicit(Value: TJDPoint): TPoint;
 begin
   Result.X:= Round(Value.X);
@@ -427,17 +442,21 @@ begin
   Result.Y:= Value.Y;
 end;
 
-{$IFDEF USE_GDIP}
 class operator TJDPoint.Implicit(Value: TJDPoint): TGPPointF;
 begin
   Result.X:= Value.X;
   Result.Y:= Value.Y;
 end;
 
-class function TJDPoint.Create(const X, Y: Single): TJDPoint;
+function TJDPoint.AsText(const Labels: Boolean = True; const Fmt: String = '0.###'): String;
 begin
-  Result.X:= X;
-  Result.Y:= Y;
+  var SX:= FormatFloat(Fmt, X);
+  var SY:= FormatFloat(Fmt, Y);
+  if Labels then begin
+    Result:= 'X: '+SX + ', Y: ' + SY;
+  end else begin
+    Result:= SX + ', ' + SY;
+  end;
 end;
 
 class operator TJDPoint.Implicit(Value: TGPPointF): TJDPoint;
@@ -445,7 +464,6 @@ begin
   Result.X:= Value.X;
   Result.Y:= Value.Y;
 end;
-{$ENDIF}
 
 procedure TJDPoint.Move(const AmtX, AmtY: Single);
 begin
@@ -579,13 +597,11 @@ end;
 function TJDRect.GetTop: Single;
 begin
   Result:= Y;
-  Invalidate;
 end;
 
 function TJDRect.GetLeft: Single;
 begin
   Result:= X;
-  Invalidate;
 end;
 
 procedure TJDRect.SetTop(const Value: Single);

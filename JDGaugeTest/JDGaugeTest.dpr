@@ -14,8 +14,8 @@ uses
 begin
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
-  Application.Title := 'JD Gauge Test';
-  TStyleManager.TrySetStyle('Windows10 Dark');
+  Application.Title := 'JD System Monitor';
+  TStyleManager.TrySetStyle('Charcoal Dark Slate');
   Application.CreateForm(TfrmJDSSysMonGaugesTest, frmJDSSysMonGaugesTest);
   Application.CreateForm(TfrmGaugeTestMain, frmGaugeTestMain);
   Application.CreateForm(TfrmJDGaugeStackTest, frmJDGaugeStackTest);

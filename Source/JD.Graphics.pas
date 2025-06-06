@@ -22,7 +22,7 @@ uses
   , GDIPAPI, GDIPOBJ, GDIPUTIL
   {$ENDIF}
   , JD.Common //JD.Common should NOT use any other JD related units!
-  , JD.SuperObject
+  , XSuperObject
   ;
 
 const
@@ -92,13 +92,16 @@ type
 
   ///  <summary>
   ///  Enum to define whether in light or dark mode.
-  ///  Middle mode not yet supported.
+  ///  Medium mode not yet supported.
   ///  </summary>
   TJDColorMode = (cmLight, cmMedium, cmDark);
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// TJDColor - Encapsulating various approaches to color management together
+/// TJDColor - Encapsulating various approaches to color management together.
+///   RGB
+///   HSB
+///   CMYK
 ////////////////////////////////////////////////////////////////////////////////
 
 
@@ -236,7 +239,9 @@ type
     class operator Equal(a: TJDColor; b: TJDColor): Boolean;
     class operator NotEqual(a: TJDColor; b: TJDColor): Boolean;
 
+    {$IFDEF USE_GDIP}
     function GetGDIPColor(Alpha: Byte = 255): Cardinal;
+    {$ENDIF}
 
     {$IFDEF JD_ALPHA}
     property Alpha: Byte read GetAlpha write SetAlpha;
@@ -255,9 +260,6 @@ type
     property Yellow: Byte read GetYellow write SetYellow;
     property Black: Byte read GetBlack write SetBlack;
 
-    {$IFDEF USE_GDIP}
-    //property GDIPColor: Cardinal read GetGDIPColor;
-    {$ENDIF}
     property HTML: String read GetHTML write SetHTML;
   end;
 
@@ -279,9 +281,9 @@ type
     destructor Destroy; override;
     procedure Invalidate;
   published
-    property R: Byte read GetR write SetR stored False;
-    property G: Byte read GetG write SetG stored False;
-    property B: Byte read GetB write SetB stored False;
+    property Red: Byte read GetR write SetR stored False;
+    property Green: Byte read GetG write SetG stored False;
+    property Blue: Byte read GetB write SetB stored False;
   end;
 
   TJDColorHSVRef = class(TPersistent)
@@ -298,9 +300,9 @@ type
     destructor Destroy; override;
     procedure Invalidate;
   published
-    property H: Word read GetH write SetH stored False;
-    property S: Byte read GetS write SetS stored False;
-    property V: Byte read GetV write SetV stored False;
+    property Hue: Word read GetH write SetH stored False;
+    property Saturation: Byte read GetS write SetS stored False;
+    property Brightness: Byte read GetV write SetV stored False;
   end;
 
   TJDColorCMYKRef = class(TPersistent)
@@ -319,15 +321,16 @@ type
     destructor Destroy; override;
     procedure Invalidate;
   published
-    property C: Byte read GetC write SetC stored False;
-    property M: Byte read GetM write SetM stored False;
-    property Y: Byte read GetY write SetY stored False;
-    property K: Byte read GetK write SetK stored False;
+    property Cyan: Byte read GetC write SetC stored False;
+    property Magenta: Byte read GetM write SetM stored False;
+    property Yellow: Byte read GetY write SetY stored False;
+    property Black: Byte read GetK write SetK stored False;
   end;
 
   ///  <summary>
-  ///  A selection of a color with several customizable options.
-  ///  Meant to be used as a published property on custom controls.
+  ///  A selection of a TJDColor with several customizable options.
+  ///  Used as a published property on custom controls,
+  ///  encapsulating RGB, HSV, and CMYK colors, and more.
   ///  </summary>
   TJDColorRef = class(TPersistent)
   private
@@ -585,7 +588,7 @@ function ClampByte(Value: Integer): Byte;
 procedure DrawParentImage(Control: TControl; Dest: TCanvas);
 
 /// <summary>
-/// Determines a point around a given point at a given radius
+/// Calculates a point around a given center point at a given radius
 /// </summary>
 function PointAroundCenter(Center: TJDPoint; Distance: Single; Degrees: Single;
   OvalOffset: Single = 1): TJDPoint;
@@ -600,6 +603,7 @@ function DrawTextJD(hDC: HDC; Str: String;
 //TODO: Move into JD.Common with TJDPoint and TJDRect...
 //function PointToGPPoint(P: TPoint): TGPPointF;
 function RectToGPRect(R: TRect): TGPRectF;
+
 function ColorToGPColor(C: TColor): Cardinal;
 {$ENDIF}
 
@@ -1418,7 +1422,7 @@ end;
 
 function TJDColorRef.GetGDIPColor(Alpha: Byte = 255): Cardinal;
 begin
-  Result:= GDIPAPI.MakeColor(Alpha, RGB.R, RGB.G, RGB.B);
+  Result:= GDIPAPI.MakeColor(Alpha, RGB.Red, RGB.Green, RGB.Blue);
 end;
 
 function TJDColorRef.GetJDColor: TJDColor;
@@ -1454,9 +1458,9 @@ end;
 
 procedure TJDColorRef.LoadFromJSON(O: ISuperObject);
 begin
-  FRGB.R:= O.I['R'];
-  FRGB.G:= O.I['G'];
-  FRGB.B:= O.I['B'];
+  FRGB.Red:= O.I['R'];
+  FRGB.Green:= O.I['G'];
+  FRGB.Blue:= O.I['B'];
   FStandardColor:= TJDStandardColor(O.I['StandardColor']);
   FUseStandardColor:= O.B['UseStandardColor']; //This MUST be loaded after RGB and StandardColor!!!
   Invalidate;
@@ -1467,9 +1471,9 @@ begin
   Result:= SO;
   Result.B['UseStandardColor']:= UseStandardColor;
   Result.I['StandardColor']:= Integer(StandardColor);
-  Result.I['R']:= FRGB.R;
-  Result.I['G']:= FRGB.G;
-  Result.I['B']:= FRGB.B;
+  Result.I['R']:= FRGB.Red;
+  Result.I['G']:= FRGB.Green;
+  Result.I['B']:= FRGB.Blue;
 end;
 
 procedure TJDColorRef.LoadFromString(S: String);

@@ -2012,7 +2012,7 @@ end;
 function TJDPlotChartUILine.MakePen: TGPPen;
 begin
   Result:= TGPPen.Create(Winapi.GDIPAPI.MakeColor(
-    FAlpha, FColor.RGB.R, FColor.RGB.G, FColor.RGB.B),
+    FAlpha, FColor.RGB.Red, FColor.RGB.Green, FColor.RGB.Blue),
     FWidth);
 end;
 
@@ -2468,13 +2468,13 @@ end;
 function TJDPlotChartUISurface.MakeBrush: TGPSolidBrush;
 begin
   Result:= TGPSolidBrush.Create(Winapi.GDIPAPI.MakeColor(
-    FAlpha, FColor.RGB.R, FColor.RGB.G, FColor.RGB.B));
+    FAlpha, FColor.RGB.Red, FColor.RGB.Green, FColor.RGB.Blue));
 end;
 
 function TJDPlotChartUISurface.MakePen: TGPPen;
 begin
   Result:= TGPPen.Create(Winapi.GDIPAPI.MakeColor(
-    FAlpha, FColor.RGB.R, FColor.RGB.G, FColor.RGB.B),
+    FAlpha, FColor.RGB.Red, FColor.RGB.Green, FColor.RGB.Blue),
     1);
 end;
 

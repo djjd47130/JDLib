@@ -32,17 +32,28 @@ package DclJDLibComponents;
 requires
   rtl,
   JDLibComponents,
-  DesignIDE;
+  DesignIDE,
+  VirtualTreesR,
+  lmdrtl,
+  lmdrtdocking,
+  lmdrtrtlx,
+  lmdrtcore,
+  lmdrtelcore,
+  lmdrtinspector,
+  lmdrtdesign,
+  lmdrtide,
+  XSuperObjectLib;
 
 contains
   JDLib.InstallComps in 'Source\JDLib.InstallComps.pas',
   JD.ColorPropEdit in 'Source\Editors\JD.ColorPropEdit.pas' {frmJDColorPropEdit},
-  JD.Ctrls.CharPicker in 'Source\Editors\JD.Ctrls.CharPicker.pas' {JDGlyphPicker},
   JD.Ctrls.FontButtonEdit in 'Source\Editors\JD.Ctrls.FontButtonEdit.pas' {frmFontButtonEditor},
   JD.Ctrls.FontButtonEditCtrl in 'Source\Editors\JD.Ctrls.FontButtonEditCtrl.pas' {frmSelectControl},
   JD.Ctrls.GlyphListEditor in 'Source\Editors\JD.Ctrls.GlyphListEditor.pas' {GlyphListEditor},
   JD.Ctrls.JDGaugeEditors in 'Source\Editors\JD.Ctrls.JDGaugeEditors.pas',
   JD.Ctrls.PageMenuEditor in 'Source\Editors\JD.Ctrls.PageMenuEditor.pas',
-  JD.VectorEditors in 'Source\Editors\JD.VectorEditors.pas';
+  JD.VectorEditors in 'Source\Editors\JD.VectorEditors.pas',
+  JD.VectorGraphicEditor in 'Source\Editors\JD.VectorGraphicEditor.pas' {frmJDVectorEditor},
+  JD.Ctrls.CharPicker in 'Source\Editors\JD.Ctrls.CharPicker.pas' {JDGlyphPicker};
 
 end.

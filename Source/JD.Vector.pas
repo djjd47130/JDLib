@@ -11,6 +11,7 @@ unit JD.Vector;
   - TODO: Create vector image list.
   - TODO: Import/export font glyphs.
   - TODO: Design vector graphic on canvas in design-time (drag and drop).
+  - TODO: Hierarchy of parts
 
   Usage:
   - Create instance of TJDVectorGraphic
@@ -22,6 +23,8 @@ unit JD.Vector;
 
 *)
 
+{.$DEFINE USE_PATHS}
+
 interface
 
 uses
@@ -32,8 +35,8 @@ uses
   JD.Ctrls,
   JD.Common,
   JD.Graphics,
-  JD.SuperObject,
-  GDIPAPI, GDIPOBJ;
+  XSuperObject,
+  GDIPAPI, GDIPOBJ, GDIPUTIL;
 
 type
   /// <summary>
@@ -62,12 +65,7 @@ type
   TJDVectorGraphic = class;
 
   /// <summary>
-  ///   Renders a vector graphic to a control canvas.
-  /// </summary>
-  TJDVectorImage = class;
-
-  /// <summary>
-  ///   Preset vector shapes
+  ///   Preset vector shapes (NOT CURRENTLY IN USE)
   /// </summary>
   /// <remarks>
   ///   vsCustom: Custom polygon
@@ -143,6 +141,8 @@ type
     FShape: TJDVectorShape;
     FPen: TJDUIPen;
     FBrush: TJDUISolidBrush;
+    FParts: TJDVectorParts;
+    FSubtractive: Boolean;
     procedure SetCaption(const Value: String);
     procedure SetOffsetX(const Value: Single);
     procedure SetOffsetY(const Value: Single);
@@ -155,6 +155,8 @@ type
     procedure SetPen(const Value: TJDUIPen);
     procedure BrushChanged(Sender: TObject);
     procedure PenChanged(Sender: TObject);
+    procedure SetParts(const Value: TJDVectorParts);
+    procedure SetSubtractive(const Value: Boolean);
   protected
     function GetDisplayName: String; override;
   public
@@ -162,7 +164,7 @@ type
     destructor Destroy; override;
     procedure Assign(Source: TPersistent); override;
     procedure Invalidate;
-    procedure Render(ACanvas: TCanvas; const X, Y: Integer; const GlobalScale: Single = 1.0);
+    procedure Render(ACanvas: TGPGraphics; const X, Y: Single; const GlobalScale: Single = 1.0);
 
     procedure LoadFromJSON(O: ISuperObject);
     function SaveToJSON: ISuperObject;
@@ -179,20 +181,22 @@ type
     property Scale: Double read FScale write SetScale stored GetScaleStored;
     property OffsetX: Single read FOffsetX write SetOffsetX;
     property OffsetY: Single read FOffsetY write SetOffsetY;
+    property Parts: TJDVectorParts read FParts write SetParts; //TODO: Hierarchy...
     property Points: TJDVectorPoints read FPoints write SetPoints;
     property Shape: TJDVectorShape read FShape write SetShape default vsCustom;
+    property Subtractive: Boolean read FSubtractive write SetSubtractive;
   end;
 
   TJDVectorParts = class(TOwnedCollection)
   private
-    FOwner: TJDVectorGraphic;
+    FOwner: TPersistent;
     function GetItem(Index: Integer): TJDVectorPart;
     procedure SetItem(Index: Integer; const Value: TJDVectorPart);
   protected
     procedure Update(Item: TCollectionItem); override;
     procedure Notify(Item: TCollectionItem; Action: TCollectionNotification); override;
   public
-    constructor Create(AOwner: TJDVectorGraphic);
+    constructor Create(AOwner: TPersistent);
     procedure Invalidate;
     function Add: TJDVectorPart;
     function Insert(Index: Integer): TJDVectorPart;
@@ -229,9 +233,11 @@ type
     constructor Create(AOwner: TPersistent); virtual;
     destructor Destroy; override;
     property Owner: TPersistent read FOwner;
+    procedure Assign(Source: TPersistent); override;
+
     procedure Invalidate; virtual;
     function GetBounds(const AltScale: Single = 1.0): TJDRect;
-    procedure Render(ACanvas: TCanvas; const X, Y: Integer;
+    procedure Render(ACanvas: TGPGraphics; const X, Y: Single;
       const AltScale: Single = 1.0);
 
     procedure LoadFromJSON(O: ISuperObject);
@@ -249,47 +255,6 @@ type
     property OffsetY: Single read FOffsetY write SetOffsetY;
     property OnChange: TNotifyEvent read FOnChange write SetOnChange;
   end;
-
-  TJDVectorImage = class(TJDControl)
-  const
-    DEF_PADDING = 10;
-  private
-    FGraphic: TJDVectorGraphic;
-    FAlignX: TJDVectorAlign;
-    FAlignY: TJDVectorAlign;
-    FAutoSize: Boolean;
-    FPadding: Single;
-    procedure GraphicChanged(Sender: TObject);
-    procedure SetGraphic(const Value: TJDVectorGraphic);
-    procedure SetAlignX(const Value: TJDVectorAlign);
-    procedure SetAlignY(const Value: TJDVectorAlign);
-    procedure SetAutoSize(const Value: Boolean); reintroduce;
-    procedure SetPadding(const Value: Single);
-    function ComputeAutoScale: Single;
-    function GetPaddingStored: Boolean;
-  protected
-    procedure Paint; override;
-  public
-    constructor Create(AOwner: TComponent); override;
-    destructor Destroy; override;
-  published
-    property Align;
-    property AlignX: TJDVectorAlign read FAlignX write SetAlignX default vaCenter;
-    property AlignY: TJDVectorAlign read FAlignY write SetAlignY default vaCenter;
-    property AlignWithMargins;
-    property Anchors;
-    property AutoSize: Boolean read FAutoSize write SetAutoSize default True;
-    property Color default clWhite;
-    property DoubleBuffered;
-    property Graphic: TJDVectorGraphic read FGraphic write SetGraphic;
-    property Margins;
-    property Padding: Single read FPadding write SetPadding stored GetPaddingStored;
-    property Visible;
-
-    property OnClick;
-    property OnDblClick;
-  end;
-
 
 
   TJDVectorGraphicListItem = class(TCollectionItem)
@@ -325,8 +290,13 @@ end;
 
 procedure TJDVectorPoint.Assign(Source: TPersistent);
 begin
-  inherited;
-
+  if Source is TJDVectorPoint then begin
+    var S:= TJDVectorPoint(Source);
+    FX:= S.X;
+    FY:= S.Y;
+    Invalidate;
+  end else
+    inherited;
 end;
 
 function TJDVectorPoint.GetDisplayName: String;
@@ -498,10 +468,12 @@ begin
   FScale:= DEF_SCALE;
   FOffsetX:= 0;
   FOffsetY:= 0;
+  FParts:= TJDVectorParts.Create(Self);
 end;
 
 destructor TJDVectorPart.Destroy;
 begin
+  FreeAndNil(FParts);
   FreeAndNil(FPen);
   FreeAndNil(FBrush);
   FreeAndNil(FPoints);
@@ -520,8 +492,22 @@ end;
 
 procedure TJDVectorPart.Assign(Source: TPersistent);
 begin
-  inherited;
+  if Source is TJDVectorPart then begin
+    var S:= TJDVectorPart(Source);
+    FOffsetX:= S.OffsetX;
+    FOffsetY:= S.OffsetY;
+    FScale:= S.Scale;
+    FCaption:= S.Caption;
+    FPoints.Assign(S.Points);
+    FBrush.Assign(S.Brush);
+    FPen.Assign(S.Pen);
+    FShape:= S.Shape;
+    FParts.Assign(S.Parts);
+    FSubtractive:= S.Subtractive;
 
+    Invalidate;
+  end else
+    inherited;
 end;
 
 function TJDVectorPart.GetDisplayName: String;
@@ -554,67 +540,21 @@ begin
   end;
 end;
 
-{
-procedure TJDVectorPart.Render(ACanvas: TCanvas; const X, Y: Integer; const GlobalScale: Single);
-var
-  Polygon: array of TPoint;
-  JDPoints: TJDPoints;
-  I: Integer;
-  EffectiveScale: Single;
-begin
-  JDPoints := ToJDPoints;
-
-  if Length(JDPoints) = 0 then Exit;
-
-  // Calculate the final scale by combining local (FScale) and global (parameter) scale
-  EffectiveScale := FScale * GlobalScale;
-
-  SetLength(Polygon, Length(JDPoints));
-
-  for I := 0 to High(JDPoints) do
-  begin
-    Polygon[I] := TPoint.Create(
-      Round((JDPoints[I].X * EffectiveScale) + X + FOffsetX),
-      Round((JDPoints[I].Y * EffectiveScale) + Y + FOffsetY)
-    );
-  end;
-
-  var C: TGPGraphics:= TGPGraphics.Create(ACanvas.Handle);
-  try
-    C.SetSmoothingMode(SmoothingMode.SmoothingModeAntiAlias);
-
-    //TODO: Change to GDI+...
-    var B: TGPBrush:= FBrush.MakeBrush;
-    var P: TGPPen:= FPen.MakePen;
-    C.FillPolygon(B, Polygon, Length(Polygon));
-    C.DrawPolygon(P, Polygon, Length(Polygon));
-
-    (*
-    ACanvas.Brush.Color := FBrush.Color.GetJDColor;
-    ACanvas.Pen.Color := FPen.Color.GetJDColor;
-    ACanvas.Polygon(Polygon);
-    *)
-
-  finally
-    C.Free;
-  end;
-end;
-}
-
 function GPPointF(const X, Y: Single): TGPPointF;
 begin
   Result.X:= X;
   Result.Y:= Y;
 end;
 
-procedure TJDVectorPart.Render(ACanvas: TCanvas; const X, Y: Integer; const GlobalScale: Single);
+{
+procedure TJDVectorPart.Render(ACanvas: TGPGraphics; const X, Y: Single; const GlobalScale: Single);
 var
-  C: TGPGraphics;
   B: TGPBrush;
   P: TGPPen;
   Polygon: array of TGPPointF;
   JDPoints: TJDPoints;
   I: Integer;
+  Path: TGPGraphicsPath;
 begin
   JDPoints := ToJDPoints; // Convert vector points to standardized JDPoints
 
@@ -628,25 +568,118 @@ begin
       (JDPoints[I].Y * Scale * GlobalScale) + Y + (FOffsetY * Scale * GlobalScale)
     );
 
-  // Create GDI+ Graphics object
-  C := TGPGraphics.Create(ACanvas.Handle);
+  // Actual rendering...
+  B := FBrush.MakeBrush;
+  P := FPen.MakePen;
   try
-    C.SetSmoothingMode(SmoothingModeAntiAlias);
 
-    // Initialize brush and pen
-    B := FBrush.MakeBrush;
-    P := FPen.MakePen;
+    Path:= TGPGraphicsPath.Create;
+    try
 
-    // Render polygon using GDI+
-    //C.FillPolygon(B, @Polygon[0], Length(Polygon));
-    //C.DrawPolygon(P, @Polygon[0], Length(Polygon));
+      Path.AddPolygon(PGPPointF(@Polygon[0]), Length(Polygon));
 
-    C.FillPolygon(B, PGPPointF(@Polygon[0]), Length(Polygon));
-    C.DrawPolygon(P, PGPPointF(@Polygon[0]), Length(Polygon));
+      if Self.FSubtractive then
+        Path.SetFillMode(FillModeWinding);
+
+      //New path-based rendering...
+      ACanvas.FillPath(B, Path);
+      ACanvas.DrawPath(P, Path);
+
+      //Original polygon rendering...
+      //ACanvas.FillPolygon(B, PGPPointF(@Polygon[0]), Length(Polygon));
+      //ACanvas.DrawPolygon(P, PGPPointF(@Polygon[0]), Length(Polygon));
+    finally
+      Path.Free;
+    end;
 
   finally
-    C.Free;
+    P.Free;
+    B.Free;
   end;
+
+  // Sub-parts...
+  for I := 0 to Parts.Count-1 do begin
+    Parts[I].Render(ACanvas, X, Y, GlobalScale);
+  end;
+
+end;
+}
+
+procedure TJDVectorPart.Render(ACanvas: TGPGraphics; const X, Y: Single; const GlobalScale: Single);
+var
+  B: TGPBrush;
+  P: TGPPen;
+  Polygon: array of TGPPointF;
+  JDPoints: TJDPoints;
+  I: Integer;
+  Path: TGPGraphicsPath;
+  //ClippingRegion: TGPRegion;
+begin
+  JDPoints := ToJDPoints; // Convert vector points to standardized JDPoints
+  if Length(JDPoints) = 0 then Exit;
+
+  // Convert JDPoints to TGPPointF array
+  SetLength(Polygon, Length(JDPoints));
+  for I := 0 to High(JDPoints) do
+    Polygon[I] := GPPointF(
+      (JDPoints[I].X * Scale * GlobalScale) + X + (FOffsetX * Scale * GlobalScale),
+      (JDPoints[I].Y * Scale * GlobalScale) + Y + (FOffsetY * Scale * GlobalScale)
+    );
+
+  B := FBrush.MakeBrush;
+  P := FPen.MakePen;
+  try
+    Path := TGPGraphicsPath.Create;
+    try
+      {$IFDEF USE_PATHS}
+      // **Path-Based Rendering**
+      for I := 0 to High(Polygon) do
+      begin
+        if I = 0 then
+          Path.StartFigure;
+        Path.AddLine(Polygon[I].X, Polygon[I].Y);
+      end;
+      Path.CloseFigure;
+      {$ELSE}
+      // **Polygon-Based Rendering (Legacy Mode)**
+      Path.AddPolygon(PGPPointF(@Polygon[0]), Length(Polygon));
+      {$ENDIF}
+
+      if Self.FSubtractive then
+      begin
+        // **Create the clipping region**
+        {
+        ClippingRegion := TGPRegion.Create(Path);
+        ACanvas.SetClip(ClippingRegion, CombineModeIntersect); // This ensures the area is removed
+        ACanvas.FillRectangle(B, X, Y, GlobalScale * 100, GlobalScale * 100); // Fill BG with transparent brush
+        ClippingRegion.Free;
+        }
+
+        var Region:= TGPRegion.Create(Path);
+        try
+          ACanvas.ExcludeClip(Region);
+        finally
+          Region.Free;
+        end;
+      end
+      else
+      begin
+        ACanvas.FillPath(B, Path);
+        ACanvas.DrawPath(P, Path);
+      end;
+
+    finally
+      Path.Free;
+    end;
+
+  finally
+    P.Free;
+    B.Free;
+  end;
+
+  // Render Sub-parts
+  for I := 0 to Parts.Count - 1 do
+    Parts[I].Render(ACanvas, X, Y, GlobalScale);
 end;
 
 procedure TJDVectorPart.LoadFromFont(const FontName: TFontName;
@@ -665,6 +698,8 @@ begin
   FOffsetY:= O.F['OffsetY'];
   FScale:= O.F['Scale'];
   FShape:= TJDVectorShape(O.I['Shape']);
+  FParts.LoadFromJSON(O.A['Parts']);
+  FSubtractive:= O.B['Subtractive'];
 end;
 
 function TJDVectorPart.SaveToJSON: ISuperObject;
@@ -678,21 +713,13 @@ begin
   Result.F['OffsetY']:= OffsetY;
   Result.F['Scale']:= Scale;
   Result.I['Shape']:= Integer(Shape);
+  Result.A['Parts']:= Parts.SaveToJSON;
+  Result.B['Subtractive']:= Subtractive;
 end;
 
 procedure TJDVectorPart.LoadFromString(S: String);
-var
-  O: ISuperObject;
 begin
-  O:= SO(S);
-  FCaption:= O.S['Caption'];
-  FBrush.LoadFromString(O.S['Brush']);
-  FPen.LoadFromString(O.S['Pen']);
-  FPoints.LoadFromString(O.S['Points']);
-  FOffsetX:= O.F['OffsetX'];
-  FOffsetY:= O.F['OffsetY'];
-  FScale:= O.F['Scale'];
-  FShape:= TJDVectorShape(O.I['Shape']);
+  LoadFromJSON(SO(S));
 end;
 
 function TJDVectorPart.SaveToString: String;
@@ -724,6 +751,12 @@ begin
   Invalidate;
 end;
 
+procedure TJDVectorPart.SetParts(const Value: TJDVectorParts);
+begin
+  FParts.Assign(Value);
+  Invalidate;
+end;
+
 procedure TJDVectorPart.SetPen(const Value: TJDUIPen);
 begin
   FPen.Assign(Value);
@@ -748,9 +781,15 @@ begin
   Invalidate;
 end;
 
+procedure TJDVectorPart.SetSubtractive(const Value: Boolean);
+begin
+  FSubtractive := Value;
+  Invalidate;
+end;
+
 { TJDVectorParts }
 
-constructor TJDVectorParts.Create(AOwner: TJDVectorGraphic);
+constructor TJDVectorParts.Create(AOwner: TPersistent);
 begin
   inherited Create(AOwner, TJDVectorPart);
   FOwner:= AOwner;
@@ -773,8 +812,12 @@ end;
 
 procedure TJDVectorParts.Invalidate;
 begin
-  if FOwner <> nil then
-    FOwner.Invalidate;
+  if FOwner <> nil then begin
+    if FOwner is TJDVectorGraphic then
+      TJDVectorGraphic(FOwner).Invalidate
+    else if FOwner is TJDVectorPart then
+      TJDVectorPart(FOwner).Invalidate;
+  end;
 end;
 
 procedure TJDVectorParts.Notify(Item: TCollectionItem;
@@ -828,6 +871,20 @@ end;
 
 { TJDVectorGraphic }
 
+procedure TJDVectorGraphic.Assign(Source: TPersistent);
+begin
+  if Source is TJDVectorGraphic then begin
+    var S:= TJDVectorGraphic(Source);
+    FParts.Assign(S.Parts);
+    FScale:= S.Scale;
+    FOffsetX:= S.OffsetX;
+    FOffsetY:= S.OffsetY;
+    FCaption:= S.Caption;
+    FName:= S.Name;
+  end else
+    inherited;
+end;
+
 constructor TJDVectorGraphic.Create(AOwner: TPersistent);
 begin
   inherited Create;
@@ -860,7 +917,7 @@ procedure TJDVectorGraphic.LoadFromJSON(O: ISuperObject);
 begin
   //Validate JSON...
   if O = nil then
-    raise Exception.Create('JSON object is not assigned or not valid.');
+    raise Exception.Create('JSON object is not valid.');
   //Validate format...
   if not SameText(O.S['Format'], 'JD Vector') then
     raise Exception.Create('Object does not contain valid vector format.');
@@ -940,7 +997,7 @@ begin
   Invalidate;
 end;
 
-procedure TJDVectorGraphic.Render(ACanvas: TCanvas; const X, Y: Integer;
+procedure TJDVectorGraphic.Render(ACanvas: TGPGraphics; const X, Y: Single;
   const AltScale: Single);
 var
   I: Integer;
@@ -985,126 +1042,6 @@ begin
     Round((MaxX - MinX) * Scale * AltScale),
     Round((MaxY - MinY) * Scale * AltScale)
   );
-end;
-
-{ TJDVectorImage }
-
-function TJDVectorImage.ComputeAutoScale: Single;
-var
-  Bounds: TRect;
-  AvailableWidth, AvailableHeight: Single;
-  ScaleX, ScaleY: Single;
-begin
-  if not FAutoSize or (FGraphic = nil) then
-    Exit(1.0); // Keep existing scale if AutoSize is off
-
-  // Get graphic bounds based on its current scale
-  Bounds := FGraphic.GetBounds; // Use base scale for accurate size
-
-  // Determine the available space inside the control (account for padding)
-  AvailableWidth := Width - (FPadding * 2);
-  AvailableHeight := Height - (FPadding * 2);
-
-  // Calculate potential scaling factors
-  ScaleX := AvailableWidth / Bounds.Width;
-  ScaleY := AvailableHeight / Bounds.Height;
-
-  // Use the smaller scale to ensure the entire graphic fits
-  Result := Min(ScaleX, ScaleY);
-end;
-
-constructor TJDVectorImage.Create(AOwner: TComponent);
-begin
-  inherited;
-  FAutoSize:= True;
-  FAlignX:= vaCenter;
-  FAlignY:= vaCenter;
-  FPadding:= DEF_PADDING;
-  Color:= clWhite;
-  FGraphic:= TJDVectorGraphic.Create(Self);
-  FGraphic.OnChange:= GraphicChanged;
-
-end;
-
-destructor TJDVectorImage.Destroy;
-begin
-
-  FreeAndNil(FGraphic);
-  inherited;
-end;
-
-function TJDVectorImage.GetPaddingStored: Boolean;
-begin
-  Result:= FPadding <> DEF_PADDING;
-end;
-
-procedure TJDVectorImage.GraphicChanged(Sender: TObject);
-begin
-  Invalidate;
-end;
-
-procedure TJDVectorImage.Paint;
-var
-  Bounds: TRect;
-  OffsetX, OffsetY: Integer;
-  FinalScale: Single;
-begin
-  inherited;
-  if FGraphic = nil then Exit;
-
-  // Determine the appropriate scaling
-  FinalScale := ComputeAutoScale;
-  OffsetX:= 0;
-  OffsetY:= 0;
-
-  // Get graphic bounds with computed scale
-  Bounds := FGraphic.GetBounds(FinalScale);
-
-  // Compute alignment offsets while considering the new scale
-  case AlignX of
-    vaLeading:  OffsetX := Round(FPadding - Bounds.Left);
-    vaCenter:   OffsetX := ((Width - Bounds.Width) div 2) - Bounds.Left;
-    vaTrailing: OffsetX := Round(Width - Bounds.Width - Bounds.Left - FPadding);
-  end;
-
-  case AlignY of
-    vaLeading:  OffsetY := Round(FPadding - Bounds.Top);
-    vaCenter:   OffsetY := ((Height - Bounds.Height) div 2) - Bounds.Top;
-    vaTrailing: OffsetY := Round(Height - Bounds.Height - Bounds.Top - FPadding);
-  end;
-
-  // Render with the dynamically calculated scale
-  FGraphic.Render(Canvas, OffsetX, OffsetY, FinalScale);
-end;
-
-procedure TJDVectorImage.SetAlignX(const Value: TJDVectorAlign);
-begin
-  FAlignX := Value;
-  Invalidate;
-end;
-
-procedure TJDVectorImage.SetAlignY(const Value: TJDVectorAlign);
-begin
-  FAlignY := Value;
-  Invalidate;
-end;
-
-procedure TJDVectorImage.SetAutoSize(const Value: Boolean);
-begin
-  FAutoSize:= Value;
-  Invalidate;
-end;
-
-procedure TJDVectorImage.SetGraphic(const Value: TJDVectorGraphic);
-begin
-  FGraphic.Assign(Value);
-  Invalidate;
-end;
-
-procedure TJDVectorImage.SetPadding(const Value: Single);
-begin
-  FPadding := Value;
-  Invalidate;
 end;
 
 end.

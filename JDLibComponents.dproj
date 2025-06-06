@@ -124,6 +124,7 @@
         <DCCReference Include="vclimg.dcp"/>
         <DCCReference Include="dbrtl.dcp"/>
         <DCCReference Include="dwsLibRuntime.dcp"/>
+        <DCCReference Include="XSuperObjectLib.dcp"/>
         <DCCReference Include="Source\JD.Common.pas"/>
         <DCCReference Include="Source\JD.Graphics.pas"/>
         <DCCReference Include="Source\JD.Ctrls.pas"/>
@@ -152,7 +153,8 @@
         </DCCReference>
         <DCCReference Include="Source\JD.Logs.pas"/>
         <DCCReference Include="Source\JD.Ctrls.Toolbar.pas"/>
-        <DCCReference Include="Source\JD.SuperObject.pas"/>
+        <DCCReference Include="Source\FontGlyphGraphicUnit.pas"/>
+        <DCCReference Include="Source\JD.Ctrls.VectorEditor.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -174,6 +176,10 @@
                     <Source Name="MainSource">JDLibComponents.dpk</Source>
                 </Source>
                 <Excluded_Packages>
+                    <Excluded_Packages Name="C:\Users\Public\Documents\Embarcadero\Studio\21.0\Bpl\XSuperObjectLib.bpl">(untitled)</Excluded_Packages>
+                    <Excluded_Packages Name="C:\Users\Public\Documents\Embarcadero\Studio\21.0\Bpl\JDVisualsComponentsDX10_1.bpl">JD Visual Components DX10.1 Berlin</Excluded_Packages>
+                    <Excluded_Packages Name="C:\Users\Public\Documents\Embarcadero\Studio\21.0\Bpl\JDWordGridComps.bpl">(untitled)</Excluded_Packages>
+                    <Excluded_Packages Name="C:\Users\Public\Documents\Embarcadero\Studio\21.0\Bpl\dclJDUOMLib.bpl">(untitled)</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dcloffice2k270.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dclofficexp270.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                     <Excluded_Packages Name="C:\WINDOWS\system32\FMX_MediaLabBasicDsn270.bpl">Mitov - FireMonkey MediaLab Basic Design Package</Excluded_Packages>

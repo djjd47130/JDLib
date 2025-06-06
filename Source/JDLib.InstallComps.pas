@@ -17,7 +17,8 @@ uses
   JD.Ctrls.ImageGrid,
   JD.Ctrls.Gauges,
   JD.Ctrls.PlotChart,
-  JD.Vector;
+  JD.Vector,
+  JD.Ctrls.VectorEditor;
 
 const
   JD_TAB_CAPTION = 'JD Components';

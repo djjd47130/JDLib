@@ -78,11 +78,11 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_UsePackage>rtl;JDLibComponents;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>rtl;JDLibComponents;VirtualTreesR;lmdrtl;lmdrtdocking;lmdrtrtlx;lmdrtcore;lmdrtelcore;lmdrtinspector;lmdrtdesign;lmdrtide;XSuperObjectLib;$(DCC_UsePackage)</DCC_UsePackage>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
-        <DCC_UsePackage>rtl;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>rtl;VirtualTreesR;lmdrtl;lmdrtdocking;lmdrtrtlx;lmdrtcore;lmdrtelcore;lmdrtinspector;lmdrtdesign;lmdrtide;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1)'!=''">
         <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
@@ -115,13 +115,19 @@
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="JDLibComponents.dcp"/>
         <DCCReference Include="DesignIDE.dcp"/>
+        <DCCReference Include="VirtualTreesR.dcp"/>
+        <DCCReference Include="lmdrtl.dcp"/>
+        <DCCReference Include="lmdrtdocking.dcp"/>
+        <DCCReference Include="lmdrtrtlx.dcp"/>
+        <DCCReference Include="lmdrtcore.dcp"/>
+        <DCCReference Include="lmdrtelcore.dcp"/>
+        <DCCReference Include="lmdrtinspector.dcp"/>
+        <DCCReference Include="lmdrtdesign.dcp"/>
+        <DCCReference Include="lmdrtide.dcp"/>
+        <DCCReference Include="XSuperObjectLib.dcp"/>
         <DCCReference Include="Source\JDLib.InstallComps.pas"/>
         <DCCReference Include="Source\Editors\JD.ColorPropEdit.pas">
             <Form>frmJDColorPropEdit</Form>
-            <FormType>dfm</FormType>
-        </DCCReference>
-        <DCCReference Include="Source\Editors\JD.Ctrls.CharPicker.pas">
-            <Form>JDGlyphPicker</Form>
             <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="Source\Editors\JD.Ctrls.FontButtonEdit.pas">
@@ -139,6 +145,14 @@
         <DCCReference Include="Source\Editors\JD.Ctrls.JDGaugeEditors.pas"/>
         <DCCReference Include="Source\Editors\JD.Ctrls.PageMenuEditor.pas"/>
         <DCCReference Include="Source\Editors\JD.VectorEditors.pas"/>
+        <DCCReference Include="Source\Editors\JD.VectorGraphicEditor.pas">
+            <Form>frmJDVectorEditor</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
+        <DCCReference Include="Source\Editors\JD.Ctrls.CharPicker.pas">
+            <Form>JDGlyphPicker</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

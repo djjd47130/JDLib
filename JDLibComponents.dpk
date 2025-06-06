@@ -37,7 +37,8 @@ requires
   IndyProtocols,
   vclimg,
   dbrtl,
-  dwsLibRuntime;
+  dwsLibRuntime,
+  XSuperObjectLib;
 
 contains
   JD.Common in 'Source\JD.Common.pas',
@@ -64,6 +65,8 @@ contains
   JD.Graphics.DWScript in 'Source\JD.Graphics.DWScript.pas' {dmJDGraphicsDWScript: TDataModule},
   JD.Logs in 'Source\JD.Logs.pas',
   JD.Ctrls.Toolbar in 'Source\JD.Ctrls.Toolbar.pas',
-  JD.SuperObject in 'Source\JD.SuperObject.pas';
+  FontGlyphGraphicUnit in 'Source\FontGlyphGraphicUnit.pas',
+  JD.Ctrls.VectorEditor in 'Source\JD.Ctrls.VectorEditor.pas';
 
 end.
+
