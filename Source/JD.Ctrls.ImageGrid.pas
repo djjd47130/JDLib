@@ -8,10 +8,12 @@ interface
 
 uses
   Windows, Classes, SysUtils, Messages, Controls, Graphics, Forms, StdCtrls,
+  System.Types,
   Grids, GDIPAPI, GDIPOBJ, RTLConsts, Math, Themes
   {$IFDEF USE_GR32}, GR32, GR32_Resamplers {$ENDIF};
 
 const USE_IMAGE_GRID = True;
+
 const
   DefCellSpacing = 5;
   DefCellWidth = 96;

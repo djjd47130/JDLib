@@ -2,7 +2,7 @@ object frmJDSSysMonGaugesTest: TfrmJDSSysMonGaugesTest
   Left = 0
   Top = 0
   Caption = 'JD System Monitor Gauge Test'
-  ClientHeight = 285
+  ClientHeight = 405
   ClientWidth = 801
   Color = clBlack
   Font.Charset = DEFAULT_CHARSET

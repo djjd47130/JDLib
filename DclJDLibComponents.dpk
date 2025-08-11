@@ -54,6 +54,7 @@ contains
   JD.Ctrls.PageMenuEditor in 'Source\Editors\JD.Ctrls.PageMenuEditor.pas',
   JD.VectorEditors in 'Source\Editors\JD.VectorEditors.pas',
   JD.VectorGraphicEditor in 'Source\Editors\JD.VectorGraphicEditor.pas' {frmJDVectorEditor},
-  JD.Ctrls.CharPicker in 'Source\Editors\JD.Ctrls.CharPicker.pas' {JDGlyphPicker};
+  JD.Ctrls.CharPicker in 'Source\Editors\JD.Ctrls.CharPicker.pas' {JDGlyphPicker},
+  JD.Ctrls.ChipListEditor in 'Source\Editors\JD.Ctrls.ChipListEditor.pas';
 
 end.

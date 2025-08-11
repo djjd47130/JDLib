@@ -62,11 +62,13 @@ contains
   JD.SysMon.Utils in 'Source\JD.SysMon.Utils.pas',
   JD.Ctrls.PlotChart in 'Source\JD.Ctrls.PlotChart.pas',
   JD.VolumeControls2 in 'Source\JD.VolumeControls2.pas',
-  JD.Graphics.DWScript in 'Source\JD.Graphics.DWScript.pas' {dmJDGraphicsDWScript: TDataModule},
   JD.Logs in 'Source\JD.Logs.pas',
   JD.Ctrls.Toolbar in 'Source\JD.Ctrls.Toolbar.pas',
   FontGlyphGraphicUnit in 'Source\FontGlyphGraphicUnit.pas',
-  JD.Ctrls.VectorEditor in 'Source\JD.Ctrls.VectorEditor.pas';
+  JD.Ctrls.VectorEditor in 'Source\JD.Ctrls.VectorEditor.pas',
+  JD.Ctrls.ChipList in 'Source\JD.Ctrls.ChipList.pas',
+  JD.Ctrls.ListBox in 'Source\JD.Ctrls.ListBox.pas',
+  JD.Favicons in 'Source\JD.Favicons.pas';
 
 end.
 

@@ -138,6 +138,34 @@ type
     property Width: Single read FWidth write SetWidth;
   end;
 
+  TJDUIItem = class(TPersistent)
+  private
+    FOwner: TPersistent;
+  protected
+    function GetOwner: TPersistent; override;
+  public
+    constructor Create(AOwner: TPersistent); virtual;
+    destructor Destroy; override;
+    procedure Invalidate; virtual;
+  end;
+
+  TJDUIObject = class(TJDUIItem)
+  private
+    FBrush: TJDUIBrush;
+    FPen: TJDUIPen;
+    procedure SetBrush(const Value: TJDUIBrush);
+    procedure SetPen(const Value: TJDUIPen);
+    procedure Changed(Sender: TObject);
+  public
+    constructor Create(AOwner: TPersistent); override;
+    destructor Destroy; override;
+    function MakeBrush: TGPBrush;
+    function MakePen: TGPPen;
+  published
+    property Brush: TJDUIBrush read FBrush write SetBrush;
+    property Pen: TJDUIPen read FPen write SetPen;
+  end;
+
   TJDBitmap = class(TPersistent)
   private
     FOwner: TPersistent;
@@ -727,6 +755,85 @@ end;
 function TJDBitmap.GetOwner: TPersistent;
 begin
   Result:= FOwner;
+end;
+
+{ TJDUIItem }
+
+constructor TJDUIItem.Create(AOwner: TPersistent);
+begin
+  FOwner:= AOwner;
+
+end;
+
+destructor TJDUIItem.Destroy;
+begin
+
+  inherited;
+end;
+
+function TJDUIItem.GetOwner: TPersistent;
+begin
+  Result:= FOwner;
+end;
+
+procedure TJDUIItem.Invalidate;
+begin
+  if Assigned(FOwner) then begin
+    if (FOwner is TCustomControl) then begin
+      TCustomControl(FOwner).Invalidate;
+    end else
+    if (FOwner is TJDUIItem) then begin
+      TJDUIItem(FOwner).Invalidate;
+    end;
+  end;
+end;
+
+{ TJDUIObject }
+
+constructor TJDUIObject.Create(AOwner: TPersistent);
+begin
+  inherited;
+
+  FBrush:= TJDUIBrush.Create(Self);
+  FBrush.OnChange:= Changed;
+
+  FPen:= TJDUIPen.Create(Self);
+  FPen.OnChange:= Changed;
+
+end;
+
+destructor TJDUIObject.Destroy;
+begin
+  FreeAndNil(FPen);
+  FreeAndNil(FBrush);
+  inherited;
+end;
+
+function TJDUIObject.MakeBrush: TGPBrush;
+begin
+  Result:= FBrush.MakeBrush;
+end;
+
+function TJDUIObject.MakePen: TGPPen;
+begin
+  Result:= FPen.MakePen;
+end;
+
+procedure TJDUIObject.Changed(Sender: TObject);
+begin
+  Invalidate;
+end;
+
+procedure TJDUIObject.SetBrush(const Value: TJDUIBrush);
+begin
+  FBrush.Assign(Value);
+  Invalidate;
+end;
+
+procedure TJDUIObject.SetPen(const Value: TJDUIPen);
+begin
+  FPen.Assign(Value);
+  Invalidate;
 end;
 
 end.

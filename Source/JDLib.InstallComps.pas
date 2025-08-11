@@ -18,7 +18,10 @@ uses
   JD.Ctrls.Gauges,
   JD.Ctrls.PlotChart,
   JD.Vector,
-  JD.Ctrls.VectorEditor;
+  JD.Ctrls.VectorEditor,
+  JD.Ctrls.ChipList,
+  JD.Ctrls.ListBox,
+  JD.Favicons;
 
 const
   JD_TAB_CAPTION = 'JD Components';
@@ -32,7 +35,8 @@ begin
   RegisterComponents(JD_TAB_CAPTION,
     [TJDFontButton, TJDFontGlyphs, TJDSmoothMove, TJDPageMenu, TJDSideMenu,
     TJDGauge, TJDVolumeControls, TJDSystemMonitor, TJDPlotChart,
-    TJDVectorImage, TJDLogger, TJDFileLogger, TJDConsoleLogger]);
+    TJDVectorImage, TJDLogger, TJDFileLogger, TJDConsoleLogger, TJDChipList,
+    TImageGrid, TJDListBox, TJDFavicons]);
 end;
 
 end.

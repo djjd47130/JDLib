@@ -597,7 +597,11 @@ function PointAroundCenter(Center: TJDPoint; Distance: Single; Degrees: Single;
 /// Draws text to a given canvas with a given format
 /// </summary>
 function DrawTextJD(hDC: HDC; Str: String;
-  var lpRect: TJDRect; uFormat: UINT): Integer;
+  var lpRect: TJDRect; uFormat: UINT): Integer; overload;
+
+function DrawTextJD(hDC: HDC; Str: String;
+  var lpRect: TRect; uFormat: UINT;
+  const VertAlign: TVerticalAlignment; HorzAlign: TAlignment): Integer; overload;
 
 {$IFDEF USE_GDIP}
 //TODO: Move into JD.Common with TJDPoint and TJDRect...
@@ -664,6 +668,27 @@ var
   R: TRect;
 begin
   R:= lpRect;
+  Result:= DrawText(hDC, PChar(Str), Length(Str), R, uFormat);
+  lpRect:= R;
+end;
+
+function DrawTextJD(hDC: HDC; Str: String;
+  var lpRect: TRect; uFormat: UINT;
+  const VertAlign: TVerticalAlignment; HorzAlign: TAlignment): Integer;
+var
+  R: TRect;
+begin
+  R:= lpRect;
+  case VertAlign of
+    taAlignTop:       uFormat:= uFormat or DT_TOP;
+    taAlignBottom:    uFormat:= uFormat or DT_BOTTOM;
+    taVerticalCenter: uFormat:= uFormat or DT_VCENTER;
+  end;
+  case HorzAlign of
+    taLeftJustify:  uFormat:= uFormat or DT_LEFT;
+    taRightJustify: uFormat:= uFormat or DT_RIGHT;
+    taCenter:       uFormat:= uFormat or DT_CENTER;
+  end;
   Result:= DrawText(hDC, PChar(Str), Length(Str), R, uFormat);
   lpRect:= R;
 end;

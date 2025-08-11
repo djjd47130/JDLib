@@ -9,7 +9,7 @@ uses
   Vcl.ExtCtrls, Vcl.StdCtrls,
   JD.Common, JD.Ctrls, JD.Ctrls.Gauges, JD.Ctrls.Gauges.Objects, JD.SysMon,
   JD.Graphics, JD.SysMon.Utils,
-  JD.VolumeControls;
+  JD.VolumeControls, JD.Ctrls.ChipList;
 
 type
 

@@ -25,12 +25,9 @@ object frmJDGaugeStackTest: TfrmJDGaugeStackTest
     BaseSize = 50.000000000000000000
     CaptionMargin = 10.000000000000000000
     ColorMain.Color = clSilver
-    ColorMain.StandardColor = fcNeutral
     ColorMain.UseStandardColor = False
-    Crosshairs.HorzColor.Color = clBlack
     Crosshairs.HorzColor.StandardColor = fcNeutral
     Crosshairs.HorzColor.UseStandardColor = True
-    Crosshairs.VertColor.Color = clBlack
     Crosshairs.VertColor.StandardColor = fcNeutral
     Crosshairs.VertColor.UseStandardColor = True
     Crosshairs.HorzVisible = False
@@ -81,17 +78,14 @@ object frmJDGaugeStackTest: TfrmJDGaugeStackTest
         Glyph.Font.Quality = fqAntialiased
         Glyph.StandardColor = fcNeutral
         Glyph.UseStandardColor = True
-        Peak.Color.Color = clBlack
         Peak.Color.StandardColor = fcNeutral
         Peak.Color.UseStandardColor = True
         Peak.Decay = 1.000000000000000000
         Max = 100.000000000000000000
         Value = 25.000000000000000000
-        Color.Color = clSkyBlue
         Color.StandardColor = fcBlue
         Color.UseStandardColor = True
         OffsetThickness = 10.000000000000000000
-        TicksMajor.Color.Color = clBlack
         TicksMajor.Color.StandardColor = fcNeutral
         TicksMajor.Color.UseStandardColor = True
         TicksMajor.Interval = 10.000000000000000000
@@ -102,7 +96,6 @@ object frmJDGaugeStackTest: TfrmJDGaugeStackTest
         TicksMajor.Labels.Font.Style = []
         TicksMajor.Length = 5.000000000000000000
         TicksMajor.Thickness = 1.000000000000000000
-        TicksMinor.Color.Color = clBlack
         TicksMinor.Color.StandardColor = fcNeutral
         TicksMinor.Color.UseStandardColor = True
         TicksMinor.Interval = 10.000000000000000000
@@ -126,17 +119,14 @@ object frmJDGaugeStackTest: TfrmJDGaugeStackTest
         Glyph.Font.Quality = fqAntialiased
         Glyph.StandardColor = fcNeutral
         Glyph.UseStandardColor = True
-        Peak.Color.Color = clBlack
         Peak.Color.StandardColor = fcNeutral
         Peak.Color.UseStandardColor = True
         Peak.Decay = 1.000000000000000000
         Max = 100.000000000000000000
         Value = 50.000000000000000000
-        Color.Color = clSkyBlue
         Color.StandardColor = fcGreen
         Color.UseStandardColor = True
         OffsetThickness = 10.000000000000000000
-        TicksMajor.Color.Color = clBlack
         TicksMajor.Color.StandardColor = fcNeutral
         TicksMajor.Color.UseStandardColor = True
         TicksMajor.Interval = 10.000000000000000000
@@ -147,7 +137,6 @@ object frmJDGaugeStackTest: TfrmJDGaugeStackTest
         TicksMajor.Labels.Font.Style = []
         TicksMajor.Length = 5.000000000000000000
         TicksMajor.Thickness = 1.000000000000000000
-        TicksMinor.Color.Color = clBlack
         TicksMinor.Color.StandardColor = fcNeutral
         TicksMinor.Color.UseStandardColor = True
         TicksMinor.Interval = 10.000000000000000000
@@ -171,17 +160,14 @@ object frmJDGaugeStackTest: TfrmJDGaugeStackTest
         Glyph.Font.Quality = fqAntialiased
         Glyph.StandardColor = fcNeutral
         Glyph.UseStandardColor = True
-        Peak.Color.Color = clBlack
         Peak.Color.StandardColor = fcNeutral
         Peak.Color.UseStandardColor = True
         Peak.Decay = 1.000000000000000000
         Max = 100.000000000000000000
         Value = 75.000000000000000000
-        Color.Color = clSkyBlue
         Color.StandardColor = fcOrange
         Color.UseStandardColor = True
         OffsetThickness = 10.000000000000000000
-        TicksMajor.Color.Color = clBlack
         TicksMajor.Color.StandardColor = fcNeutral
         TicksMajor.Color.UseStandardColor = True
         TicksMajor.Interval = 10.000000000000000000
@@ -192,7 +178,6 @@ object frmJDGaugeStackTest: TfrmJDGaugeStackTest
         TicksMajor.Labels.Font.Style = []
         TicksMajor.Length = 5.000000000000000000
         TicksMajor.Thickness = 1.000000000000000000
-        TicksMinor.Color.Color = clBlack
         TicksMinor.Color.StandardColor = fcNeutral
         TicksMinor.Color.UseStandardColor = True
         TicksMinor.Interval = 10.000000000000000000
@@ -206,7 +191,5 @@ object frmJDGaugeStackTest: TfrmJDGaugeStackTest
       end>
     ValueFormat = '#,###,##0.00'
     ValueMargin = 10.000000000000000000
-    ExplicitLeft = 16
-    ExplicitTop = 128
   end
 end

@@ -146,15 +146,13 @@
         <DCCReference Include="Source\JD.SysMon.Utils.pas"/>
         <DCCReference Include="Source\JD.Ctrls.PlotChart.pas"/>
         <DCCReference Include="Source\JD.VolumeControls2.pas"/>
-        <DCCReference Include="Source\JD.Graphics.DWScript.pas">
-            <Form>dmJDGraphicsDWScript</Form>
-            <FormType>dfm</FormType>
-            <DesignClass>TDataModule</DesignClass>
-        </DCCReference>
         <DCCReference Include="Source\JD.Logs.pas"/>
         <DCCReference Include="Source\JD.Ctrls.Toolbar.pas"/>
         <DCCReference Include="Source\FontGlyphGraphicUnit.pas"/>
         <DCCReference Include="Source\JD.Ctrls.VectorEditor.pas"/>
+        <DCCReference Include="Source\JD.Ctrls.ChipList.pas"/>
+        <DCCReference Include="Source\JD.Ctrls.ListBox.pas"/>
+        <DCCReference Include="Source\JD.Favicons.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
