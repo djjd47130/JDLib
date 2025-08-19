@@ -756,7 +756,7 @@ var
   Sized: TBitmap;
 begin
   MasterIndex := -1;
-  FirstList := nil;
+  //FirstList := nil;
 
   // Establish master index using the first available imagelist
   for var I := 0 to FImageLists.Count - 1 do
