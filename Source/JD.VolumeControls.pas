@@ -212,7 +212,6 @@ type
     function GetDeviceId(const Dev: IMMDevice): string;
     function GetDeviceFriendlyName(const Dev: IMMDevice): string;
     function FindDevice(const DeviceId: string): IMMDevice;
-    function IsDeviceSelected(const DeviceId: string): Boolean;
   protected
     procedure WMVolNotify(var Msg: TMessage); message WM_VOLNOTIFY;
     procedure WndMethod(var Message: TMessage); override;
@@ -260,6 +259,12 @@ type
     ///  ScopedDeviceCount tells you how many devices were in scope.
     ///  </summary>
     function EnforceMaxVolume(const MaxVol: Integer): Integer;
+    ///  <summary>
+    ///  Is this device ID on the selected list? Compared without caring
+    ///  about upper/lower case, so a registry value typed by hand still
+    ///  matches.
+    ///  </summary>
+    function IsDeviceSelected(const DeviceId: string): Boolean;
     ///  <summary>
     ///  Device IDs to enforce when DeviceMode is vdmSelected. IDs of
     ///  devices that are currently unplugged are simply skipped.
@@ -497,8 +502,8 @@ begin
     Result:= nil;
 end;
 
-// Is this device ID on the selected list? Compared without caring about
-// upper/lower case, so a registry value typed by hand still matches.
+// Compared without caring about upper/lower case, so a registry value
+// typed by hand still matches.
 function TJDVolumeControls.IsDeviceSelected(const DeviceId: string): Boolean;
 var
   I: Integer;
