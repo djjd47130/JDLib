@@ -176,9 +176,12 @@ type
 
 
 
-function SetThreadDescription(hThread: THandle; lpThreadDescription: WideString): HRESULT; stdcall;
-  external kernel32 name 'SetThreadDescription';
-
+//NOTE (review 2026-11-13, §3.41): a static kernel32 import of
+//  SetThreadDescription used to live here. Nothing in the repo ever called
+//  it (verified by searching the whole repo), and statically importing a
+//  Windows 10 1607+ API means the app fails to even load on older Windows -
+//  so it was deleted outright. If thread naming is ever needed, load it
+//  dynamically with GetProcAddress instead.
 
 ///  <summary>
 ///  Ensures an integer falls within a given min/max range.
@@ -310,8 +313,11 @@ function JDRect(const Width, Height: Single; const Center: TJDPoint): TJDRect;
 var
   OX, OY: Single;
 begin
-  OX:= (Width - Center.X);
-  OY:= (Height - Center.Y);
+  //FIX (review 2026-11-13, §3.15): to center a rect, the left edge is
+  //  Center.X minus half the width - NOT Width minus Center.X. The old math
+  //  put a 100x50 rect "centered" at (200,200) at Left=-100. Same for Top.
+  OX:= Center.X - (Width / 2);
+  OY:= Center.Y - (Height / 2);
   Result.Left:= OX;
   Result.Top:= OY;
   Result.Right:= OX + Width;
@@ -322,8 +328,10 @@ function JDRect(const Width, Height: Integer; const Center: TJDPoint): TJDRect;
 var
   OX, OY: Single;
 begin
-  OX:= (Width - Center.X);
-  OY:= (Height - Center.Y);
+  //FIX (review 2026-11-13, §3.15): same centering bug as the Single overload
+  //  above - Left is Center.X minus half the width, not Width minus Center.X.
+  OX:= Center.X - (Width / 2);
+  OY:= Center.Y - (Height / 2);
   Result.Left:= OX;
   Result.Top:= OY;
   Result.Right:= OX + Width;
@@ -384,7 +392,14 @@ begin
   if Message.Msg = WM_JD_COLORCHANGE then begin
     Invalidate;
   end else begin
-    //TODO: Is there anything else I need to do here?
+    //NOTE (review 2026-11-13, §3.41): this window intentionally only handles
+    //  WM_JD_COLORCHANGE - that is the only message TJDColorManager ever sends
+    //  it. Every other message is dropped here on purpose: there is no
+    //  DefWindowProc call and no inherited handler for this AllocateHwnd
+    //  utility window. That is believed to be harmless (this window has no
+    //  visible UI and no default processing to run), but it has not been
+    //  verified at runtime - TODO: confirm no message this window receives
+    //  during normal use actually needs default processing.
     //inherited;
   end;
 end;
@@ -405,7 +420,8 @@ end;
 
 procedure TJDCustomControl.WMColorChange(var Message: TMessage);
 begin
-  Invalidate;
+  //FIX (review 2026-11-13, §3.41): Invalidate was called here before Repaint,
+  //  but Repaint already paints immediately, so the Invalidate did nothing.
   Repaint;
   inherited;
 end;
@@ -535,6 +551,11 @@ end;
 
 procedure TJDRect.Invalidate;
 begin
+  //NOTE (review 2026-11-13, §3.41): this is currently a no-op on purpose -
+  //  the FOnChange call is commented out, so the OnChange property on this
+  //  record can never fire (every setter still calls Invalidate, for
+  //  nothing). FOnChange is intentionally left in place: it is part of the
+  //  record's layout, and removing the field would change the record size.
   //if Assigned(FOnChange) then
     //FOnChange(nil);
 end;
