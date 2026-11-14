@@ -2,10 +2,14 @@ unit JD.SysMon;
 
 interface
 
+// NOTE (review §5): System.Generics.Collections and Winapi.TlHelp32 were
+// dropped from the uses clause below - the deleted duplicate CPU methods
+// were their only users (TArray and the toolhelp snapshot calls), so
+// keeping them would just add "unused unit" hints.
 uses
   System.Classes, System.SysUtils, System.DateUtils, System.IOUtils,
-  System.Variants, System.Generics.Collections, System.Types, System.SyncObjs,
-  Winapi.PsAPI, Winapi.TlHelp32, Winapi.ShellAPI,
+  System.Variants, System.Types, System.SyncObjs,
+  Winapi.PsAPI, Winapi.ShellAPI,
   Winapi.Windows, Winapi.ActiveX, ComObj,
   JD.Common, JD.SysMon.Utils;
 
@@ -21,7 +25,13 @@ type
 
   TJDSystemMonitorThread = class(TThread)
   private
-    FLatestProcessCpuUsageCache: TProcessCpuUsageList;
+    // NOTE (review §5): this thread used to have its own copy of the CPU
+    // measuring code (GetRunningProcessIDs / GetProcessCpuUsagePct /
+    // GetTotalCpuUsagePct plus its own process cache), duplicating the
+    // global versions in JD.SysMon.Utils almost line for line. Those
+    // duplicates are deleted now - reporting already used the Utils
+    // versions (ReportCPU calls GetCPUInfo from JD.SysMon.Utils), so the
+    // thread's copies were effectively dead code.
     FLastCPU: TDateTime;
     FLastRAM: TDateTime;
     FLastDrive: TDateTime;
@@ -55,11 +65,9 @@ type
     //Drive Related
     procedure RemoveAllDrives;
     //CPU Related
-    procedure DeleteNonExistingProcessIDsFromCache(
-      const RunningProcessIDs: TArray<TProcessID>);
-    function GetProcessCpuUsagePct(ProcessID: TProcessID): Double;
-    function GetRunningProcessIDs: TArray<TProcessID>;
-    function GetTotalCpuUsagePct: Double;
+    // (CPU measuring lives in JD.SysMon.Utils now - see the note at the
+    // top of this class. GetCPUInfo in that unit calls the shared
+    // GetTotalCpuUsagePct, so this thread needs no CPU code of its own.)
     function ShouldReport(var Int: Integer; var Last: TDateTime;
       Cond: Boolean = True): Boolean;
   protected
@@ -83,6 +91,14 @@ type
   TJDSystemMonitor = class(TJDMessageComponent)
   private
     FThread: TJDSystemMonitorThread;
+    // FIX (review §10): the interval values are kept here on the component
+    // as well as on the thread. At design time there is no thread (see
+    // Create), so the Object Inspector still needs somewhere to read and
+    // write these values. At run time the thread holds the live copy and
+    // these fields just mirror it.
+    FCPUInterval: Integer;
+    FRAMInterval: Integer;
+    FDriveInterval: Integer;
     FOnCPUInfo: TJDSystemMonitorCPUEvent;
     FOnRAMInfo: TJDSystemMonitorRAMEvent;
     FOnDriveInfo: TJDSystemMonitorDriveEvent;
@@ -151,31 +167,16 @@ begin
   end;
 end;
 
+// FIX (review §5): the old commented-out version of this method (the
+// pre-ShouldReport code) was deleted - it was dead code, the live code
+// below does the same job. GetCPUInfo comes from JD.SysMon.Utils.
 procedure TJDSystemMonitorThread.ReportCPU;
-//var
-  //Interval: Integer;
 begin
   try
-    //if Assigned(FOnCPUInfo) then begin
-      if ShouldReport(FCPUInterval, FLastCPU, Assigned(FOnCPUInfo)) then begin
-        FSYNC_CPU:= GetCPUInfo;
-        Synchronize(SYNC_OnCPUInfo);
-      end;
-
-      {
-      LockProps;
-      try
-        Interval:= FCPUInterval;
-      finally
-        UnlockProps;
-      end;
-      if MilliSecondsBetween(Now, FLastCPU) >= Interval then begin
-        FSYNC_CPU:= GetCPUInfo;
-        FLastCPU:= Now;
-        Synchronize(SYNC_OnCPUInfo);
-      end;
-      }
-    //end;
+    if ShouldReport(FCPUInterval, FLastCPU, Assigned(FOnCPUInfo)) then begin
+      FSYNC_CPU:= GetCPUInfo;
+      Synchronize(SYNC_OnCPUInfo);
+    end;
   except
     on E: Exception do begin
       //TODO
@@ -183,30 +184,16 @@ begin
   end;
 end;
 
+// FIX (review §5): the old commented-out version of this method (the
+// pre-ShouldReport code) was deleted - it was dead code, the live code
+// above it does the same job.
 procedure TJDSystemMonitorThread.ReportRAM;
-//var
-  //Interval: Integer;
 begin
   try
     if ShouldReport(FRAMInterval, FLastRAM, Assigned(FOnRAMInfo)) then begin
       FSYNC_RAM:= GetRAMInfo;
       Synchronize(SYNC_OnRAMInfo);
     end;
-    {
-    if Assigned(FOnRAMInfo) then begin
-      LockProps;
-      try
-        Interval:= FRAMInterval;
-      finally
-        UnlockProps;
-      end;
-      if MilliSecondsBetween(Now, FLastRAM) >= Interval then begin
-        FSYNC_RAM:= GetRAMInfo;
-        FLastRAM:= Now;
-        Synchronize(SYNC_OnRAMInfo);
-      end;
-    end;
-    }
   except
     on E: Exception do begin
       //TODO
@@ -214,9 +201,11 @@ begin
   end;
 end;
 
+// FIX (review §5): the old commented-out copy of this method (the
+// pre-ShouldReport version that used to sit below the live code) was
+// deleted - it was dead code, the live code does the same job.
 procedure TJDSystemMonitorThread.ReportDrives;
 var
-  //Interval: Integer;
   DA: TJDSystemMonitorDriveInfoArray;
   X, Y: Integer;
   E: Boolean;
@@ -276,68 +265,6 @@ begin
       FLastDriveInfo:= DA;
 
     end;
-
-
-    {
-    LockProps;
-    try
-      Interval:= FDriveInterval;
-    finally
-      UnlockProps;
-    end;
-    if MilliSecondsBetween(Now, FLastDrive) >= Interval then begin
-      DA:= GetAllDriveInfo;
-      FLastDrive:= Now;
-
-      //Scan for removed drives...
-      if Assigned(FOnDriveRemoved) then begin
-        for X := 0 to Length(FLastDriveInfo)-1 do begin
-          FSYNC_Drive:= FLastDriveInfo[X];
-          E:= False;
-          for Y := 0 to Length(DA)-1 do begin
-            if FSYNC_Drive.DriveLetter = DA[Y].DriveLetter then begin
-              E:= True;
-              Break;
-            end;
-          end;
-          if not E then begin
-            //Does not exist in new list, has been removed...
-            Synchronize(SYNC_OnDriveRemoved);
-          end;
-        end;
-      end;
-
-      //Scan for new drives...
-      if Assigned(FOnDriveAdded) then begin
-        for X := 0 to Length(DA)-1 do begin
-          FSYNC_Drive:= DA[X];
-          E:= False;
-          for Y := 0 to Length(FLastDriveInfo)-1 do begin
-            if FSYNC_Drive.DriveLetter = FLastDriveInfo[Y].DriveLetter then begin
-              E:= True;
-              Break;
-            end;
-          end;
-          if not E then begin
-            //Does not exist in the old list, has been added...
-            Synchronize(SYNC_OnDriveAdded);
-          end;
-        end;
-      end;
-
-      //Trigger events...
-      if Assigned(FOnDriveInfo) then begin
-        for X := 0 to Length(DA)-1 do begin
-          FSYNC_Drive:= DA[X];
-          Synchronize(SYNC_OnDriveInfo);
-        end;
-      end;
-
-      //Save last drive info array...
-      FLastDriveInfo:= DA;
-
-    end;
-    }
   except
     on E: Exception do begin
       //TODO
@@ -349,8 +276,19 @@ procedure TJDSystemMonitorThread.RemoveAllDrives;
 var
   X: Integer;
 begin
+  // FIX (review §3.31) - deliberately left disabled, do not just re-enable:
+  // This runs from Execute's finally block while the thread is shutting
+  // down. The Synchronize() below waits for the main thread to run
+  // SYNC_OnDriveRemoved, but by then the main thread is blocked inside
+  // WaitFor in TJDSystemMonitor.Destroy - so each thread waits for the
+  // other and shutdown access-violates. TThread.Queue is not a safe swap
+  // either: a queued call would only run after WaitFor returns, by which
+  // time this thread object has been freed, so it would run on a dead
+  // object. Until drive-removal is reworked to fire from the main thread
+  // (in the component's destructor, before the thread is stopped), no
+  // "drive removed" events are fired for drives still present at shutdown
+  // - which is harmless, the component is going away anyway.
   Exit;
-  //TODO: Fix access violation...
 
   for X := 0 to Length(FLastDriveInfo)-1 do begin
     FSYNC_Drive:= FLastDriveInfo[X];
@@ -361,17 +299,34 @@ end;
 
 procedure TJDSystemMonitorThread.SetCPUInterval(const Value: Integer);
 begin
-  FCPUInterval := Value;
+  // FIX (review §3.30): never allow an interval below 50 ms. With 0 (or a
+  // negative value) ShouldReport would fire on every loop iteration, and
+  // each CPU report opens every process on the system - one bad property
+  // value could peg the CPU. 50 ms is also the thread's tick (see Execute).
+  if Value < 50 then
+    FCPUInterval := 50
+  else
+    FCPUInterval := Value;
 end;
 
 procedure TJDSystemMonitorThread.SetDriveInterval(const Value: Integer);
 begin
-  FDriveInterval := Value;
+  // FIX (review §3.30): same 50 ms minimum as SetCPUInterval - a 0 or
+  // negative interval would make ShouldReport fire on every loop iteration.
+  if Value < 50 then
+    FDriveInterval := 50
+  else
+    FDriveInterval := Value;
 end;
 
 procedure TJDSystemMonitorThread.SetRAMInterval(const Value: Integer);
 begin
-  FRAMInterval := Value;
+  // FIX (review §3.30): same 50 ms minimum as SetCPUInterval - a 0 or
+  // negative interval would make ShouldReport fire on every loop iteration.
+  if Value < 50 then
+    FRAMInterval := 50
+  else
+    FRAMInterval := Value;
 end;
 
 procedure TJDSystemMonitorThread.SYNC_OnCPUInfo;
@@ -407,11 +362,13 @@ end;
 procedure TJDSystemMonitorThread.Execute;
 begin
   CoInitialize(nil);
-  FLatestProcessCpuUsageCache := TProcessCpuUsageList.Create( [ doOwnsValues ] );
+  // FIX (review §5): the thread no longer keeps its own process-CPU cache
+  // and no longer primes one here. The shared cache lives in
+  // JD.SysMon.Utils and is filled on first use by GetCPUInfo instead -
+  // the very first CPU reading may be approximate because of that.
   FLastCPU:= 0;
   FLastRAM:= 0;
   FLastDrive:= 0;
-  GetTotalCpuUsagePct;
   try
     while not Terminated do begin
       try
@@ -423,11 +380,14 @@ begin
           //TODO
         end;
       end;
-      Sleep(1);
+      // FIX (review §3.30): was Sleep(1) - a 1000 Hz wakeup for work that
+      // only happens every 50+ ms. Sleep(50) is plenty: ShouldReport only
+      // fires once the full interval has passed, so reporting timing is
+      // unchanged, and the smallest allowed interval is 50 ms anyway.
+      Sleep(50);
     end;
   finally
     RemoveAllDrives;
-    FLatestProcessCpuUsageCache.Free;
     CoUninitialize;
   end;
 end;
@@ -442,133 +402,68 @@ begin
   FPropLock.Enter;
 end;
 
-function TJDSystemMonitorThread.GetRunningProcessIDs: TArray<TProcessID>;
-var
-  SnapProcHandle: THandle;
-  ProcEntry: TProcessEntry32;
-  NextProc: Boolean;
-begin
-  SnapProcHandle := CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-  if SnapProcHandle <> INVALID_HANDLE_VALUE then
-  begin
-    try
-      ProcEntry.dwSize := SizeOf(ProcEntry);
-      NextProc := Process32First(SnapProcHandle, ProcEntry);
-      while NextProc do
-      begin
-        SetLength(Result, Length(Result) + 1);
-        Result[Length(Result) - 1] := ProcEntry.th32ProcessID;
-        NextProc := Process32Next(SnapProcHandle, ProcEntry);
-      end;
-    finally
-      CloseHandle(SnapProcHandle);
-    end;
-    TArray.Sort<TProcessID>(Result);
-  end;
-end;
-
-function TJDSystemMonitorThread.GetProcessCpuUsagePct(ProcessID: TProcessID): Double;
-  function SubtractFileTime(FileTime1: TFileTIme; FileTime2: TFileTIme): TFileTIme;
-  begin
-    Result := TFileTIme(Int64(FileTime1) - Int64(FileTime2));
-  end;
-var
-  ProcessCpuUsage: TProcessCpuUsage;
-  ProcessHandle: THandle;
-  SystemTimes: TSystemTimesRec;
-  SystemDiffTimes: TSystemTimesRec;
-  ProcessDiffTimes: TProcessTimesRec;
-  ProcessTimes: TProcessTimesRec;
-  SystemTimesIdleTime: TFileTime;
-  ProcessTimesCreationTime: TFileTime;
-  ProcessTimesExitTime: TFileTime;
-begin
-  Result := 0.0;
-  FLatestProcessCpuUsageCache.TryGetValue(ProcessID, ProcessCpuUsage);
-  if ProcessCpuUsage = nil then begin
-    ProcessCpuUsage := TProcessCpuUsage.Create;
-    FLatestProcessCpuUsageCache.Add(ProcessID, ProcessCpuUsage);
-  end;
-  // method from:
-  // http://www.philosophicalgeek.com/2009/01/03/determine-cpu-usage-of-current-process-c-and-c/
-  ProcessHandle := OpenProcess(PROCESS_QUERY_INFORMATION or PROCESS_VM_READ, False, ProcessID);
-  if ProcessHandle <> 0 then begin
-    try
-      if Winapi.Windows.GetSystemTimes(SystemTimesIdleTime, SystemTimes.KernelTime, SystemTimes.UserTime) then
-      begin
-        SystemDiffTimes.KernelTime := SubtractFileTime(SystemTimes.KernelTime,
-          ProcessCpuUsage.LastSystemTimes.KernelTime);
-        SystemDiffTimes.UserTime := SubtractFileTime(SystemTimes.UserTime,
-          ProcessCpuUsage.LastSystemTimes.UserTime);
-        ProcessCpuUsage.LastSystemTimes := SystemTimes;
-        if GetProcessTimes(ProcessHandle, ProcessTimesCreationTime,
-          ProcessTimesExitTime, ProcessTimes.KernelTime, ProcessTimes.UserTime) then
-        begin
-          ProcessDiffTimes.KernelTime := SubtractFileTime(ProcessTimes.KernelTime,
-            ProcessCpuUsage.LastProcessTimes.KernelTime);
-          ProcessDiffTimes.UserTime := SubtractFileTime(ProcessTimes.UserTime,
-            ProcessCpuUsage.LastProcessTimes.UserTime);
-          ProcessCpuUsage.LastProcessTimes := ProcessTimes;
-          if (Int64(SystemDiffTimes.KernelTime) + Int64(SystemDiffTimes.UserTime)) > 0 then
-            Result := (Int64(ProcessDiffTimes.KernelTime) +
-              Int64(ProcessDiffTimes.UserTime)) / (Int64(SystemDiffTimes.KernelTime) +
-              Int64(SystemDiffTimes.UserTime)) * 100;
-        end;
-      end;
-    finally
-      CloseHandle(ProcessHandle);
-    end;
-  end;
-end;
-
-procedure TJDSystemMonitorThread.DeleteNonExistingProcessIDsFromCache(const RunningProcessIDs : TArray<TProcessID>);
-var
-  FoundKeyIdx: Integer;
-  Keys: TArray<TProcessID>;
-  n: Integer;
-begin
-  Keys := FLatestProcessCpuUsageCache.Keys.ToArray;
-  for n := Low(Keys) to High(Keys) do begin
-    if not TArray.BinarySearch<TProcessID>(RunningProcessIDs, Keys[n], FoundKeyIdx) then
-      FLatestProcessCpuUsageCache.Remove(Keys[n]);
-  end;
-end;
-
-function TJDSystemMonitorThread.GetTotalCpuUsagePct: Double;
-var
-  ProcessID: TProcessID;
-  RunningProcessIDs : TArray<TProcessID>;
-begin
-  Result := 0.0;
-  RunningProcessIDs := GetRunningProcessIDs;
-  DeleteNonExistingProcessIDsFromCache(RunningProcessIDs);
-  for ProcessID in RunningProcessIDs do
-    Result := Result + GetProcessCpuUsagePct( ProcessID );
-end;
+{ FIX (review §5): the thread's own copies of GetRunningProcessIDs,
+  GetProcessCpuUsagePct, DeleteNonExistingProcessIDsFromCache and
+  GetTotalCpuUsagePct used to live here. They duplicated the global
+  versions in JD.SysMon.Utils almost line for line, and the thread's
+  copies were effectively dead: reporting already called the Utils
+  versions (via GetCPUInfo). They are deleted now - the thread just
+  uses the JD.SysMon.Utils functions. }
 
 { TJDSystemMonitor }
 
 constructor TJDSystemMonitor.Create(AOwner: TComponent);
 begin
   inherited;
-  FThread:= TJDSystemMonitorThread.Create;
-  FThread.OnCPUInfo:= ThreadCPUInfo;
-  FThread.OnRAMInfo:= ThreadRAMInfo;
-  FThread.OnDriveInfo:= ThreadDriveInfo;
-  FThread.OnDriveAdded:= ThreadDriveAdded;
-  FThread.OnDriveRemoved:= ThreadDriveRemoved;
+  // FIX (review §10): do not start the monitor thread at design time - it
+  // would run inside the Delphi IDE and poll the system there. Note the
+  // Owner check: csDesigning is not always set on the component itself yet
+  // while its constructor runs, but the Owner (the form) already has it.
+  // With no thread, the interval getters/setters below use the
+  // FCPUInterval etc. fields, so the Object Inspector still works.
+  FCPUInterval:= 300;
+  FRAMInterval:= 500;
+  FDriveInterval:= 5000;
+  if not (csDesigning in ComponentState) and
+    not ((AOwner <> nil) and (csDesigning in AOwner.ComponentState)) then
+  begin
+    FThread:= TJDSystemMonitorThread.Create;
+    FThread.OnCPUInfo:= ThreadCPUInfo;
+    FThread.OnRAMInfo:= ThreadRAMInfo;
+    FThread.OnDriveInfo:= ThreadDriveInfo;
+    FThread.OnDriveAdded:= ThreadDriveAdded;
+    FThread.OnDriveRemoved:= ThreadDriveRemoved;
+    FThread.CPUInterval:= FCPUInterval;
+    FThread.RAMInterval:= FRAMInterval;
+    FThread.DriveInterval:= FDriveInterval;
+  end;
 end;
 
 destructor TJDSystemMonitor.Destroy;
 begin
-  FThread.Terminate;
-  FThread.WaitFor;
-  FreeAndNil(FThread);
+  // NOTE (review §3.33): Terminate + WaitFor has a small known deadlock
+  // window - if the worker happens to be inside Synchronize at the exact
+  // moment the main thread enters WaitFor, each waits for the other. In
+  // practice the window is tiny and the thread only synchronizes briefly,
+  // so this is accepted as-is rather than restructured. (RemoveAllDrives
+  // is disabled for the related shutdown problem - see its comment.)
+  // No thread exists at design time, so guard against nil here.
+  if Assigned(FThread) then begin
+    FThread.Terminate;
+    FThread.WaitFor;
+    FreeAndNil(FThread);
+  end;
   inherited;
 end;
 
 function TJDSystemMonitor.GetCPUInterval: Integer;
 begin
+  // FIX (review §10): no thread exists at design time, so read the
+  // component's own copy of the value instead of dereferencing nil.
+  if not Assigned(FThread) then begin
+    Result:= FCPUInterval;
+    Exit;
+  end;
   FThread.LockProps;
   try
     Result:= FThread.CPUInterval;
@@ -579,6 +474,12 @@ end;
 
 function TJDSystemMonitor.GetDriveInterval: Integer;
 begin
+  // FIX (review §10): no thread exists at design time, so read the
+  // component's own copy of the value instead of dereferencing nil.
+  if not Assigned(FThread) then begin
+    Result:= FDriveInterval;
+    Exit;
+  end;
   FThread.LockProps;
   try
     Result:= FThread.DriveInterval;
@@ -589,6 +490,12 @@ end;
 
 function TJDSystemMonitor.GetRAMInterval: Integer;
 begin
+  // FIX (review §10): no thread exists at design time, so read the
+  // component's own copy of the value instead of dereferencing nil.
+  if not Assigned(FThread) then begin
+    Result:= FRAMInterval;
+    Exit;
+  end;
   FThread.LockProps;
   try
     Result:= FThread.RAMInterval;
@@ -599,31 +506,58 @@ end;
 
 procedure TJDSystemMonitor.SetCPUInterval(const Value: Integer);
 begin
-  FThread.LockProps;
-  try
-    FThread.CPUInterval:= Value;
-  finally
-    FThread.UnlockProps;
+  // FIX (review §3.30/§10): keep the component's own copy in step (it is
+  // the only copy at design time), clamped to the same 50 ms minimum as
+  // the thread's setter, then push it to the thread if there is one.
+  if Value < 50 then
+    FCPUInterval:= 50
+  else
+    FCPUInterval:= Value;
+  if Assigned(FThread) then begin
+    FThread.LockProps;
+    try
+      FThread.CPUInterval:= FCPUInterval;
+    finally
+      FThread.UnlockProps;
+    end;
   end;
 end;
 
 procedure TJDSystemMonitor.SetDriveInterval(const Value: Integer);
 begin
-  FThread.LockProps;
-  try
-    FThread.DriveInterval:= Value;
-  finally
-    FThread.UnlockProps;
+  // FIX (review §3.30/§10): keep the component's own copy in step (it is
+  // the only copy at design time), clamped to the same 50 ms minimum as
+  // the thread's setter, then push it to the thread if there is one.
+  if Value < 50 then
+    FDriveInterval:= 50
+  else
+    FDriveInterval:= Value;
+  if Assigned(FThread) then begin
+    FThread.LockProps;
+    try
+      FThread.DriveInterval:= FDriveInterval;
+    finally
+      FThread.UnlockProps;
+    end;
   end;
 end;
 
 procedure TJDSystemMonitor.SetRAMInterval(const Value: Integer);
 begin
-  FThread.LockProps;
-  try
-    FThread.RAMInterval:= Value;
-  finally
-    FThread.UnlockProps;
+  // FIX (review §3.30/§10): keep the component's own copy in step (it is
+  // the only copy at design time), clamped to the same 50 ms minimum as
+  // the thread's setter, then push it to the thread if there is one.
+  if Value < 50 then
+    FRAMInterval:= 50
+  else
+    FRAMInterval:= Value;
+  if Assigned(FThread) then begin
+    FThread.LockProps;
+    try
+      FThread.RAMInterval:= FRAMInterval;
+    finally
+      FThread.UnlockProps;
+    end;
   end;
 end;
 

@@ -21,7 +21,7 @@ interface
 uses
   System.Classes, System.SysUtils, System.DateUtils, System.IOUtils,
   System.Variants, System.Generics.Collections, System.Types,
-  System.Win.Registry,
+  System.SyncObjs, System.Win.Registry,
   Winapi.Windows, Winapi.PsAPI, Winapi.TlHelp32, Winapi.ShellAPI,
   Vcl.Dialogs,
   ActiveX, ComObj,
@@ -65,6 +65,10 @@ type
     Architecture: String;
   end;
 
+  // NOTE (review §3.32): tuCelcius/tuFarenheit are misspelled, but they
+  // are public API so they stay working. New code should use the
+  // correctly spelled tuCelsius/tuFahrenheit aliases declared below
+  // with the consts.
   TJDSystemMonitorTempUnit = (tuCelcius, tuFarenheit);
 
   TJDSystemMonitorTempInfo = record
@@ -87,6 +91,13 @@ type
 
 const
   ALL_INFO_PARTS = [ipCPU, ipRAM, ipDrives, ipOS, ipTemps];
+
+  // FIX (review §3.32): correctly spelled aliases for the misspelled
+  // tuCelcius/tuFarenheit enum values. These are plain constants with the
+  // same values, so old and new names are interchangeable. The old names
+  // are kept (not removed) because other code may already use them.
+  tuCelsius = tuCelcius;
+  tuFahrenheit = tuFarenheit;
 
 type
   TProcessID = DWORD;
@@ -111,10 +122,11 @@ type
 
 
 type
-  TJDDataScale = (jdAuto, jdBytes, jdKiloBytes, jdMegaBytes, jdGigaBytes
-    //TODO
-    //, jdTeraBytes, jdPetaBytes
-    );
+  // FIX (review §3.32): jdTeraBytes/jdPetaBytes added so multi-TB drives
+  // stop displaying as e.g. "1,862.0 GB". They are appended at the end so
+  // the existing values keep their ordinals.
+  TJDDataScale = (jdAuto, jdBytes, jdKiloBytes, jdMegaBytes, jdGigaBytes,
+    jdTeraBytes, jdPetaBytes);
 
 
 
@@ -189,9 +201,12 @@ const
   JD_KILOBYTE = JD_FACTOR;
   JD_MEGABYTE = JD_FACTOR * JD_KILOBYTE;
   JD_GIGABYTE = JD_FACTOR * JD_MEGABYTE;
-  //TODO: https://stackoverflow.com/questions/10302910/how-to-declare-an-int64-constant
-  //JD_TERABYTE = JD_FACTOR * JD_GIGABYTE;
-  //JD_PETABYTE = JD_FACTOR * JD_TERABYTE;
+  // FIX (review §3.32): TB and PB need Int64 math - a plain
+  // JD_FACTOR * JD_GIGABYTE overflows a 32-bit Integer. Casting the 1024
+  // to Int64 first makes the whole multiply 64-bit.
+  // (https://stackoverflow.com/questions/10302910/how-to-declare-an-int64-constant)
+  JD_TERABYTE = Int64(JD_FACTOR) * JD_GIGABYTE;
+  JD_PETABYTE = Int64(JD_FACTOR) * JD_TERABYTE;
 begin
   if AScale = jdAuto then begin
     if AVal < JD_KILOBYTE then begin
@@ -202,9 +217,16 @@ begin
     end else
     if AVal < JD_GIGABYTE then begin
       Result:= FormatFloat(NUM_FORMAT, (AVal / JD_MEGABYTE)) + ' MB';
-    end else begin
+    end else
+    // FIX (review §3.32): TB/PB ranges added - before this, anything over
+    // 1 TB just showed as a huge number of GB.
+    if AVal < JD_TERABYTE then begin
       Result:= FormatFloat(NUM_FORMAT, (AVal / JD_GIGABYTE)) + ' GB';
-      //TODO
+    end else
+    if AVal < JD_PETABYTE then begin
+      Result:= FormatFloat(NUM_FORMAT, (AVal / JD_TERABYTE)) + ' TB';
+    end else begin
+      Result:= FormatFloat(NUM_FORMAT, (AVal / JD_PETABYTE)) + ' PB';
     end;
   end else begin
     case AScale of
@@ -220,15 +242,14 @@ begin
       jdGigaBytes: begin
         Result:= FormatFloat(NUM_FORMAT, (AVal / JD_GIGABYTE)) + ' GB';
       end;
-      {
-      //TODO
+      // FIX (review §3.32): TB/PB branches, uncommented now that the
+      // JD_TERABYTE/JD_PETABYTE constants exist (see above).
       jdTeraBytes: begin
         Result:= FormatFloat(NUM_FORMAT, (AVal / JD_TERABYTE)) + ' TB';
       end;
       jdPetaBytes: begin
         Result:= FormatFloat(NUM_FORMAT, (AVal / JD_PETABYTE)) + ' PB';
       end;
-      }
     end;
   end;
 end;
@@ -327,6 +348,23 @@ end;
 
 var
   LatestProcessCpuUsageCache : TProcessCpuUsageList;
+  // FIX (review §3.32): one lock guarding the cache above AND the CPU
+  // name/core cache below. GetCPUInfo can be called from the monitor
+  // thread and from the main thread (an app calling it directly), and
+  // TObjectDictionary is not thread-safe. Created in initialization,
+  // freed in finalization. The code is arranged so the lock is never
+  // taken twice on the same call path (see GetCPUInfo).
+  ProcessCpuUsageCacheLock: TCriticalSection;
+  // FIX (review §3.31): the CPU name and core count never change while
+  // Windows is running, so read them from the registry once and keep them
+  // here instead of re-reading on every GetCPUInfo call (every 300 ms).
+  CachedCPUName: String;
+  CachedLogicalCores: Integer;
+  CPUInfoCached: Boolean;
+  // FIX (review §3.32): remembers whether the CoInitialize in
+  // initialization actually succeeded - finalization must only call
+  // CoUninitialize if it did, or COM's init count gets unbalanced.
+  SysMonCoInitialized: Boolean;
 
 function GetRunningProcessIDs: TArray<TProcessID>;
 var
@@ -377,7 +415,11 @@ begin
   end;
   // method from:
   // http://www.philosophicalgeek.com/2009/01/03/determine-cpu-usage-of-current-process-c-and-c/
-  ProcessHandle := OpenProcess(PROCESS_QUERY_INFORMATION or PROCESS_VM_READ, False, ProcessID);
+  // FIX (review §3.31): was PROCESS_QUERY_INFORMATION or PROCESS_VM_READ.
+  // GetProcessTimes only needs PROCESS_QUERY_INFORMATION - asking for
+  // PROCESS_VM_READ as well makes OpenProcess fail on protected/elevated
+  // processes, which then get silently skipped and the total undercounts.
+  ProcessHandle := OpenProcess(PROCESS_QUERY_INFORMATION, False, ProcessID);
   if ProcessHandle <> 0 then begin
     try
       if Winapi.Windows.GetSystemTimes(SystemTimesIdleTime, SystemTimes.KernelTime, SystemTimes.UserTime) then
@@ -425,11 +467,25 @@ var
   ProcessID: TProcessID;
   RunningProcessIDs : TArray<TProcessID>;
 begin
-  Result := 0.0;
-  RunningProcessIDs := GetRunningProcessIDs;
-  DeleteNonExistingProcessIDsFromCache(RunningProcessIDs);
-  for ProcessID in RunningProcessIDs do
-    Result := Result + GetProcessCpuUsagePct( ProcessID );
+  // FIX (review §3.32): the whole measurement runs under the cache lock.
+  // GetProcessCpuUsagePct and DeleteNonExistingProcessIDsFromCache are
+  // only called from here (they are not in the interface section), so one
+  // lock here covers every read/write of LatestProcessCpuUsageCache, and
+  // GetCPUInfo is covered too because it calls this function.
+  // NOTE: the first call primes the cache baselines (they start at zero),
+  // so the very first sample may be approximate - that is expected, the
+  // eager priming call that used to run in initialization is gone (it
+  // opened every process at unit-load time for any app using this unit).
+  ProcessCpuUsageCacheLock.Enter;
+  try
+    Result := 0.0;
+    RunningProcessIDs := GetRunningProcessIDs;
+    DeleteNonExistingProcessIDsFromCache(RunningProcessIDs);
+    for ProcessID in RunningProcessIDs do
+      Result := Result + GetProcessCpuUsagePct( ProcessID );
+  finally
+    ProcessCpuUsageCacheLock.Leave;
+  end;
 end;
 
 function GetCPUInfo: TJDSystemMonitorCPUInfo;
@@ -440,42 +496,59 @@ var
 begin
   Result.ProcessCount:= 0; //TODO
   Result.ThreadCount:= 0; //TODO
+  // NOTE: this runs first, before the lock below is taken, so the cache
+  // lock is never held twice on one call path (GetTotalCpuUsagePct takes
+  // the same lock internally).
   Result.UsagePerc:= GetTotalCpuUsagePct;
-  Result.CPUName:= '';
-  Result.LogicalCores:= 0;
-  R:= TRegistry.Create(KEY_READ);
+  // FIX (review §3.31): the CPU name and core count are read from the
+  // registry once and cached in CachedCPUName/CachedLogicalCores - they
+  // never change while Windows is running, so re-reading them on every
+  // call (every 300 ms) was wasted work.
+  ProcessCpuUsageCacheLock.Enter;
   try
-    R.RootKey:= HKEY_LOCAL_MACHINE;
-    K:= 'HARDWARE\DESCRIPTION\System\CentralProcessor\0';
-    if R.KeyExists(K) then begin
-      if R.OpenKey(K, False) then begin
-        try
-          if R.ValueExists('ProcessorNameString') then begin
-            Result.CPUName:= R.ReadString('ProcessorNameString');
+    if not CPUInfoCached then begin
+      CachedCPUName:= '';
+      CachedLogicalCores:= 0;
+      R:= TRegistry.Create(KEY_READ);
+      try
+        R.RootKey:= HKEY_LOCAL_MACHINE;
+        K:= 'HARDWARE\DESCRIPTION\System\CentralProcessor\0';
+        if R.KeyExists(K) then begin
+          if R.OpenKey(K, False) then begin
+            try
+              if R.ValueExists('ProcessorNameString') then begin
+                CachedCPUName:= R.ReadString('ProcessorNameString');
+              end;
+            finally
+              R.CloseKey;
+            end;
           end;
-        finally
-          R.CloseKey;
         end;
-      end;
-    end;
-    K:= 'HARDWARE\DESCRIPTION\System\CentralProcessor';
-    if R.KeyExists(K) then begin
-      if R.OpenKey(K, False) then begin
-        try
-          L:= TStringList.Create;
-          try
-            R.GetKeyNames(L);
-            Result.LogicalCores:= L.Count;
-          finally
-            L.Free;
+        K:= 'HARDWARE\DESCRIPTION\System\CentralProcessor';
+        if R.KeyExists(K) then begin
+          if R.OpenKey(K, False) then begin
+            try
+              L:= TStringList.Create;
+              try
+                R.GetKeyNames(L);
+                CachedLogicalCores:= L.Count;
+              finally
+                L.Free;
+              end;
+            finally
+              R.CloseKey;
+            end;
           end;
-        finally
-          R.CloseKey;
         end;
+      finally
+        R.Free;
       end;
+      CPUInfoCached:= True;
     end;
+    Result.CPUName:= CachedCPUName;
+    Result.LogicalCores:= CachedLogicalCores;
   finally
-    R.Free;
+    ProcessCpuUsageCacheLock.Leave;
   end;
 end;
 
@@ -497,6 +570,11 @@ function GetRAMInfo: TJDSystemMonitorRAMInfo;
 var
   MS_Ex : MemoryStatusEx;
 begin
+  // FIX (review §3.32): zero the result first. If GlobalMemoryStatusEx
+  // fails below, the fields were never assigned and the caller got
+  // garbage. Now a failure returns zeros. (FillChar is safe here because
+  // this record holds only numbers, no strings.)
+  FillChar(Result, SizeOf(Result), 0);
   FillChar(MS_Ex, SizeOf(MemoryStatusEx), #0);
   MS_Ex.dwLength:= SizeOf(MemoryStatusEx);
   if GlobalMemoryStatusEx(MS_Ex) then begin
@@ -514,6 +592,13 @@ function GetOSInfo: TJDSystemMonitorOSInfo;
 var
   A: TOSVersion.TArchitecture;
 begin
+  // FIX (review §3.32): same uninitialized-result problem as GetSysInfo -
+  // Vendor and Build were never assigned at all, and Architecture was
+  // only set by the case below. Default them first so a caller never
+  // reads garbage.
+  Result.Vendor:= '';
+  Result.Build:= '';
+  Result.Architecture:= '';
   Result.Caption:= TOSVersion.ToString;
   Result.Version:= IntToStr(TOSVersion.Major);
   A:= TOSVersion.Architecture;
@@ -534,9 +619,11 @@ end;
 
 function GetTempInfo: TJDSystemMonitorTempInfo;
 begin
-  //TODO
+  //TODO: still a stub - no real temperature reading yet.
+  // FIX (review §3.32): PCHTemp was never assigned at all, so callers got
+  // garbage for it. Both fields are zeroed now so the stub is complete.
   Result.CPUTemp:= 0;
-
+  Result.PCHTemp:= 0;
 end;
 
 
@@ -544,7 +631,29 @@ end;
 
 function GetSysInfo(const AParts: TJDSystemMonitorInfoParts = ALL_INFO_PARTS): TJDSystemMonitorInfo;
 begin
+  // FIX (review §3.32): initialize every part to a safe default first,
+  // even parts the caller did not ask for. Before this, any part not in
+  // AParts was left uninitialized and the caller got garbage numbers.
+  // (No FillChar here - this record holds strings and a dynamic array,
+  // which must not be zeroed that way - so each field is set out.)
   Result.Available:= AParts;
+  Result.CPU.ProcessCount:= 0;
+  Result.CPU.ThreadCount:= 0;
+  Result.CPU.UsagePerc:= 0;
+  Result.CPU.CPUName:= '';
+  Result.CPU.LogicalCores:= 0;
+  Result.RAM.SizeTotal:= 0;
+  Result.RAM.SizeUsed:= 0;
+  Result.RAM.SizeFree:= 0;
+  Result.RAM.UsagePerc:= 0;
+  SetLength(Result.Drives, 0);
+  Result.OS.Caption:= '';
+  Result.OS.Vendor:= '';
+  Result.OS.Version:= '';
+  Result.OS.Build:= '';
+  Result.OS.Architecture:= '';
+  Result.Temps.CPUTemp:= 0;
+  Result.Temps.PCHTemp:= 0;
   if ipCPU in AParts then
     Result.CPU:= GetCPUInfo;
   if ipRAM in AParts then
@@ -561,10 +670,22 @@ end;
 
 
 initialization
-  CoInitialize(nil);
+  // FIX (review §3.32): remember whether CoInitialize actually worked.
+  // If the app already initialized COM a different way this call fails,
+  // and calling CoUninitialize anyway in finalization would unbalance
+  // COM's init count. Succeeded() covers S_FALSE too (already initialized
+  // on this thread still needs a matching CoUninitialize).
+  SysMonCoInitialized:= Succeeded(CoInitialize(nil));
+  ProcessCpuUsageCacheLock:= TCriticalSection.Create;
   LatestProcessCpuUsageCache := TProcessCpuUsageList.Create( [ doOwnsValues ] );
-  GetTotalCpuUsagePct;
+  // NOTE: the eager GetTotalCpuUsagePct call that used to run here is
+  // gone on purpose - it opened every process on the system at unit-load
+  // time, so any app that merely used this unit paid that startup cost.
+  // The cache is primed lazily on the first GetCPUInfo / GetTotalCpuUsagePct
+  // call instead; that first sample may be approximate.
 finalization
   LatestProcessCpuUsageCache.Free;
-  CoUninitialize;
+  ProcessCpuUsageCacheLock.Free;
+  if SysMonCoInitialized then
+    CoUninitialize;
 end.
