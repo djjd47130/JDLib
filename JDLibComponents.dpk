@@ -37,7 +37,6 @@ requires
   IndyProtocols,
   vclimg,
   dbrtl,
-  dwsLibRuntime,
   XSuperObjectLib;
 
 contains
@@ -58,12 +57,9 @@ contains
   JD.SysMon in 'Source\JD.SysMon.pas',
   JD.AppBar in 'Source\JD.AppBar.pas',
   JD.Vector in 'Source\JD.Vector.pas',
-  JD.Sockets in 'Source\JD.Sockets.pas',
   JD.SysMon.Utils in 'Source\JD.SysMon.Utils.pas',
   JD.Ctrls.PlotChart in 'Source\JD.Ctrls.PlotChart.pas',
-  JD.VolumeControls2 in 'Source\JD.VolumeControls2.pas',
   JD.Logs in 'Source\JD.Logs.pas',
-  JD.Ctrls.Toolbar in 'Source\JD.Ctrls.Toolbar.pas',
   FontGlyphGraphicUnit in 'Source\FontGlyphGraphicUnit.pas',
   JD.Ctrls.VectorEditor in 'Source\JD.Ctrls.VectorEditor.pas',
   JD.Ctrls.ChipList in 'Source\JD.Ctrls.ChipList.pas',

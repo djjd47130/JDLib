@@ -123,7 +123,6 @@
         <DCCReference Include="IndyProtocols.dcp"/>
         <DCCReference Include="vclimg.dcp"/>
         <DCCReference Include="dbrtl.dcp"/>
-        <DCCReference Include="dwsLibRuntime.dcp"/>
         <DCCReference Include="XSuperObjectLib.dcp"/>
         <DCCReference Include="Source\JD.Common.pas"/>
         <DCCReference Include="Source\JD.Graphics.pas"/>
@@ -142,12 +141,9 @@
         <DCCReference Include="Source\JD.SysMon.pas"/>
         <DCCReference Include="Source\JD.AppBar.pas"/>
         <DCCReference Include="Source\JD.Vector.pas"/>
-        <DCCReference Include="Source\JD.Sockets.pas"/>
         <DCCReference Include="Source\JD.SysMon.Utils.pas"/>
         <DCCReference Include="Source\JD.Ctrls.PlotChart.pas"/>
-        <DCCReference Include="Source\JD.VolumeControls2.pas"/>
         <DCCReference Include="Source\JD.Logs.pas"/>
-        <DCCReference Include="Source\JD.Ctrls.Toolbar.pas"/>
         <DCCReference Include="Source\FontGlyphGraphicUnit.pas"/>
         <DCCReference Include="Source\JD.Ctrls.VectorEditor.pas"/>
         <DCCReference Include="Source\JD.Ctrls.ChipList.pas"/>
