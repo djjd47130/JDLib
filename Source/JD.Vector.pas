@@ -220,6 +220,9 @@ type
     FOffsetY: Single;
     FName: TCaption;
     FCaption: TCaption;
+    // FIX (review §3.37): the file-format version, read back in LoadFromJSON
+    // (it used to be written under the misspelled key 'Verison' and never read).
+    FVersion: Double;
     procedure SetParts(const Value: TJDVectorParts);
     procedure SetOnChange(const Value: TNotifyEvent);
     procedure SetScale(const Value: Single);
@@ -233,6 +236,8 @@ type
     constructor Create(AOwner: TPersistent); virtual;
     destructor Destroy; override;
     property Owner: TPersistent read FOwner;
+    // File-format version seen when this graphic was last loaded (0 if unknown).
+    property Version: Double read FVersion;
     procedure Assign(Source: TPersistent); override;
 
     procedure Invalidate; virtual;
@@ -271,6 +276,24 @@ implementation
 
 uses
   System.Math;
+
+// FIX (review §3.37): XSuperObject returns nil for a missing object/array key,
+// so code that passed O.O[...]/O.A[...] straight into a nested loader would
+// crash with an access violation on corrupt or truncated JSON instead of a
+// readable error. These helpers raise a clear exception naming the missing key.
+function ReqJSONObj(O: ISuperObject; const Key: String): ISuperObject;
+begin
+  Result:= O.O[Key];
+  if Result = nil then
+    raise Exception.CreateFmt('Vector JSON is missing required object "%s".', [Key]);
+end;
+
+function ReqJSONArray(O: ISuperObject; const Key: String): ISuperArray;
+begin
+  Result:= O.A[Key];
+  if Result = nil then
+    raise Exception.CreateFmt('Vector JSON is missing required array "%s".', [Key]);
+end;
 
 { TJDVectorPoint }
 
@@ -312,6 +335,10 @@ end;
 
 procedure TJDVectorPoint.LoadFromJSON(O: ISuperObject);
 begin
+  // FIX (review §3.37): a nil object here used to crash with an access
+  // violation - fail with a readable message instead.
+  if O = nil then
+    raise Exception.Create('Vector JSON is missing a point object.');
   FX:= O.F['X'];
   FY:= O.F['Y'];
   Invalidate;
@@ -404,8 +431,14 @@ procedure TJDVectorPoints.LoadFromJSON(A: ISuperArray);
 var
   X: Integer;
 begin
+  // FIX (review §3.37): a missing 'Points' array used to crash with an access
+  // violation - fail with a readable message instead.
+  if A = nil then
+    raise Exception.Create('Vector JSON is missing a points array.');
   Clear;
   for X := 0 to A.Length-1 do begin
+    if A.O[X] = nil then
+      raise Exception.CreateFmt('Vector JSON point %d is missing its object.', [X]);
     var P:= Self.Add;
     P.LoadFromJSON(A.O[X]);
   end;
@@ -426,11 +459,19 @@ var
   A: ISuperArray;
   X: Integer;
 begin
-  Clear;
+  // FIX (review §3.37): the array elements here are objects, so they must be
+  // read with A.O[X] (like LoadFromJSON does). The old code used A.S[X],
+  // which reads them as strings - every point loaded this way came back
+  // zeroed out.
   A:= SA(S);
+  if A = nil then
+    raise Exception.Create('Vector points string is not a valid JSON array.');
+  Clear;
   for X := 0 to A.Length-1 do begin
+    if A.O[X] = nil then
+      raise Exception.CreateFmt('Vector points string entry %d is missing its object.', [X]);
     var P:= Self.Add;
-    P.LoadFromString(A.S[X]);
+    P.LoadFromJSON(A.O[X]);
   end;
 end;
 
@@ -655,6 +696,17 @@ begin
         ClippingRegion.Free;
         }
 
+        // NOTE (review §3.17): ExcludeClip changes the clip on the caller's
+        // canvas, and it used to stay changed for everything drawn afterwards.
+        // The clip is saved and restored around the whole part loop in
+        // TJDVectorGraphic.Render instead of here: restoring it right after
+        // this ExcludeClip would undo the exclusion before it could cut a
+        // hole in the later parts, making subtractive parts do nothing.
+        // (SaveDC/RestoreDC do not apply here - ACanvas is a GDI+ TGPGraphics,
+        // not an HDC canvas - so TJDVectorGraphic.Render uses the GDI+
+        // TGPGraphics.Save/Restore pair instead.)
+        // If you ever call TJDVectorPart.Render directly, save/restore the
+        // graphics state around the call yourself - see TJDVectorGraphic.Render.
         var Region:= TGPRegion.Create(Path);
         try
           ACanvas.ExcludeClip(Region);
@@ -685,20 +737,37 @@ end;
 procedure TJDVectorPart.LoadFromFont(const FontName: TFontName;
   const Character: Char);
 begin
-
+  // FIX (review §3.37): this used to be an empty stub - a public method that
+  // silently did nothing, so calling it looked like it worked. Fail loudly
+  // until somebody actually implements the font import.
+  raise ENotImplemented.Create('TJDVectorPart.LoadFromFont is not implemented');
 end;
 
 procedure TJDVectorPart.LoadFromJSON(O: ISuperObject);
+var
+  ShapeVal: Integer;
 begin
+  // FIX (review §3.37): every nested object/array is nil-checked (via the
+  // ReqJSONObj/ReqJSONArray helpers above) so a missing key raises a clear
+  // exception naming the key instead of crashing with an access violation.
+  if O = nil then
+    raise Exception.Create('Vector JSON is missing a part object.');
   FCaption:= O.S['Caption'];
-  FBrush.LoadFromJSON(O.O['Brush']);
-  FPen.LoadFromJSON(O.O['Pen']);
-  FPoints.LoadFromJSON(O.A['Points']);
+  FBrush.LoadFromJSON(ReqJSONObj(O, 'Brush'));
+  FPen.LoadFromJSON(ReqJSONObj(O, 'Pen'));
+  FPoints.LoadFromJSON(ReqJSONArray(O, 'Points'));
   FOffsetX:= O.F['OffsetX'];
   FOffsetY:= O.F['OffsetY'];
   FScale:= O.F['Scale'];
-  FShape:= TJDVectorShape(O.I['Shape']);
-  FParts.LoadFromJSON(O.A['Parts']);
+  // FIX (review §3.37): the old code cast the stored integer straight to
+  // TJDVectorShape with no range check, so a corrupt value became an invalid
+  // enum. Out-of-range values now fall back to vsCustom.
+  ShapeVal:= O.I['Shape'];
+  if (ShapeVal >= Ord(Low(TJDVectorShape))) and (ShapeVal <= Ord(High(TJDVectorShape))) then
+    FShape:= TJDVectorShape(ShapeVal)
+  else
+    FShape:= vsCustom;
+  FParts.LoadFromJSON(ReqJSONArray(O, 'Parts'));
   FSubtractive:= O.B['Subtractive'];
 end;
 
@@ -831,8 +900,14 @@ procedure TJDVectorParts.LoadFromJSON(A: ISuperArray);
 var
   X: Integer;
 begin
+  // FIX (review §3.37): a missing 'Parts' array used to crash with an access
+  // violation - fail with a readable message instead.
+  if A = nil then
+    raise Exception.Create('Vector JSON is missing a parts array.');
   Clear;
   for X := 0 to A.Length-1 do begin
+    if A.O[X] = nil then
+      raise Exception.CreateFmt('Vector JSON part %d is missing its object.', [X]);
     var P:= Add;
     P.LoadFromJSON(A.O[X]);
   end;
@@ -876,6 +951,7 @@ begin
   if Source is TJDVectorGraphic then begin
     var S:= TJDVectorGraphic(Source);
     FParts.Assign(S.Parts);
+    FVersion:= S.Version;
     FScale:= S.Scale;
     FOffsetX:= S.OffsetX;
     FOffsetY:= S.OffsetY;
@@ -890,6 +966,7 @@ begin
   inherited Create;
   FOwner:= AOwner;
   FParts:= TJDVectorParts.Create(Self);
+  FVersion:= 1.0;
   FScale:= 1.0;
   FOffsetX:= 0;
   FOffsetY:= 0;
@@ -921,11 +998,19 @@ begin
   //Validate format...
   if not SameText(O.S['Format'], 'JD Vector') then
     raise Exception.Create('Object does not contain valid vector format.');
-  //TODO: Validate version...
+  // FIX (review §3.37): the version used to be saved under the misspelled key
+  // 'Verison' and never read back at all. New files use 'Version'; files
+  // already saved with the old spelling are still accepted as a fallback.
+  // (A missing key reads back as 0, and a real version is never 0.)
+  FVersion:= O.F['Version'];
+  if FVersion = 0 then
+    FVersion:= O.F['Verison'];
 
   FCaption:= O.S['Caption'];
   FName:= O.S['Name'];
-  FParts.LoadFromJSON(O.A['Parts']);
+  // FIX (review §3.37): nil-check the 'Parts' array so a missing key raises a
+  // clear exception instead of crashing with an access violation.
+  FParts.LoadFromJSON(ReqJSONArray(O, 'Parts'));
   FScale:= O.F['Scale'];
   FOffsetX:= O.F['OffsetX'];
   FOffsetY:= O.F['OffsetY'];
@@ -936,7 +1021,8 @@ function TJDVectorGraphic.SaveToJSON: ISuperObject;
 begin
   Result:= SO;
   Result.S['Format']:= 'JD Vector';
-  Result.F['Verison']:= 1.0;
+  // FIX (review §3.37): this key used to be misspelled 'Verison'.
+  Result.F['Version']:= 1.0;
 
   Result.S['Caption']:= Caption;
   Result.S['Name']:= Name;
@@ -1002,10 +1088,25 @@ procedure TJDVectorGraphic.Render(ACanvas: TGPGraphics; const X, Y: Single;
 var
   I: Integer;
   P: TJDVectorPart;
+  SavedState: GraphicsState;
 begin
-  for I := 0 to FParts.Count-1 do begin
-    P:= FParts[I];
-    P.Render(ACanvas, X, Y, FScale * AltScale);
+  if ACanvas = nil then
+    Exit;
+  // FIX (review §3.17): a subtractive part calls ExcludeClip, which used to
+  // leave the caller's canvas clipped for everything drawn afterwards.
+  // Save the whole graphics state (including the clip) before rendering the
+  // parts and restore it when done, so the caller's canvas comes back exactly
+  // as it was - while subtractive parts can still cut holes in the later
+  // parts of THIS graphic. TGPGraphics.Save/Restore is the GDI+ equivalent
+  // of SaveDC/RestoreDC (there is no HDC handle to pass to SaveDC here).
+  SavedState:= ACanvas.Save;
+  try
+    for I := 0 to FParts.Count-1 do begin
+      P:= FParts[I];
+      P.Render(ACanvas, X, Y, FScale * AltScale);
+    end;
+  finally
+    ACanvas.Restore(SavedState);
   end;
 end;
 
@@ -1014,6 +1115,7 @@ var
   MinX, MinY, MaxX, MaxY: Single;
   I, J: Integer;
   P: TJDVectorPart;
+  HasPoints: Boolean;
 begin
   if FParts.Count = 0 then
     Exit(TRect.Empty);
@@ -1022,12 +1124,14 @@ begin
   MinY := MaxSingle;
   MaxX := -MaxSingle;
   MaxY := -MaxSingle;
+  HasPoints := False;
 
   for I := 0 to FParts.Count - 1 do
   begin
     P := FParts[I];
     for J := 0 to P.Points.Count - 1 do
     begin
+      HasPoints := True;
       MinX := Min(MinX, P.Points[J].X);
       MinY := Min(MinY, P.Points[J].Y);
       MaxX := Max(MaxX, P.Points[J].X);
@@ -1035,12 +1139,20 @@ begin
     end;
   end;
 
-  // Ensure calculations are relative to MinX/MinY
+  // FIX (review §3.16): if no part has any points, Min/Max are still
+  // +/-MaxSingle here and Round() below would overflow - return an empty
+  // rect instead of garbage.
+  if not HasPoints then
+    Exit(Rect(0, 0, 0, 0));
+
+  // FIX (review §3.16): TRect.Create takes Left, Top, Right, Bottom - the
+  // old code passed width/height (MaxX-MinX, MaxY-MinY) as Right/Bottom,
+  // so the returned rect was wrong whenever MinX/MinY were not zero.
   Result := TRect.Create(
     Round(MinX * Scale * AltScale),
     Round(MinY * Scale * AltScale),
-    Round((MaxX - MinX) * Scale * AltScale),
-    Round((MaxY - MinY) * Scale * AltScale)
+    Round(MaxX * Scale * AltScale),
+    Round(MaxY * Scale * AltScale)
   );
 end;
 

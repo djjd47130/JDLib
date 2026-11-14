@@ -455,6 +455,12 @@ type
 
   procedure Register;
 
+{$ELSE}
+  // JDLib review 2026-11-13 (§3.45): TImageGrid is 32-bit only - the whole
+  // unit is wrapped in {$IFNDEF CPUX64}. Fail the Win64 build here with a
+  // clear message instead of a confusing "identifier not found" later.
+  // (No Win64 port attempted - that is a separate job.)
+  {$MESSAGE FATAL 'TImageGrid is not supported on Win64 (32-bit only). See JDLib review 2026-11-13.'}
 {$ENDIF}
 
 implementation

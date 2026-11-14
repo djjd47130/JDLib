@@ -82,6 +82,7 @@ type
     procedure SetMode(const Value: TJDFaviconFetchMode);
     procedure SetImageLists(const Value: TJDFaviconImageLists);
   protected
+    procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     procedure DoLookupFavicon(const URI: String; Ref: TJDFaviconRef); virtual;
     procedure InsertIntoImageLists(Source: TGraphic; var Index: Integer); virtual;
     procedure PopulateImageList(AImageList: TImageList); virtual;
@@ -110,12 +111,8 @@ uses
   System.Math,
   Vcl.GraphUtil;
 
-type
-  TScopedBitmap = record
-    Bmp: TBitmap;
-    class function CreateSized(const W, H: Integer): TScopedBitmap; static;
-    procedure Release;
-  end;
+// NOTE (review §3.46): the TScopedBitmap record used to live here. It was
+// removed - a repo-wide grep confirmed nothing ever used it.
 
 function NormalizeDomain(const Input: string): string;
 var
@@ -438,21 +435,6 @@ begin
   end;
 end;
 
-{ TScopedBitmap }
-
-class function TScopedBitmap.CreateSized(const W, H: Integer): TScopedBitmap;
-begin
-  Result.Bmp := TBitmap.Create;
-  Result.Bmp.PixelFormat := pf32bit;
-  Result.Bmp.AlphaFormat := afPremultiplied;
-  Result.Bmp.SetSize(W, H);
-end;
-
-procedure TScopedBitmap.Release;
-begin
-  FreeAndNil(Bmp);
-end;
-
 { TJDFaviconRef }
 
 constructor TJDFaviconRef.Create(AOwner: TJDFavicons);
@@ -581,14 +563,19 @@ begin
           if not TryFetchDirectFavicon(Host, Pic) then
           begin
             // Fallback to Google service
+            // FIX (review §3.34): FetchFaviconGoogleAPI creates the TPicture
+            // even when the fetch fails, so the old "Pic := nil" leaked it
+            // on every failed fetch - free it instead.
             if not FetchFaviconGoogleAPI(Pic, Host, SizeToUse) then
-              Pic := nil;
+              FreeAndNil(Pic);
           end;
         end;
       fmGoogle:
         begin
+          // FIX (review §3.34): same leak as above - the failed fetch still
+          // leaves a created (empty) TPicture behind, so free it.
           if not FetchFaviconGoogleAPI(Pic, Host, SizeToUse) then
-            Pic := nil;
+            FreeAndNil(Pic);
         end;
     end;
 
@@ -600,7 +587,9 @@ begin
         Ref.Graphic.Assign(Bmp);
         // Save to cache
         try
-          //SaveBitmapAsPng(CacheFile, Ref.Graphic);
+          // FIX (review §3.34): this was commented out, so the disk cache
+          // could never populate even though reading from it was live.
+          SaveBitmapAsPng(CacheFile, Ref.Graphic);
         except
           // ignore cache failures
         end;
@@ -639,7 +628,11 @@ begin
     for var X := 0 to FRefs.Count - 1 do
     begin
       var R := FRefs[X];
-      if SameText(R.Protocol, U.Protocol) and SameText(R.Domain, U.Host) then
+      // FIX (review §3.34): stored domains are normalized (lowercased,
+      // 'www.' stripped) when they are looked up, but the old code compared
+      // them against the raw host - so www.example.com never matched the
+      // cached example.com entry and re-downloaded every time.
+      if SameText(R.Protocol, U.Protocol) and SameText(R.Domain, NormalizeDomain(U.Host)) then
       begin
         Result := R;
         Break;
@@ -709,14 +702,19 @@ begin
           if not TryFetchDirectFavicon(Host, Pic) then
           begin
             // fallback
+            // FIX (review §3.34): FetchFaviconGoogleAPI creates the TPicture
+            // even when the fetch fails, so the old "Pic := nil" leaked it
+            // on every failed fetch - free it instead.
             if not FetchFaviconGoogleAPI(Pic, Host, SizeClamped) then
-              Pic := nil;
+              FreeAndNil(Pic);
           end;
         end;
       fmGoogle:
         begin
+          // FIX (review §3.34): same leak as above - the failed fetch still
+          // leaves a created (empty) TPicture behind, so free it.
           if not FetchFaviconGoogleAPI(Pic, Host, SizeClamped) then
-            Pic := nil;
+            FreeAndNil(Pic);
         end;
     end;
 
@@ -726,7 +724,9 @@ begin
       try
         // Cache as PNG
         try
-          //SaveBitmapAsPng(CacheFile, Bmp);
+          // FIX (review §3.34): this was commented out, so the disk cache
+          // could never populate even though reading from it was live.
+          SaveBitmapAsPng(CacheFile, Bmp);
         except
           // ignore cache write errors
         end;
@@ -852,6 +852,22 @@ begin
   FMode := Value;
 end;
 
+procedure TJDFavicons.Notification(AComponent: TComponent; Operation: TOperation);
+var
+  I: Integer;
+begin
+  inherited;
+  // FIX (review §3.35): paired with TJDFaviconImageList.SetImageList - when
+  // a referenced TImageList is freed, nil the reference instead of leaving a
+  // dangling pointer behind.
+  if (Operation = opRemove) and (AComponent is TImageList) and (FImageLists <> nil) then begin
+    for I:= 0 to FImageLists.Count-1 do begin
+      if TJDFaviconImageList(FImageLists.Items[I]).FImageList = AComponent then
+        TJDFaviconImageList(FImageLists.Items[I]).FImageList:= nil;
+    end;
+  end;
+end;
+
 { TJDFaviconImageList }
 
 constructor TJDFaviconImageList.Create(Collection: TCollection);
@@ -861,8 +877,25 @@ begin
 end;
 
 procedure TJDFaviconImageList.SetImageList(const Value: TImageList);
+var
+  OwnerComp: TJDFavicons;
 begin
-  FImageList := Value;
+  // FIX (review §3.35): the image list used to be stored as a bare pointer,
+  // so if the TImageList was destroyed first this reference dangled. Register
+  // the owning TJDFavicons component for free-notification instead: when the
+  // image list is freed, TJDFavicons.Notification nils this reference.
+  // (A collection item has no Notification of its own, which is why this
+  // lives on the owner component.)
+  OwnerComp:= nil;
+  if (Collection <> nil) and (Collection is TJDFaviconImageLists) then
+    OwnerComp:= TJDFavicons(TJDFaviconImageLists(Collection).Owner);
+  if FImageList <> Value then begin
+    if (FImageList <> nil) and (OwnerComp <> nil) then
+      FImageList.RemoveFreeNotification(OwnerComp);
+    FImageList:= Value;
+    if (Value <> nil) and (OwnerComp <> nil) then
+      Value.FreeNotification(OwnerComp);
+  end;
 end;
 
 { TJDFaviconImageLists }

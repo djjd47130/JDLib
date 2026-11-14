@@ -7,7 +7,7 @@ interface
 {$IFEND}
 
 uses
-  System.SysUtils, System.Classes, System.SyncObjs,
+  System.SysUtils, System.Classes, System.SyncObjs, System.Math,
   Vcl.Controls,
   Vcl.Graphics
   {$IFDEF USE_GDIP}
@@ -336,8 +336,16 @@ end;
 
 procedure TJDUIBrush.LoadFromJSON(O: ISuperObject);
 begin
+  // FIX (review §18/§3.46): a missing 'Color' key used to crash with an
+  // access violation - fail with a readable message instead. And the Alpha
+  // integer is clamped to 0..255 before it lands in a Byte, so a corrupt
+  // value like 300 no longer wraps around to 44 - it clamps to 255.
+  if O = nil then
+    raise Exception.Create('UI brush JSON is missing its object.');
+  if O.O['Color'] = nil then
+    raise Exception.Create('UI brush JSON is missing required object "Color".');
   FColor.LoadFromJSON(O.O['Color']);
-  FAlpha:= O.I['Alpha'];
+  FAlpha:= EnsureRange(O.I['Alpha'], 0, 255);
   Invalidate;
 end;
 
@@ -428,8 +436,15 @@ end;
 
 procedure TJDUIPen.LoadFromJSON(O: ISuperObject);
 begin
+  // FIX (review §18/§3.46): same two fixes as TJDUIBrush.LoadFromJSON -
+  // nil-check the 'Color' object so a missing key raises a clear exception
+  // instead of crashing, and clamp Alpha to 0..255 before it lands in a Byte.
+  if O = nil then
+    raise Exception.Create('UI pen JSON is missing its object.');
+  if O.O['Color'] = nil then
+    raise Exception.Create('UI pen JSON is missing required object "Color".');
   FColor.LoadFromJSON(O.O['Color']);
-  FAlpha:= O.I['Alpha'];
+  FAlpha:= EnsureRange(O.I['Alpha'], 0, 255);
   FWidth:= O.F['Width'];
   Invalidate;
 end;
@@ -446,6 +461,9 @@ procedure TJDUIPen.LoadFromString(const S: String);
 var
   O: ISuperObject;
 begin
+  // NOTE (review §3.46): this string format stores Color as a plain string,
+  // while LoadFromJSON/SaveToJSON store it as a nested object - the two
+  // formats are deliberately NOT interchangeable, so don't mix them.
   O:= SO(S);
   FColor.LoadFromString(O.S['Color']);
   FAlpha:= O.I['Alpha'];
@@ -505,13 +523,29 @@ begin
 end;
 
 procedure TJDUICanvas.DrawLine(Pen: TJDUIPen; P1, P2: TJDPoint);
+var
+  GPPen: TGPPen;
 begin
-  FGPCanvas.DrawLine(Pen.MakePen, P1.X, P1.Y, P2.X, P2.Y);
+  // FIX (review §3.20): two bugs here. MakePen creates a brand-new TGPPen on
+  // every call and the old code never freed it, so every line leaked a pen.
+  // And if BeginPaint had not been called yet, FGPCanvas is nil and this
+  // crashed - now it just does nothing until painting has started.
+  if (FGPCanvas = nil) or (Pen = nil) then
+    Exit;
+  GPPen:= Pen.MakePen;
+  try
+    FGPCanvas.DrawLine(GPPen, P1.X, P1.Y, P2.X, P2.Y);
+  finally
+    GPPen.Free;
+  end;
 end;
 
 procedure TJDUICanvas.BeginPaint;
 begin
   FPainting:= True;
+  // FIX (review §3.20): the old code created a new TGPGraphics without freeing
+  // a previous one, so calling BeginPaint twice leaked the first canvas.
+  FreeAndNil(FGPCanvas);
   FGPCanvas:= TGPGraphics.Create(FCanvas.Handle);
 end;
 
@@ -579,6 +613,10 @@ begin
   FBuffer.PixelFormat := pf32bit; // Ensure proper pixel format for transparency
   //FBuffer.SetSize(Width, Height); // Set appropriate dimensions - TODO
   FCanvas := TJDUICanvas.Create(Self, FBuffer.Canvas);
+  // FIX (review §3.20): a new layer starts dirty - its buffer is empty, so
+  // the first PaintTo must fire OnPaint to fill it. It used to start clean,
+  // which meant Paint never fired until something invalidated the layer.
+  FInvalidated:= True;
 
 end;
 
@@ -600,6 +638,12 @@ end;
 procedure TJDUILayer.InvalidateLayer;
 begin
   FInvalidated:= True;
+
+  // FIX (review §3.20): flagging the layer dirty used to be all this did -
+  // nothing ever repainted. Now it asks the layer collection to invalidate
+  // the owning control too, so a real repaint happens.
+  if Collection <> nil then
+    TJDUILayers(Collection).Invalidate;
 
   //TODO: Now Paint will always be called so long as it's active...
 
@@ -692,40 +736,65 @@ end;
 
 procedure TJDUILayers.Invalidate;
 begin
-  //TODO: Notify owner...
-
+  // FIX (review §3.20): this used to be a TODO no-op, so invalidating a layer
+  // never caused a repaint. If the collection belongs to a control, ask that
+  // control to repaint itself.
+  if (Owner <> nil) and (Owner is TControl) then
+    TControl(Owner).Invalidate;
 end;
 
 procedure TJDUILayers.PaintTo(ACanvas: TJDUICanvas; const X, Y: Single);
 var
   CR: TJDRect;
+  I: Integer;
+  L: TJDUILayer;
+  C: TJDUICanvas;
+  Img: TGPBitmap;
 begin
+  // FIX (review §3.20): this used to draw each layer's buffer back onto the
+  // layer's OWN canvas, so the target ACanvas never received anything except
+  // the FillRect clear below. It now composites every visible layer's buffer
+  // onto ACanvas with GDI+ (which keeps the alpha channel), and calls
+  // L.Paint first so the layer's OnPaint event actually fires and the buffer
+  // has something in it. Layers whose buffer is still empty (0x0 - layer
+  // buffers are never sized anywhere yet) are skipped, to keep a zero-size
+  // bitmap out of GDI+.
+  if ACanvas = nil then
+    Exit;
   GetClientRect(CR);
   ACanvas.Canvas.FillRect(CR); // Clear the canvas
 
-  //TODO: Make this the central method to merge all layers together...
-  //IMPORTANT: Use GDI+ with transparency!!!
-  for var I: Integer := 0 to Count-1 do begin
-    var L: TJDUILayer:= Items[I];
-    if L.Visible then begin
-      var C: TJDUICanvas:= L.LockCanvas;
+  // The target canvas needs its GDI+ wrapper active before we can draw on it.
+  ACanvas.BeginPaint;
+  try
+    for I := 0 to Count-1 do begin
+      L:= Items[I];
+      if not L.Visible then
+        Continue;
+      C:= L.LockCanvas;
       try
-        //TODO: Paint FBuffer onto ACanvas...
+        // Let the layer repaint its buffer if it is dirty, so OnPaint fires.
         C.BeginPaint;
         try
-          var Img: TGPBitmap:= TGPBitmap.Create (L.FBuffer.Handle, L.FBuffer.Palette);
-          try
-            C.GPCanvas.DrawImage(Img, CR);
-          finally
-            Img.Free;
-          end;
+          L.Paint;
         finally
           C.EndPaint;
+        end;
+        // Skip layers with no buffer content yet.
+        if (L.FBuffer.Width <= 0) or (L.FBuffer.Height <= 0) then
+          Continue;
+        Img:= TGPBitmap.Create(L.FBuffer.Handle, L.FBuffer.Palette);
+        try
+          ACanvas.GPCanvas.DrawImage(Img, X, Y);
+        finally
+          Img.Free;
         end;
       finally
         L.UnlockCanvas;
       end;
     end;
+  finally
+    ACanvas.EndPaint;
   end;
 end;
 

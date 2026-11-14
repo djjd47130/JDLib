@@ -247,6 +247,7 @@ var
   LocalGlyphMetrics: GLYPHMETRICS;
   Ret: DWORD;
   pCur: PByte;
+  PolyCount: Integer; // Sanity cap counter for the outline loop (see below).
   Matrix: MAT2;
   // For converting from 16.16 fixed-point to Single.
   function FixedToSingle(const AValue: TFixed{Integer}): Single;
@@ -308,12 +309,29 @@ begin
         FPaths.Clear;
 
         // A full implementation would parse the outline data consisting of one or more
-        // TTPOLYGONHEADER and TTPOLYCURVE records. Here’s a simplified example:
+        // TTPOLYGONHEADER and TTPOLYCURVE records. Here's a simplified example:
         pCur := pBuffer;
+        PolyCount := 0;
         while NativeUInt(pCur) < (NativeUInt(pBuffer) + BufferSize) do
         begin
           var polyHeader: PTTPOLYGONHEADER;
+          // FIX (review Sec. 3.42): validate the polygon header before trusting
+          // it. A zero or corrupt cb used to loop forever (advancing by 0)
+          // or read past the end of the buffer. Stop if there is not even a
+          // full header left in the buffer, or after a sanity cap of 10000
+          // polygons - a single glyph never has that many.
+          if NativeUInt(pBuffer) + BufferSize - NativeUInt(pCur) <
+            NativeUInt(SizeOf(TTPOLYGONHEADER)) then
+            Break;
+          Inc(PolyCount);
+          if PolyCount > 10000 then
+            Break;
           polyHeader := PTTPOLYGONHEADER(pCur);
+          // cb is the size of this whole polygon record, so it can never be
+          // smaller than the header itself. (cb is a DWORD, so "too small"
+          // covers the zero case too - a cb of 0 would never advance pCur.)
+          if polyHeader^.cb < DWORD(SizeOf(TTPOLYGONHEADER)) then
+            Break;
 
           with FPaths.Add as TGraphicPathItem do
           begin
@@ -330,6 +348,11 @@ begin
           end;
 
           // Advance the pointer by the size of the current polygon header.
+          // FIX (review Sec. 3.42): stop instead of advancing past the end of
+          // the buffer - a corrupt cb could otherwise wrap the pointer
+          // around and read out of bounds on the next pass.
+          if polyHeader^.cb > (NativeUInt(pBuffer) + BufferSize - NativeUInt(pCur)) then
+            Break;
           Inc(PByte(pCur), polyHeader^.cb);
         end;
       finally

@@ -2272,7 +2272,10 @@ begin
     for i := 0 to Self.Count - 1 do
     begin
       Point := Items[i];
-      StringList.Add(Format('%f|%f', [Point.X, Point.Y]));
+      // FIX (review §3.36): format the numbers with the invariant locale, so
+      // a file saved on a machine that uses ',' as the decimal separator
+      // still loads on one that uses '.' (and vice versa).
+      StringList.Add(Format('%f|%f', [Point.X, Point.Y], TFormatSettings.Invariant));
     end;
 
     // Convert the list to a delimited string
@@ -2282,69 +2285,6 @@ begin
   end;
 end;
 
-{
-function TJDPlotPoints.LoadFromString(const S: String): Boolean;
-var
-  StringList: TStringList;
-  i, Count: Integer;
-  Point: TJDPlotPoint;
-  Parts: TArray<String>;
-  X, Y: Single;
-begin
-  Result := False;
-  //(Owner as TJDPlotChart).FClampingEnabled:= False;
-  try
-    StringList := TStringList.Create;
-    try
-      // Set the delimiter and load the string into the list
-      StringList.Delimiter := '|';
-      StringList.DelimitedText := S;
-
-      // Read the number of points from the first element
-      if StringList.Count > 0 then
-      begin
-        Count := StrToInt(StringList[0]);
-
-        // Clear existing points
-        Clear;
-
-        // Read each point's data from subsequent elements
-        for i := 1 to Count do
-        begin
-          Parts := StringList[i].Split(['|']);
-          if Length(Parts) = 2 then
-          begin
-            X := StrToFloat(Parts[0]);
-            Y := StrToFloat(Parts[1]);
-
-            Point := Add;
-            Point.FX:= X;
-            Point.FY:= Y;
-            //Point.SetPoint(X, Y, False);
-          end;
-        end;
-
-        // Optionally, trigger clamping for all points after loading
-        for i := 0 to Count - 1 do
-        begin
-          // Assuming ClampPoint is a method of the owning chart
-          (Owner as TJDPlotChart).ClampPoint(Items[i]);
-        end;
-
-        // Redraw the chart
-        (Owner as TJDPlotChart).Invalidate;
-
-        Result := True;
-      end;
-    finally
-      StringList.Free;
-    end;
-  finally
-    //(Owner as TJDPlotChart).FClampingEnabled:= True;
-  end;
-end;
-}
-
 function TJDPlotPoints.LoadFromString(const S: String): Boolean;
 var
   StringList: TStringList;
@@ -2353,7 +2293,13 @@ var
   Parts: TArray<String>;
   X, Y: Single;
   JDPlotChart: TJDPlotChart;
+  Parsed: TArray<TPointF>;
+  FS: TFormatSettings;
 begin
+  // FIX (review §3.36): this used to Clear the chart first and then parse, so
+  // a corrupt string wiped the chart with nothing to roll back to. It now
+  // parses everything into a temporary array first and only touches the real
+  // list once the whole string has parsed cleanly (parse-then-commit).
   Result := False;
   StringList := TStringList.Create;
   try
@@ -2361,64 +2307,77 @@ begin
     StringList.Delimiter := '|';
     StringList.DelimitedText := S;
 
-    // Read the number of points from the first element
-    if StringList.Count > 0 then
+    if StringList.Count = 0 then
+      Exit(False);
+
+    // FIX (review §3.36): the old StrToInt here raised EConvertError on
+    // garbage, and there was no check that Count matched the elements
+    // actually present - a Count bigger than the list raised a range error
+    // partway through. Both are now checked up front with a clear message.
+    if not TryStrToInt(StringList[0], Count) then
+      raise Exception.CreateFmt('Invalid point count "%s" in plot data', [StringList[0]]);
+    if Count < 0 then
+      raise Exception.CreateFmt('Invalid point count %d in plot data', [Count]);
+    if Count > StringList.Count - 1 then
+      raise Exception.CreateFmt('Point count %d exceeds the %d point(s) present in plot data',
+        [Count, StringList.Count - 1]);
+
+    // Parse into a temporary array first - nothing below touches the chart.
+    // Numbers are parsed with the invariant locale to match SaveToString,
+    // so a file saved in one locale loads in any other.
+    FS := TFormatSettings.Invariant;
+    SetLength(Parsed, Count);
+    for i := 1 to Count do
     begin
-      Count := StrToInt(StringList[0]);
+      Parts := StringList[i].Split(['|']);
+      if Length(Parts) <> 2 then
+        raise Exception.CreateFmt('Invalid data format at point %d', [i]);
+      if not (TryStrToFloat(Parts[0], X, FS) and TryStrToFloat(Parts[1], Y, FS)) then
+        raise Exception.CreateFmt('Invalid data format at point %d', [i]);
+      Parsed[i - 1] := TPointF.Create(X, Y);
+    end;
 
-      // Clear existing points
-      Clear;
+    // Parsing succeeded - now commit the new points to the real list.
+    Clear;
 
-      JDPlotChart := Owner as TJDPlotChart;
+    JDPlotChart := Owner as TJDPlotChart;
+    if Assigned(JDPlotChart) then
+    begin
+      // Temporarily disable clamping and other positioning logic
+      JDPlotChart.FClampingEnabled := False;
+    end;
+
+    try
+      for i := 0 to Count - 1 do
+      begin
+        Point := Add;
+        Point.FX := Parsed[i].X;  // Use direct access to avoid rule checks
+        Point.FY := Parsed[i].Y;  // Use direct access to avoid rule checks
+      end;
+    finally
       if Assigned(JDPlotChart) then
       begin
-        // Temporarily disable clamping and other positioning logic
-        JDPlotChart.FClampingEnabled := False;
-      end;
-
-      try
-        // Read each point's data from subsequent elements
-        for i := 1 to Count do
-        begin
-          Parts := StringList[i].Split(['|']);
-          if Length(Parts) = 2 then
-          begin
-            // Validate and convert X and Y values
-            if TryStrToFloat(Parts[0], X) and TryStrToFloat(Parts[1], Y) then
-            begin
-              Point := Add;
-              Point.FX := X;  // Use direct access to avoid rule checks
-              Point.FY := Y;  // Use direct access to avoid rule checks
-            end
-            else
-            begin
-              raise Exception.CreateFmt('Invalid data format at point %d', [i]);
-            end;
-          end
-          else
-          begin
-            raise Exception.CreateFmt('Invalid data format at point %d', [i]);
-          end;
-        end;
-
-        Result := True;
-      finally
-        if Assigned(JDPlotChart) then
-        begin
-          // Re-enable clamping after all points are loaded
-          JDPlotChart.FClampingEnabled := True;
-
-          // Optionally, trigger clamping for all points after loading
-          for i := 0 to Count - 1 do
-          begin
-            JDPlotChart.ClampPoint(Items[i]);
-          end;
-
-          // Redraw the chart
-          JDPlotChart.Invalidate;
-        end;
+        // Re-enable clamping after all points are loaded
+        JDPlotChart.FClampingEnabled := True;
       end;
     end;
+
+    if Assigned(JDPlotChart) then
+    begin
+      // FIX (review §3.36): the old clamp loop ran in a finally block over
+      // "Count" items, so if loading had failed partway it indexed past the
+      // end of the list and raised a second error that hid the real one.
+      // It now runs only after a successful load, over Items.Count.
+      for i := 0 to Items.Count - 1 do
+      begin
+        JDPlotChart.ClampPoint(Items[i]);
+      end;
+
+      // Redraw the chart
+      JDPlotChart.Invalidate;
+    end;
+
+    Result := True;
   finally
     StringList.Free;
   end;

@@ -167,11 +167,17 @@ type
     FBuffer: TBitmap;
     FImageLists: TJDImageListRefs;
     FGlyphs: TJDFontGlyphList;
-    FUpdating: Boolean;
+    // FIX (review §3.46): this used to be a Boolean flag (FUpdating), so nested
+    // BeginUpdate/EndUpdate pairs broke - the inner EndUpdate cleared the flag
+    // while the outer update was still going. It is now a nesting counter:
+    // BeginUpdate adds one, EndUpdate takes one away, and the glyphs only
+    // repopulate when the count drops back to zero.
+    FUpdateCount: Integer;
     FUpdated: Boolean;
     procedure SetGlyphs(const Value: TJDFontGlyphList);
     procedure SetImageLists(const Value: TJDImageListRefs);
   protected
+    procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     procedure WndMethod(var Message: TMessage); override;
   public
     constructor Create(AOwner: TComponent); override;
@@ -292,6 +298,10 @@ var
   CharCode: DWORD;
   procedure AddChar(const Code: DWORD);
   begin
+    // FIX (review §3.46): Chr() only covers 0..$FFFF - a code past that
+    // (possible in a font's Unicode ranges) would overflow, so skip it.
+    if Code > $FFFF then
+      Exit;
     SetLength(Result, Length(Result)+1);
     Result[Length(Result)-1]:= Chr(Code);
   end;
@@ -355,7 +365,20 @@ end;
 
 procedure TJDImageListRef.SetImageList(const Value: TImageList);
 begin
-  FImageList := Value;
+  // FIX (review §3.35): the image list used to be stored as a bare pointer,
+  // so if the TImageList was destroyed first this reference dangled and
+  // PopulateImageList crashed on it. Register the owning TJDFontGlyphs
+  // component for free-notification instead: when the image list is freed,
+  // TJDFontGlyphs.Notification nils this reference. (The old list is
+  // unregistered here when the reference changes. A collection item has no
+  // Notification of its own, which is why this lives on the owner component.)
+  if FImageList <> Value then begin
+    if (FImageList <> nil) and (FOwner <> nil) and (FOwner.FOwner <> nil) then
+      FImageList.RemoveFreeNotification(FOwner.FOwner);
+    FImageList:= Value;
+    if (Value <> nil) and (FOwner <> nil) and (FOwner.FOwner <> nil) then
+      Value.FreeNotification(FOwner.FOwner);
+  end;
   Invalidate;
 end;
 
@@ -525,8 +548,13 @@ end;
 
 procedure TJDFontGlyphItem.SetScale(const Value: Double);
 begin
-  //TODO: Restrict value to > 0
-  FScale := Value;
+  // FIX (review §3.46): a zero or negative scale made PopulateImageList
+  // compute a zero (or negative) font height. Clamp it to a small positive
+  // value instead - the glyph just renders tiny rather than breaking.
+  if Value <= 0 then
+    FScale:= 0.01
+  else
+    FScale:= Value;
   Invalidate;
 end;
 
@@ -584,7 +612,9 @@ destructor TJDFontGlyphs.Destroy;
 begin
   FreeAndNil(FGlyphs);
   FBuffer.Free;
-  FImageLists.Free;
+  // FreeAndNil (not .Free) so TJDFontGlyphs.Notification can still safely
+  // test FImageLists for nil during destruction.
+  FreeAndNil(FImageLists);
   inherited;
 end;
 
@@ -607,15 +637,32 @@ end;
 
 function TJDFontGlyphs.Updating: Boolean;
 begin
-  Result:= FUpdating;
+  Result:= FUpdateCount > 0;
 end;
 
 procedure TJDFontGlyphs.WndMethod(var Message: TMessage);
 begin
-  if Message.Msg = WM_JD_COLORCHANGE then begin
-    Invalidate;
-  end;
+  // FIX (review §3.35): this used to handle WM_JD_COLORCHANGE here AND call
+  // inherited, but the base class (TJDMessageComponent) handles that same
+  // message by calling Invalidate too - so PopulateImageList ran twice per
+  // theme change. Just let inherited handle it, exactly once.
   inherited;
+end;
+
+procedure TJDFontGlyphs.Notification(AComponent: TComponent; Operation: TOperation);
+var
+  I: Integer;
+begin
+  inherited;
+  // FIX (review §3.35): paired with TJDImageListRef.SetImageList - when a
+  // referenced TImageList is freed, nil the reference instead of leaving a
+  // dangling pointer behind for PopulateImageList to crash on.
+  if (Operation = opRemove) and (AComponent is TImageList) and (FImageLists <> nil) then begin
+    for I:= 0 to FImageLists.Count-1 do begin
+      if FImageLists[I].FImageList = AComponent then
+        FImageLists[I].FImageList:= nil;
+    end;
+  end;
 end;
 
 procedure TJDFontGlyphs.Assign(Source: TPersistent);
@@ -632,17 +679,18 @@ end;
 
 procedure TJDFontGlyphs.BeginUpdate;
 begin
-  if not FUpdating then begin
-    FUpdating:= True;
+  // The outermost BeginUpdate starts a fresh update; nested calls just add
+  // to the count so the matching EndUpdate calls pair up correctly.
+  if FUpdateCount = 0 then
     FUpdated:= False;
-  end;
+  Inc(FUpdateCount);
 end;
 
 procedure TJDFontGlyphs.EndUpdate;
 begin
-  if FUpdating then begin
-    FUpdating:= False;
-    if FUpdated then
+  if FUpdateCount > 0 then begin
+    Dec(FUpdateCount);
+    if (FUpdateCount = 0) and FUpdated then
       Invalidate;
   end;
 end;
@@ -657,7 +705,7 @@ var
 begin
   //Main procedure to populate image lists with glyphs
 
-  if FUpdating then begin
+  if FUpdateCount > 0 then begin
     FUpdated:= True;
     Exit;
   end;
@@ -776,6 +824,11 @@ end;
 constructor TJDGlyphImageItem.Create(Collection: TCollection);
 begin
   inherited;
+  // FIX (review §3.35): FOwner was never assigned, so Invalidate crashed on
+  // a nil owner. The owner is the TJDGlyphImage that owns this item's
+  // collection (same pattern as TJDVectorPoint and the other item classes).
+  if Collection is TJDGlyphImageItems then
+    FOwner:= TJDGlyphImage(TJDGlyphImageItems(Collection).Owner);
   FScale:= DEF_SCALE;
 
 end;
@@ -788,7 +841,10 @@ end;
 
 procedure TJDGlyphImageItem.Invalidate;
 begin
-  FOwner.Invalidate;
+  // FOwner is assigned in Create now, but stay safe if this item was ever
+  // created without a collection.
+  if FOwner <> nil then
+    FOwner.Invalidate;
 end;
 
 function TJDGlyphImageItem.IsScaleStored: Boolean;
@@ -806,12 +862,15 @@ end;
 
 constructor TJDGlyphImage.Create;
 begin
-
+  // FIX (review §3.35): FGlyphs was never created, so SetGlyphs crashed the
+  // moment anything assigned to it. Create the collection here, owned by
+  // this image (same pattern as TJDVectorPart creates its FPoints).
+  FGlyphs:= TJDGlyphImageItems.Create(Self, TJDGlyphImageItem);
 end;
 
 destructor TJDGlyphImage.Destroy;
 begin
-
+  FreeAndNil(FGlyphs);
   inherited;
 end;
 
@@ -848,9 +907,9 @@ end;
 
 procedure TJDGlyphImageList.WndMethod(var Message: TMessage);
 begin
-  if Message.Msg = WM_JD_COLORCHANGE then begin
-    Invalidate;
-  end;
+  // FIX (review §3.35): same double-handling as TJDFontGlyphs.WndMethod -
+  // the base class already calls Invalidate for WM_JD_COLORCHANGE, so
+  // handling it here too ran it twice. Let inherited handle it, exactly once.
   inherited;
 end;
 
