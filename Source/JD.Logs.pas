@@ -171,6 +171,11 @@ type
     // TThread.Queue instead of on the logging worker thread. Default False
     // keeps the old behaviour (faster, but the handler must not touch the UI).
     FSynchronizedEvents: Boolean;
+    // FIX (§10): True only when this logger actually registered with the
+    // engine in Create. At design time it never registers (see Create),
+    // and Destroy must not call JDLog() then - that would create the
+    // engine (and its worker thread) just to unregister nothing.
+    FRegistered: Boolean;
     procedure SetLogLevels(const Value: TJDLogLevels);
     function IsLogLevelsStored: Boolean;
   protected
@@ -649,9 +654,20 @@ var
 begin
   inherited Create(AOwner);
   FLogLevels := JD_LOG_DEFAULT_LEVELS;
+  // FIX (§10): do not start the global logging engine (and its worker
+  // thread) at design time - dropping a logger on a form in the IDE should
+  // not spin up a background thread there. Note the Owner check:
+  // csDesigning is not always set on the component itself yet while its
+  // constructor runs, but the Owner (the form) already has it. At run time
+  // neither has csDesigning, so the logger registers normally.
+  if (csDesigning in ComponentState) or
+    ((AOwner <> nil) and (csDesigning in AOwner.ComponentState)) then
+    Exit;
   LLog := JDLog;
-  if Assigned(LLog) then
+  if Assigned(LLog) then begin
     LLog.RegisterLogger(Self);
+    FRegistered := True;
+  end;
 end;
 
 destructor TJDLogger.Destroy;
@@ -660,9 +676,14 @@ var
   // finalization must not resurrect (or crash on) the logging engine.
   LLog: TJDLog;
 begin
-  LLog := JDLog;
-  if Assigned(LLog) then
-    LLog.UnregisterLogger(Self);
+  // FIX (§10): only unregister if Create actually registered. A logger
+  // created at design time never registered, and calling JDLog() here
+  // would create the engine just to unregister nothing.
+  if FRegistered then begin
+    LLog := JDLog;
+    if Assigned(LLog) then
+      LLog.UnregisterLogger(Self);
+  end;
   inherited;
 end;
 
