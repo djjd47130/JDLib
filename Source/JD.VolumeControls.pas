@@ -53,8 +53,11 @@ type
     function SetChannelVolumeLevelScalar(nChannel: Integer; fLevelDB: double; pguidEventContext: PGUID): HRESULT; stdcall;
     function GetChannelVolumeLevel(nChannel: Integer; out fLevelDB: double): HRESULT; stdcall;
     function GetChannelVolumeLevelScalar(nChannel: Integer; out fLevel: double): HRESULT; stdcall;
-    function SetMute(bMute: Boolean; pguidEventContext: PGUID): HRESULT; stdcall;
-    function GetMute(out bMute: Boolean): HRESULT; stdcall;
+    // FIX (§3.3): the real Windows API uses BOOL here (4 bytes), not Delphi's
+    // Boolean (1 byte). With Boolean, GetMute wrote 4 bytes into a 1-byte
+    // variable and corrupted the stack. BOOL (LongBool) is 4 bytes, so it matches.
+    function SetMute(bMute: BOOL; pguidEventContext: PGUID): HRESULT; stdcall;
+    function GetMute(out bMute: BOOL): HRESULT; stdcall;
     function GetVolumeStepInfo(pnStep: Integer; out pnStepCount: Integer): HRESULT; stdcall;
     function VolumeStepUp(pguidEventContext: PGUID): HRESULT; stdcall;
     function VolumeStepDown(pguidEventContext: PGUID): HRESULT; stdcall;
@@ -110,6 +113,10 @@ type
     FDeviceEnumerator: IMMDeviceEnumerator;
     FMMDevice: IMMDevice;
     FAudioEndpointVolume: IAudioEndpointVolume;
+    // FIX (§3.2): True only when THIS instance successfully called CoInitialize
+    // in the constructor. The destructor only calls CoUninitialize when this is
+    // True, so we never unbalance COM if init failed or was skipped at design time.
+    FComInitialized: Boolean;
     FLastVolume: Integer;
     FLastMute: Boolean;
     FOnMuteChanged: TJDMuteEvent;
@@ -158,11 +165,28 @@ implementation
 constructor TJDVolumeControls.Create(AOwner: TComponent);
 var
   sVal: Single;
-  bVal: Boolean;
+  // FIX (§3.3): this local is passed to IAudioEndpointVolume.GetMute, which
+  // writes a 4-byte Windows BOOL. It used to be a 1-byte Delphi Boolean, so
+  // GetMute overwrote 3 bytes past it on the stack. BOOL (LongBool) is 4 bytes.
+  bVal: BOOL;
 begin
   inherited;
+  // FIX (§10): don't do any COM work while the component is sitting on a form
+  // in the Delphi IDE at design time. The interfaces stay nil, and the
+  // Volume/Muted setters below just exit quietly until run time.
+  if csDesigning in ComponentState then
+    Exit;
+
+  // FIX (§3.1): CoInitialize failing used to call ExitProcess(1), which killed
+  // the whole host program - including the Delphi IDE if it happened at design
+  // time. A component must never terminate its host process, so now we just
+  // raise an exception and let the caller decide what to do.
   if not Succeeded(CoInitialize(nil)) then
-    ExitProcess(1); //TODO: But why?
+    raise Exception.Create('TJDVolumeControls: CoInitialize failed - COM could not be initialized on this thread.');
+  // Remember that THIS instance initialized COM, so the destructor knows it
+  // is safe (and required) to call CoUninitialize. If CoInitialize failed
+  // above, we raised before reaching this line, so this stays False.
+  FComInitialized := True;
 
   OleCheck(CoCreateInstance(CLASS_IMMDeviceEnumerator, nil, CLSCTX_INPROC_SERVER,
     IID_IMMDeviceEnumerator, FDeviceEnumerator));
@@ -181,7 +205,23 @@ end;
 
 destructor TJDVolumeControls.Destroy;
 begin
-  CoUninitialize;
+  // FIX (§3.2): the old destructor just called CoUninitialize and left it at
+  // that, which had two bugs: Windows was never told to stop calling OnNotify
+  // on this object (so it could call into a freed object and crash), and the
+  // COM interface fields were released AFTER CoUninitialize ran, which is
+  // undefined behaviour. The order now is: unregister first, then release the
+  // interfaces (by setting them to nil), and only then uninitialize COM - and
+  // only if this instance actually initialized it (see the constructor).
+  if Assigned(FAudioEndpointVolume) then
+    FAudioEndpointVolume.UnregisterControlChangeNotify(Self);
+  FAudioEndpointVolume := nil;
+  FMMDevice := nil;
+  FDeviceEnumerator := nil;
+  if FComInitialized then
+  begin
+    CoUninitialize;
+    FComInitialized := False;
+  end;
   inherited;
 end;
 
@@ -204,6 +244,10 @@ var
 begin
   if (csLoading in ComponentState) then
     Exit;
+  // FIX (§10): at design time the COM interfaces were never created (see the
+  // constructor), so there is nothing to mute - just exit quietly.
+  if not Assigned(FAudioEndpointVolume) then
+    Exit;
   bVal:= Value;
   if FAudioEndpointVolume.SetMute(bVal, nil) = S_OK then begin
     FLastMute := Value;
@@ -217,6 +261,10 @@ var
   sVal: Single;
 begin
   if (csLoading in ComponentState) then
+    Exit;
+  // FIX (§10): at design time the COM interfaces were never created (see the
+  // constructor), so there is no endpoint to set the volume on - exit quietly.
+  if not Assigned(FAudioEndpointVolume) then
     Exit;
   if Muted then
     Muted:= False;

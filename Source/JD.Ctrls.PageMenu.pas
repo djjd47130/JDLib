@@ -272,7 +272,10 @@ begin
   FRightButton.Caption:= '>';
   FRightButton.TabStop:= False;
   FRightButton.OnClick:= NextButtonClick;
-  FLeftButton.OnMouseMove:= NextButtonMouseMove;
+  // FIX (§3.26): copy-paste bug - this line used to assign the "next" mouse-move
+  // handler to the LEFT button (overwriting its own BackButtonMouseMove handler
+  // set above) and left the right button with no mouse-move handler at all.
+  FRightButton.OnMouseMove:= NextButtonMouseMove;
   FRightButton.Visible:= False;
 
   FSelectedFont.Assign(Font);

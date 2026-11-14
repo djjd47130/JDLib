@@ -35,7 +35,18 @@ const
   JD_LOG_DEFAULT_CATEGORY = 'General';
   JD_LOG_FILE_READONLY_DEFAULT = False;
   JD_LOG_QUEUE_SIZE = 100;
-  JD_LOG_THREAD_SLEEP_MS = 0;
+  // FIX (§3.9): this was 0, so the worker thread looped PumpLogs/FlushLoggers
+  // with only Sleep(0) between passes - Sleep(0) just yields, so the thread
+  // spun as fast as it could and pinned a whole CPU core. 10 ms is still
+  // plenty fast for a logger and drops the idle cost to almost nothing.
+  JD_LOG_THREAD_SLEEP_MS = 10;
+  // FIX (§3.11): how long PostLog waits for room in the queue before giving up
+  // and dropping the entry instead of blocking the calling thread forever.
+  JD_LOG_PUSH_TIMEOUT_MS = 100;
+  // FIX (§3.12): max number of entries kept in the in-memory history list
+  // (FLog). It used to grow forever - every log entry ever posted stayed in
+  // memory for the whole life of the app. Oldest entries are now dropped.
+  JD_LOG_MAX_HISTORY = 10000;
   JD_LOG_FILE_HEADER_SIZE = 256;
 
 type
@@ -46,6 +57,11 @@ type
 
   /// <summary>
   /// Event type triggered when a log entry is processed.
+  /// NOTE: this fires on the logging engine's WORKER thread, not the main
+  /// thread. A handler must not touch the UI (or any other VCL control)
+  /// directly - use TThread.Queue/TThread.Synchronize, or set the logger's
+  /// SynchronizedEvents property to True to have OnLog delivered on the
+  /// main thread instead.
   /// </summary>
   TJDLogEvent = procedure(Sender: TObject; Item: TJDLogItem) of object;
 
@@ -91,7 +107,16 @@ type
     FLog: TJDLogItemList;
     FLoggers: TObjectList<TJDLogger>;
     FLock: TCriticalSection;
+    // FIX (§3.13): FLoggers used to be touched with no lock at all - the main
+    // thread adds/removes loggers while the worker thread iterates the list,
+    // so destroying a logger at the wrong moment was an access violation.
+    // This lock guards RegisterLogger/UnregisterLogger, and DoOnLog/
+    // FlushLoggers take a snapshot copy under it (see those methods).
+    FLoggersLock: TCriticalSection;
     FLogQueue: TThreadedQueue<TJDLogItem>;
+    // FIX (§3.11): how many log entries were dropped because the queue stayed
+    // full past the push timeout. Read it through DroppedCount.
+    FDroppedCount: Integer;
     procedure PumpLogs;
   protected
     procedure DoOnLog(Item: TJDLogItem); virtual;
@@ -100,6 +125,12 @@ type
   public
     constructor Create;
     destructor Destroy; override;
+    /// <summary>
+    /// How many log entries were dropped because the queue stayed full past
+    /// the push timeout (see JD_LOG_PUSH_TIMEOUT_MS). A rising number means
+    /// the loggers can't keep up with the rate of logging.
+    /// </summary>
+    property DroppedCount: Integer read FDroppedCount;
     function LockLog: TJDLogItemList;
     procedure UnlockLog;
     procedure RegisterLogger(ALogger: TJDLogger);
@@ -129,11 +160,17 @@ type
   /// (for flushing internal buffers) so that descendant classes can implement
   /// custom handling logic.
   /// Use OnLog event to capture incoming logs on a basic level.
+  /// NOTE: DoLog and OnLog run on the logging engine's worker thread, not the
+  /// main thread - see the OnLog property (and SynchronizedEvents) for details.
   /// </summary>
   TJDLogger = class(TComponent)
   private
     FLogLevels: TJDLogLevels;
     FOnLog: TJDLogEvent;
+    // FIX (§3.13): when True, OnLog is delivered on the main thread via
+    // TThread.Queue instead of on the logging worker thread. Default False
+    // keeps the old behaviour (faster, but the handler must not touch the UI).
+    FSynchronizedEvents: Boolean;
     procedure SetLogLevels(const Value: TJDLogLevels);
     function IsLogLevelsStored: Boolean;
   protected
@@ -147,7 +184,23 @@ type
     property LogLevels: TJDLogLevels read FLogLevels write SetLogLevels
       stored IsLogLevelsStored default JD_LOG_DEFAULT_LEVELS;
 
+    /// <summary>
+    /// Fires for each log entry this logger accepts. WARNING: by default this
+    /// fires on the logging engine's worker thread, so a handler must NOT
+    /// touch the UI directly. Set SynchronizedEvents to True to have it
+    /// delivered on the main thread instead.
+    /// </summary>
     property OnLog: TJDLogEvent read FOnLog write FOnLog;
+
+    /// <summary>
+    /// When True, OnLog is delivered on the main thread (via TThread.Queue),
+    /// so handlers may safely touch the UI. When False (default), OnLog fires
+    /// on the worker thread and handlers must not touch the UI.
+    /// NOTE: the logger and the handler's owning object must outlive delivery
+    /// - don't free a form/component that handles OnLog while queued events
+    /// may still be pending for it.
+    /// </summary>
+    property SynchronizedEvents: Boolean read FSynchronizedEvents write FSynchronizedEvents default False;
   end;
 
   /// <summary>
@@ -216,6 +269,7 @@ type
 
 /// <summary>
 /// Returns the global logging engine instance.
+/// Returns nil after unit finalization (during shutdown) - callers must check.
 /// </summary>
 function JDLog: TJDLog;
 
@@ -223,11 +277,37 @@ implementation
 
 var
   _JDLog: TJDLog;
+  // FIX (§3.13): guards the lazy creation of the global engine below. Without
+  // a lock, two threads calling JDLog() at the same time could each create an
+  // engine - one would leak, along with its worker thread. Created in
+  // initialization, freed in finalization.
+  _JDLogLock: TCriticalSection;
+  // FIX (§3.13): set to True in finalization, before the engine is freed.
+  // After that point JDLog() returns nil instead of creating a brand-new
+  // logging thread during shutdown (which would never be freed). A TJDLogger
+  // destroyed after finalization must cope with a nil engine - see
+  // TJDLogger.Create/Destroy.
+  _JDLogFinalized: Boolean;
 
 function JDLog: TJDLog;
 begin
+  // Already shutting down - don't create a new engine, just report none.
+  // (This check also runs before touching _JDLogLock, so it is safe even
+  // after finalization has freed the lock.)
+  if _JDLogFinalized then
+    Exit(nil);
+  // Double-checked locking: the fast path (engine already exists) needs no
+  // lock; only creation takes the lock, and re-checks inside it.
   if _JDLog = nil then
-    _JDLog := TJDLog.Create;
+  begin
+    _JDLogLock.Enter;
+    try
+      if (_JDLog = nil) and (not _JDLogFinalized) then
+        _JDLog := TJDLog.Create;
+    finally
+      _JDLogLock.Leave;
+    end;
+  end;
   Result := _JDLog;
 end;
 
@@ -282,7 +362,15 @@ begin
     Delete(sLevel, 1, 2);
   sTags := FTags.CommaText; // Tags concatenated with commas
   // Output format: Date|Level|Category|Msg|Tags
-  Result := sDate + '|' + sLevel + '|' + FCategory + '|' + FMsg + '|' + sTags;
+  // FIX (§3.40): the format is pipe-delimited with no escaping, so a '|'
+  // inside a message or category used to shift every field after it and
+  // FromSingleLineString would misparse the line (or raise). '|' is now
+  // written out as '/' in the message and category fields, so a line can
+  // never gain extra fields. (Tags are the last field, so a '|' there is
+  // harmless - it has nothing after it to shift.)
+  Result := sDate + '|' + sLevel + '|' +
+    StringReplace(FCategory, '|', '/', [rfReplaceAll]) + '|' +
+    StringReplace(FMsg, '|', '/', [rfReplaceAll]) + '|' + sTags;
 end;
 
 procedure TJDLogItem.FromSingleLineString(const ALine: string);
@@ -316,7 +404,11 @@ begin
 
   sTags := Copy(ALine, p4 + 1, Length(ALine) - p4);
 
-  dt := StrToDateTime(sDate);
+  // FIX (§3.40): StrToDateTime raised on any unparseable date, which killed
+  // the whole read. TryStrToDateTime returns False instead, and we fall back
+  // to 0 (a blank date) so a corrupt line still loads with its other fields.
+  if not TryStrToDateTime(sDate, dt) then
+    dt := 0;
   enumStr := 'll' + sLevel;
   levelValue := GetEnumValue(TypeInfo(TJDLogLevel), enumStr);
   if levelValue = -1 then
@@ -335,6 +427,8 @@ begin
   inherited Create(False);
   FreeOnTerminate := False;
   FLock := TCriticalSection.Create;
+  // FIX (§3.13): the lock that guards the FLoggers list - see FLoggersLock.
+  FLoggersLock := TCriticalSection.Create;
   FLog := TJDLogItemList.Create(True);
   FLoggers := TObjectList<TJDLogger>.Create(False);
   FLogQueue := TThreadedQueue<TJDLogItem>.Create(JD_LOG_QUEUE_SIZE);
@@ -349,16 +443,28 @@ begin
   FreeAndNil(FLoggers);
   FreeAndNil(FLog);
   FreeAndNil(FLock);
+  // FIX (§3.13): freed last - FlushLoggers above still uses it.
+  FreeAndNil(FLoggersLock);
   inherited;
 end;
 
 procedure TJDLog.Execute;
 begin
   while not Terminated do begin
-    if FLogQueue.QueueSize > 0 then begin
-      PumpLogs;
+    // FIX (§3.10): a logging thread must never die from a bad entry. There
+    // used to be no try/except anywhere in this loop, so one raising logger
+    // (e.g. TJDConsoleLogger's WriteLn in a GUI app with no console, or a
+    // user's OnLog handler raising) killed the whole engine silently - and
+    // then the queue filled up and every thread that logged blocked forever.
+    // Now a bad entry is swallowed and the thread carries on with the next one.
+    try
+      if FLogQueue.QueueSize > 0 then begin
+        PumpLogs;
+      end;
+      FlushLoggers;
+    except
+      // Deliberately swallowed - see the comment above.
     end;
-    FlushLoggers;
     Sleep(JD_LOG_THREAD_SLEEP_MS);
   end;
 end;
@@ -374,6 +480,11 @@ begin
       FLock.Enter;
       try
         FLog.Add(LogItem);
+        // FIX (§3.12): keep the in-memory history bounded - once we are over
+        // the cap, drop the oldest entries. FLog is an owning list, so
+        // Delete frees the dropped items.
+        while FLog.Count > JD_LOG_MAX_HISTORY do
+          FLog.Delete(0);
       finally
         FLock.Leave;
       end;
@@ -386,10 +497,29 @@ end;
 
 procedure TJDLog.DoOnLog(Item: TJDLogItem);
 var
+  // FIX (§3.13): we take a snapshot copy of the logger list under the lock
+  // and then call the loggers OUTSIDE the lock. Holding the lock while
+  // calling user code (a logger's DoLog/OnLog) could deadlock if that code
+  // tried to register/unregister a logger, and it would stall every other
+  // thread that logs. Note this still can't protect against a logger being
+  // destroyed mid-delivery - destroy loggers only when nothing is logging.
+  Snapshot: TList<TJDLogger>;
   i: Integer;
 begin
-  for i := 0 to FLoggers.Count - 1 do
-    FLoggers[i].HandleLogItem(Item);
+  Snapshot := TList<TJDLogger>.Create;
+  try
+    FLoggersLock.Enter;
+    try
+      for i := 0 to FLoggers.Count - 1 do
+        Snapshot.Add(FLoggers[i]);
+    finally
+      FLoggersLock.Leave;
+    end;
+    for i := 0 to Snapshot.Count - 1 do
+      Snapshot[i].HandleLogItem(Item);
+  finally
+    Snapshot.Free;
+  end;
 end;
 
 function TJDLog.LockLog: TJDLogItemList;
@@ -414,7 +544,17 @@ begin
   Result.Category := ACategory;
   for Tag in ATags do
     Result.Tags.Add(Tag);
-  FLogQueue.PushItem(Result);
+  // FIX (§3.11): PushItem used to block forever when the queue was full, so
+  // one stuck worker thread could freeze any thread that logged - including
+  // the UI thread. Now we wait only JD_LOG_PUSH_TIMEOUT_MS; if there is
+  // still no room, the entry is dropped (and counted) instead of freezing
+  // the caller. The dropped item is freed here, and nil is returned.
+  if FLogQueue.PushItem(Result, JD_LOG_PUSH_TIMEOUT_MS) <> TWaitResult.wrSignaled then
+  begin
+    Result.Free;
+    Result := nil;
+    TInterlocked.Increment(FDroppedCount);
+  end;
 end;
 
 function TJDLog.PostLogCritical(const AMsg: string;
@@ -449,38 +589,80 @@ end;
 
 procedure TJDLog.RegisterLogger(ALogger: TJDLogger);
 begin
-  FLoggers.Add(ALogger);
+  // FIX (§3.13): guard the list - the worker thread iterates it while the
+  // main thread adds/removes loggers (see FLoggersLock).
+  FLoggersLock.Enter;
+  try
+    FLoggers.Add(ALogger);
+  finally
+    FLoggersLock.Leave;
+  end;
 end;
 
 procedure TJDLog.UnregisterLogger(ALogger: TJDLogger);
 var
   I: Integer;
 begin
-  I := FLoggers.IndexOf(ALogger);
-  if I >= 0 then
-    FLoggers.Delete(I);
+  // FIX (§3.13): same lock as RegisterLogger - see FLoggersLock.
+  FLoggersLock.Enter;
+  try
+    I := FLoggers.IndexOf(ALogger);
+    if I >= 0 then
+      FLoggers.Delete(I);
+  finally
+    FLoggersLock.Leave;
+  end;
 end;
 
 procedure TJDLog.FlushLoggers;
 var
+  // FIX (§3.13): same snapshot trick as DoOnLog - copy the list under the
+  // lock, then call the loggers outside it, so user code in DoFlush can
+  // never deadlock against RegisterLogger/UnregisterLogger.
+  Snapshot: TList<TJDLogger>;
   i: Integer;
 begin
-  for i := 0 to FLoggers.Count - 1 do
-    FLoggers[i].DoFlush;
+  Snapshot := TList<TJDLogger>.Create;
+  try
+    FLoggersLock.Enter;
+    try
+      for i := 0 to FLoggers.Count - 1 do
+        Snapshot.Add(FLoggers[i]);
+    finally
+      FLoggersLock.Leave;
+    end;
+    for i := 0 to Snapshot.Count - 1 do
+      Snapshot[i].DoFlush;
+  finally
+    Snapshot.Free;
+  end;
 end;
 
 { TJDLogger }
 
 constructor TJDLogger.Create(AOwner: TComponent);
+var
+  // FIX (§3.13): JDLog() can return nil once the unit has been finalized
+  // (during shutdown), so grab it once and check before using it - calling
+  // RegisterLogger on a nil engine would be an access violation.
+  LLog: TJDLog;
 begin
   inherited Create(AOwner);
   FLogLevels := JD_LOG_DEFAULT_LEVELS;
-  JDLog.RegisterLogger(Self);
+  LLog := JDLog;
+  if Assigned(LLog) then
+    LLog.RegisterLogger(Self);
 end;
 
 destructor TJDLogger.Destroy;
+var
+  // FIX (§3.13): same nil check as the constructor - a logger destroyed after
+  // finalization must not resurrect (or crash on) the logging engine.
+  LLog: TJDLog;
 begin
-  JDLog.UnregisterLogger(Self);
+  LLog := JDLog;
+  if Assigned(LLog) then
+    LLog.UnregisterLogger(Self);
   inherited;
 end;
 
@@ -501,8 +683,47 @@ begin
 end;
 
 procedure TJDLogger.DoLog(Item: TJDLogItem);
+var
+  // FIX (§3.13): used only when SynchronizedEvents is True (see below).
+  LHandler: TJDLogEvent;
+  LSender: TObject;
+  LCopy: TJDLogItem;
 begin
-  if Assigned(FOnLog) then
+  if not Assigned(FOnLog) then
+    Exit;
+  if FSynchronizedEvents then
+  begin
+    // Deliver OnLog on the MAIN thread instead of the logging worker thread,
+    // so the handler may safely touch the UI. Two safety details:
+    // - We queue a COPY of the item, not the engine-owned one: the engine
+    //   may free its item (history cap, shutdown) before the main thread
+    //   gets around to running the queued call, which would leave a dangling
+    //   pointer. The copy is freed right after the handler runs.
+    // - The queued code only passes the logger along as the Sender argument
+    //   and never reads any of its fields. Even so, the logger and the
+    //   handler's owning object (usually a form) must outlive delivery -
+    //   don't free them with queued log events still pending.
+    LHandler := FOnLog;
+    LSender := Self;
+    LCopy := TJDLogItem.Create;
+    LCopy.Level := Item.Level;
+    LCopy.Timestamp := Item.Timestamp;
+    LCopy.Msg := Item.Msg;
+    LCopy.Category := Item.Category;
+    LCopy.Tags.Assign(Item.Tags);
+    TThread.Queue(nil,
+      procedure
+      begin
+        try
+          LHandler(LSender, LCopy);
+        finally
+          LCopy.Free;
+        end;
+      end);
+  end
+  else
+    // Default behaviour (unchanged): OnLog fires right here, on the logging
+    // engine's worker thread. Handlers must NOT touch the UI directly.
     FOnLog(Self, Item);
   // Override to add additional custom handling.
 end;
@@ -616,7 +837,15 @@ begin
     end;
   except
     on E: Exception do
+    begin
+      // FIX (§3.40): if we got part-way through opening (the stream was
+      // created, then the header check failed), the old code re-raised
+      // without freeing the stream - a leaked file handle, and a second
+      // Active := True attempt would trip over the stale stream. Free it
+      // first, then re-raise as before.
+      FreeAndNil(FFileStream);
       raise Exception.Create('Error opening file: ' + E.Message);
+    end;
   end;
 end;
 
@@ -735,7 +964,11 @@ begin
       Item.FromSingleLineString(sLine);
       Result := True;
     except
+      // FIX (§3.40): the old code freed the item but left the caller's var
+      // pointing at the freed object - a dangling pointer. Nil it so the
+      // caller can never use it after the exception.
       Item.Free;
+      Item := nil;
       raise;
     end;
   end
@@ -798,7 +1031,14 @@ end;
 
 initialization
   _JDLog := nil;
+  _JDLogLock := TCriticalSection.Create;
+  _JDLogFinalized := False;
 finalization
+  // Mark finalized BEFORE freeing the engine, so any JDLog() call from here
+  // on returns nil instead of creating a new engine during shutdown (and
+  // never touches the lock after it is freed - see JDLog()).
+  _JDLogFinalized := True;
   FreeAndNil(_JDLog);
+  FreeAndNil(_JDLogLock);
 end.
 

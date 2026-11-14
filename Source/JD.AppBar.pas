@@ -90,7 +90,12 @@ type
     property OnEdgeChange: TEdgeChangeEvent read FOnEdgeChange write FOnEdgeChange;
   end;
 
-  TForm = TAppBar;
+  // FIX (§3.14): this unit used to end with "TForm = TAppBar;", which redefined
+  // TForm for every unit that put JD.AppBar in its uses clause after
+  // Vcl.Forms - any form in those units silently became a TAppBar instead of
+  // a plain TForm. That alias is now deleted: forms that want app-bar
+  // behaviour should inherit from TAppBar explicitly. (Checked: nothing else
+  // in the repo used JD.AppBar, so nothing depended on the alias.)
 
 implementation
 

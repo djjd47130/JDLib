@@ -789,7 +789,10 @@ end;
 
 destructor TJDGaugeTickLabels.Destroy;
 begin
-
+  // FIX (§3.25): FFont was created in the constructor but never freed here,
+  // so every gauge with tick labels leaked a TFont. (FSubCaptionFont in the
+  // same unit IS freed - this one was just missed.)
+  FreeAndNil(FFont);
   inherited;
 end;
 
@@ -799,8 +802,21 @@ begin
 end;
 
 procedure TJDGaugeTickLabels.Assign(Source: TPersistent);
+var
+  V: TJDGaugeTickLabels;
 begin
-  //TODO
+  // FIX (§3.25): Assign used to be a TODO no-op, so assigning tick labels
+  // silently did nothing. It now copies the font and the other published
+  // properties, following the same pattern as the sibling Assign methods in
+  // this unit (TJDGaugeCrosshairs.Assign, TJDGaugePeak.Assign).
+  if Source is TJDGaugeTickLabels then begin
+    V:= TJDGaugeTickLabels(Source);
+    FFont.Assign(V.Font);
+    FOrientation:= V.Orientation;
+    FVisible:= V.Visible;
+    Invalidate;
+  end else
+    inherited;
 end;
 
 procedure TJDGaugeTickLabels.Invalidate;
@@ -936,7 +952,15 @@ end;
 
 procedure TJDGaugePeakDecayThread.SetDelay(const Value: Integer);
 begin
-  FDelay := Value;
+  // FIX (§3.44): a negative delay used to be stored as-is, and Sleep takes a
+  // Cardinal - so -1 became a ~49-day sleep, and DestroyDecayThread's WaitFor
+  // would hang for just as long. Clamp to a sane range instead (0..60 seconds).
+  if Value < 0 then
+    FDelay := 0
+  else if Value > 60000 then
+    FDelay := 60000
+  else
+    FDelay := Value;
 end;
 
 procedure TJDGaugePeakDecayThread.SYNC_OnDecay;
@@ -978,6 +1002,17 @@ end;
 procedure TJDGaugePeak.CreateDecayThread;
 begin
   if Assigned(FDecayThread) then Exit;
+
+  // FIX (§3.44 / §10): don't start a worker thread while the gauge is sitting
+  // on a form in the Delphi IDE at design time - threads (and their
+  // Synchronize calls into the IDE) don't belong there. We walk up to the
+  // owning gauge control through the value item and its collection; if any
+  // link in that chain is missing, we just create the thread as before.
+  // (At run time a fresh gauge is created from the DFM, csDesigning is not
+  // set, and the thread is created normally.)
+  if Assigned(FOwner) and Assigned(FOwner.FOwner) and Assigned(FOwner.FOwner.FOwner) then
+    if csDesigning in FOwner.FOwner.FOwner.ComponentState then
+      Exit;
 
   FDecayThread:= TJDGaugePeakDecayThread.Create;
   FDecayThread.OnDecay:= Self.PeakDecay;
